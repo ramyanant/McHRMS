@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireFlow Pro — HR & ATS Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c1117;--surface:#131920;--s2:#1a2332;--s3:#212d3d;--s4:#283548;
+  --bdr:rgba(255,255,255,.06);--bdr2:rgba(255,255,255,.10);--bdr3:rgba(255,255,255,.18);
+  --blue:#4f91fa;--bdim:rgba(79,145,250,.12);
+  --green:#1ec886;--gdim:rgba(30,200,134,.12);
+  --amber:#f5a623;--adim:rgba(245,166,35,.12);
+  --red:#e85757;--rdim:rgba(232,87,87,.12);
+  --purple:#8b6cf7;--pdim:rgba(139,108,247,.12);
+  --teal:#24c6c6;--tdim:rgba(36,198,198,.12);
+  --pink:#f06292;--pkdim:rgba(240,98,146,.12);
+  --txt:#e2e8f4;--txt2:#7e8fa8;--txt3:#3d4d62;
+  --sw:224px;--hh:54px;
+  --font:-apple-system,'Segoe UI',system-ui,sans-serif;
+  --mono:'SF Mono','Fira Code',monospace;
+  --r:8px;--rl:12px;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5}
+button{font-family:var(--font);cursor:pointer}input,select,textarea{font-family:var(--font)}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-thumb{background:var(--s4);border-radius:3px}
+
+/* Layout */
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:var(--sw);min-width:var(--sw);background:var(--surface);border-right:1px solid var(--bdr);display:flex;flex-direction:column;overflow:hidden}
+.slogo{height:var(--hh);padding:0 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bdr);flex-shrink:0}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--blue),var(--purple));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;flex-shrink:0}
+.logo-name{font-size:14px;font-weight:700;letter-spacing:-.3px;color:var(--txt)}
+.logo-sub{font-size:9px;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-top:-2px}
+.snav{flex:1;overflow-y:auto;padding:8px 0 16px}
+.ng{margin-bottom:2px}
+.ngl{padding:12px 16px 4px;font-size:9px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--txt3)}
+.ni{display:flex;align-items:center;gap:9px;padding:7px 16px;cursor:pointer;color:var(--txt2);font-size:12.5px;border-left:2px solid transparent;transition:all .12s;user-select:none}
+.ni:hover{color:var(--txt);background:var(--s2)}
+.ni.active{color:var(--blue);background:var(--bdim);border-left-color:var(--blue);font-weight:500}
+.ni svg{flex-shrink:0;opacity:.7}.ni.active svg{opacity:1}
+.nbadge{margin-left:auto;background:var(--blue);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;font-family:var(--mono);min-width:18px;text-align:center}
+.sfooter{border-top:1px solid var(--bdr);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:var(--hh);background:var(--surface);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.tb-title{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.tb-sep{color:var(--txt3);margin:0 2px}
+.tb-sub{font-size:12px;color:var(--txt2)}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);pointer-events:none}
+.search-inp{background:var(--s2);border:1px solid var(--bdr2);border-radius:var(--r);padding:6px 10px 6px 32px;font-size:12px;color:var(--txt);width:220px;outline:none;transition:border-color .15s}
+.search-inp:focus{border-color:var(--blue)}
+.search-inp::placeholder{color:var(--txt3)}
+.search-drop{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--s2);border:1px solid var(--bdr3);border-radius:var(--r);z-index:500;display:none;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.search-drop.open{display:block}
+.sr-item{padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bdr)}
+.sr-item:last-child{border-bottom:none}
+.sr-item:hover{background:var(--s3)}
+.sr-type{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;padding:2px 5px;border-radius:4px;background:var(--s4);color:var(--txt3);flex-shrink:0}
+.sr-text .sr-label{font-size:12px;font-weight:500;color:var(--txt)}
+.sr-text .sr-sub{font-size:11px;color:var(--txt2)}
+.page{flex:1;overflow-y:auto;padding:20px}
+.mod{display:none}.mod.active{display:block}
+
+/* Loader */
+#loader{position:fixed;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--purple));z-index:9999;transform:scaleX(0);transform-origin:left;transition:transform .3s ease;pointer-events:none}
+#loader.on{transform:scaleX(1)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:var(--r);font-size:12px;font-weight:500;border:none;transition:all .12s;white-space:nowrap;cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{filter:brightness(1.12)}
+.btn-ghost{background:var(--s2);color:var(--txt2);border:1px solid var(--bdr2)}.btn-ghost:hover{color:var(--txt);background:var(--s3)}
+.btn-success{background:var(--gdim);color:var(--green);border:1px solid rgba(30,200,134,.25)}.btn-success:hover{background:rgba(30,200,134,.2)}
+.btn-danger{background:var(--rdim);color:var(--red);border:1px solid rgba(232,87,87,.25)}.btn-danger:hover{background:rgba(232,87,87,.2)}
+.btn-sm{padding:4px 9px;font-size:11px}.btn-xs{padding:2px 7px;font-size:10px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:14px}
+.card-hd{padding:13px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.card-title{font-size:13px;font-weight:600;color:var(--txt)}
+.card-sub{font-size:11px;color:var(--txt2)}
+.card-body{padding:16px}
+
+/* KPI */
+.kgrid{display:grid;gap:12px;margin-bottom:16px}
+.k4{grid-template-columns:repeat(4,1fr)}.k3{grid-template-columns:repeat(3,1fr)}.k5{grid-template-columns:repeat(5,1fr)}
+.kpi{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:14px 16px;position:relative;overflow:hidden}
+.kpi::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--blue))}
+.kpi-label{font-size:10.5px;color:var(--txt2);margin-bottom:6px;font-weight:500}
+.kpi-value{font-size:24px;font-weight:700;letter-spacing:-1px;font-family:var(--mono);line-height:1;color:var(--txt)}
+.kpi-delta{font-size:10.5px;margin-top:5px;color:var(--txt2)}
+.kpi-up{color:var(--green)}.kpi-dn{color:var(--red)}
+
+/* Grids */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.g32{display:grid;grid-template-columns:3fr 2fr;gap:14px}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3);border-bottom:1px solid var(--bdr);white-space:nowrap;background:var(--surface);position:sticky;top:0}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--bdr);color:var(--txt2);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--s2)}
+.tbold{color:var(--txt)!important;font-weight:500}
+.tmono{font-family:var(--mono);font-size:11.5px}
+.tact{display:flex;gap:5px;align-items:center}
+.tr{text-align:right}
+
+/* Pills */
+.pill{display:inline-flex;align-items:center;padding:2px 7px;border-radius:20px;font-size:10px;font-weight:600;white-space:nowrap}
+.p-blue{background:var(--bdim);color:var(--blue)}.p-green{background:var(--gdim);color:var(--green)}
+.p-amber{background:var(--adim);color:var(--amber)}.p-red{background:var(--rdim);color:var(--red)}
+.p-purple{background:var(--pdim);color:var(--purple)}.p-teal{background:var(--tdim);color:var(--teal)}
+.p-gray{background:var(--s3);color:var(--txt2)}
+
+/* Avatars */
+.av{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.av-lg{width:36px;height:36px;font-size:13px}
+.av-blue{background:var(--bdim);color:var(--blue)}.av-green{background:var(--gdim);color:var(--green)}
+.av-purple{background:var(--pdim);color:var(--purple)}.av-amber{background:var(--adim);color:var(--amber)}
+.av-teal{background:var(--tdim);color:var(--teal)}.av-pink{background:var(--pkdim);color:var(--pink)}
+.avrow{display:flex;align-items:center;gap:9px}
+.av-name{font-size:12.5px;font-weight:500;color:var(--txt)}
+.av-meta{font-size:11px;color:var(--txt2)}
+
+/* Progress */
+.prow{display:flex;align-items:center;gap:8px}
+.ptrack{flex:1;height:5px;background:var(--s3);border-radius:3px;overflow:hidden;min-width:50px}
+.pfill{height:100%;border-radius:3px;transition:width .6s ease}
+.pval{font-size:11px;color:var(--txt2);min-width:28px;text-align:right;font-family:var(--mono)}
+
+/* Stat bars */
+.sbar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sbar-label{font-size:11.5px;color:var(--txt2);min-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sbar-track{flex:1;height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.sbar-fill{height:100%;border-radius:3px;transition:width .8s ease}
+.sbar-val{font-size:11px;color:var(--txt2);min-width:60px;text-align:right;font-family:var(--mono)}
+
+/* Timeline */
+.tl-item{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--bdr)}
+.tl-item:last-child{border-bottom:none}
+.tl-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.tl-title{font-size:12.5px;font-weight:500;color:var(--txt)}
+.tl-meta{font-size:11px;color:var(--txt2);margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:16px;overflow-x:auto}
+.tab{padding:8px 14px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .12s;white-space:nowrap}
+.tab:hover{color:var(--txt)}.tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+
+/* Kanban */
+.kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
+.kcol{min-width:215px;max-width:215px}
+.kcol-hd{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--s2);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--bdr);border-bottom:none}
+.kcol-name{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--txt2)}
+.kcol-cnt{font-size:11px;font-weight:700;background:var(--s4);color:var(--txt2);padding:1px 6px;border-radius:10px;font-family:var(--mono)}
+.kbody{border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--r) var(--r);padding:8px;display:flex;flex-direction:column;gap:7px;min-height:160px;background:var(--surface)}
+.kcard{background:var(--s2);border:1px solid var(--bdr2);border-radius:var(--r);padding:10px;cursor:pointer;transition:all .12s}
+.kcard:hover{border-color:var(--blue);background:var(--s3)}
+.kc-name{font-size:12.5px;font-weight:600;color:var(--txt);margin-bottom:3px}
+.kc-meta{font-size:10.5px;color:var(--txt2);line-height:1.5}
+.kc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+
+/* Forms */
+.fg{margin-bottom:14px}
+.flabel{display:block;font-size:10.5px;font-weight:600;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.finput,.fselect,.ftextarea{width:100%;background:var(--s2);border:1px solid var(--bdr2);border-radius:var(--r);padding:8px 11px;font-size:12.5px;color:var(--txt);outline:none;transition:border-color .15s}
+.finput:focus,.fselect:focus,.ftextarea:focus{border-color:var(--blue)}
+.fselect option{background:var(--s2)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.frow3{grid-template-columns:1fr 1fr 1fr}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:var(--surface);border:1px solid var(--bdr3);border-radius:var(--rl);width:580px;max-width:95vw;max-height:90vh;overflow-y:auto;transform:scale(.96);transition:transform .2s}
+.overlay.open .modal{transform:scale(1)}
+.mhd{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between}
+.m-title{font-size:15px;font-weight:700;color:var(--txt)}
+.mclose{background:none;border:none;color:var(--txt2);font-size:18px;cursor:pointer;padding:2px 6px;border-radius:4px}.mclose:hover{color:var(--txt);background:var(--s2)}
+.mbody{padding:20px}
+.mfoot{padding:14px 20px;border-top:1px solid var(--bdr);display:flex;justify-content:flex-end;gap:8px}
+
+/* Toast */
+#toasts{position:fixed;bottom:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--s2);border:1px solid var(--bdr3);border-radius:var(--r);padding:10px 14px;font-size:12.5px;color:var(--txt);display:flex;align-items:center;gap:8px;animation:tin .25s ease;max-width:320px}
+.t-success{border-left:3px solid var(--green)}.t-error{border-left:3px solid var(--red)}.t-info{border-left:3px solid var(--blue)}
+@keyframes tin{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+/* Skeleton */
+.sk{background:linear-gradient(90deg,var(--s3) 25%,var(--s4) 50%,var(--s3) 75%);background-size:200% 100%;animation:sk 1.4s infinite;border-radius:4px;display:inline-block}
+@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* Hero */
+.hero{background:linear-gradient(135deg,rgba(79,145,250,.06),rgba(139,108,247,.04));border:1px solid var(--bdr2);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px}
+.hero-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.hero-title{font-size:16px;font-weight:700;letter-spacing:-.4px;color:var(--txt)}
+.hero-desc{font-size:11.5px;color:var(--txt2);margin-top:3px;line-height:1.5}
+.hero-actions{margin-left:auto;display:flex;gap:8px;flex-shrink:0}
+
+/* Utils */
+.fb{display:flex;align-items:center;justify-content:space-between}
+.fc{display:flex;align-items:center}
+.gap8{gap:8px}.gap12{gap:12px}
+.tg{color:var(--green)}.tr2{color:var(--red)}.tam{color:var(--amber)}.t2{color:var(--txt2)}
+.fw7{font-weight:700}
+.divider{border:none;border-top:1px solid var(--bdr);margin:12px 0}
+.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
+.mt8{margin-top:8px}
+.empty{text-align:center;padding:48px 24px}
+.empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-title{font-size:14px;font-weight:600;color:var(--txt);margin-bottom:6px}
+.empty-sub{font-size:12px;color:var(--txt2)}
+</style>
+</head>
+<body>
+
+<div id="loader"></div>
+
+<div class="app">
+<!-- ─── SIDEBAR ─────────────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="slogo">
+    <div class="logo-mark">H</div>
+    <div><div class="logo-name">HireFlow Pro</div><div class="logo-sub">HR &amp; ATS Platform</div></div>
+  </div>
+  <nav class="snav">
+    <div class="ng">
+      <div class="ngl">Overview</div>
+      <div class="ni active" data-mod="dashboard" onclick="nav('dashboard')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Dashboard</div>
+    </div>
+    <div class="ng">
+      <div class="ngl">Organization</div>
+      <div class="ni" data-mod="org" onclick="nav('org')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Organization</div>
+      <div class="ni" data-mod="clients" onclick="nav('clients')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Clients</div>
+      <div class="ni" data-mod="vendors" onclick="nav('vendors')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>Vendors</div>
+    </div>
+    <div class="ng">
+      <div class="ngl">People</div>
+      <div class="ni" data-mod="employees" onclick="nav('employees')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Employees</div>
+      <div class="ni" data-mod="timesheets" onclick="nav('timesheets')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>Timesheets</div>
+      <div class="ni" data-mod="payroll" onclick="nav('payroll')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Payroll</div>
+    </div>
+    <div class="ng">
+      <div class="ngl">Talent Acquisition</div>
+      <div class="ni" data-mod="jobs" onclick="nav('jobs')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>Job Requisitions<span class="nbadge" id="bdg-jobs">–</span></div>
+      <div class="ni" data-mod="sourcing" onclick="nav('sourcing')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Sourcing</div>
+      <div class="ni" data-mod="pipeline" onclick="nav('pipeline')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>ATS Pipeline<span class="nbadge" id="bdg-pipeline">–</span></div>
+      <div class="ni" data-mod="interviews" onclick="nav('interviews')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Interviews</div>
+      <div class="ni" data-mod="onboarding" onclick="nav('onboarding')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg>Onboarding</div>
+    </div>
+    <div class="ng">
+      <div class="ngl">Finance</div>
+      <div class="ni" data-mod="invoices" onclick="nav('invoices')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Invoices &amp; Billing</div>
+    </div>
+    <div class="ng">
+      <div class="ngl">Analytics</div>
+      <div class="ni" data-mod="reports" onclick="nav('reports')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports</div>
+    </div>
+  </nav>
+  <div class="sfooter">
+    <div class="av av-lg av-purple">SK</div>
+    <div><div class="av-name">Sanjay Kumar</div><div class="av-meta">HR Director</div></div>
+  </div>
+</aside>
+
+<!-- ─── MAIN ─────────────────────────────────────────────── -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <span class="tb-title" id="tb-title">Dashboard</span>
+      <span class="tb-sep">·</span>
+      <span class="tb-sub" id="tb-sub">Executive Overview</span>
+    </div>
+    <div class="tb-right">
+      <div class="search-wrap">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="search-inp" id="gsearch" type="text" placeholder="Search everything…" autocomplete="off" oninput="doSearch(this.value)">
+        <div class="search-drop" id="sdrop"></div>
+      </div>
+      <button class="btn btn-primary" onclick="handleAdd()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span id="add-label">Add New</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="page" id="page">
+
+    <!-- ══ DASHBOARD ══════════════════════════════════════ -->
+    <div id="mod-dashboard" class="mod active">
+      <div class="kgrid k4" id="dash-kpis">
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Active Employees</div><div class="kpi-value sk" style="width:60px">&nbsp;</div></div>
+        <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Open Requisitions</div><div class="kpi-value sk" style="width:40px">&nbsp;</div></div>
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Revenue (MTD)</div><div class="kpi-value sk" style="width:80px">&nbsp;</div></div>
+        <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">Pending Invoices</div><div class="kpi-value sk" style="width:80px">&nbsp;</div></div>
+      </div>
+      <div class="g21 mb16">
+        <div class="card"><div class="card-hd"><div class="card-title">Revenue &amp; Collections Trend</div><span class="card-sub">Last 6 months · Live from DB</span></div><div class="card-body"><div style="height:200px"><canvas id="ch-rev"></canvas></div></div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Live Activity</div><span class="pill p-green">● DB</span></div><div class="card-body" style="padding:8px 14px" id="dash-activity"><div class="sk" style="height:12px;width:90%;margin-bottom:10px">&nbsp;</div><div class="sk" style="height:12px;width:75%;margin-bottom:10px">&nbsp;</div><div class="sk" style="height:12px;width:85%">&nbsp;</div></div></div>
+      </div>
+      <div class="g3 mb16">
+        <div class="card"><div class="card-hd"><div class="card-title">Recruitment Funnel</div></div><div class="card-body" id="dash-funnel">Loading…</div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Top Recruiters</div><span class="card-sub">By hires</span></div><div class="card-body" id="dash-recruiters">Loading…</div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Client Revenue</div><span class="card-sub">MTD</span></div><div class="card-body" id="dash-clientrev">Loading…</div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Urgent Requisitions</div><button class="btn btn-ghost btn-sm" onclick="nav('jobs')">View All →</button></div><div class="tbl-wrap" id="dash-reqs">Loading…</div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Payroll Summary</div><span class="card-sub">This month</span></div><div class="tbl-wrap" id="dash-payroll">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ ORGANIZATION ════════════════════════════════════ -->
+    <div id="mod-org" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--pdim)">🏢</div><div><div class="hero-title">Organization</div><div class="hero-desc">Departments, business units, and office locations — all database-driven.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-dept')">+ Add Department</button></div></div>
+      <div class="kgrid k3" id="org-kpis">
+        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Departments</div><div class="kpi-value sk" style="width:30px">&nbsp;</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Office Locations</div><div class="kpi-value sk" style="width:30px">&nbsp;</div></div>
+        <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Business Units</div><div class="kpi-value sk" style="width:30px">&nbsp;</div></div>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Departments</div><span class="card-sub" id="dept-count"></span></div><div class="tbl-wrap" id="dept-tbl">Loading…</div></div>
+        <div>
+          <div class="card mb12"><div class="card-hd"><div class="card-title">Business Units</div></div><div class="card-body" id="bu-list" style="padding:10px 12px">Loading…</div></div>
+          <div class="card"><div class="card-hd"><div class="card-title">Office Locations</div></div><div class="tbl-wrap" id="office-tbl">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ CLIENTS ═══════════════════════════════════════════ -->
+    <div id="mod-clients" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--bdim)">🤝</div><div><div class="hero-title">Clients</div><div class="hero-desc">Account management, contracts, billing rates, and relationship health scores.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-client')">+ Add Client</button></div></div>
+      <div class="kgrid k4" id="client-kpis"></div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Client Directory</div>
+          <div class="fc gap8">
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="cl-status" onchange="loadClients()"><option value="">All Statuses</option><option>Active</option><option>At Risk</option></select>
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="cl-industry" onchange="loadClients()"><option value="">All Industries</option><option>Technology</option><option>Finance</option><option>Healthcare</option><option>Retail</option><option>Manufacturing</option></select>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="client-tbl">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ══ VENDORS ═══════════════════════════════════════════ -->
+    <div id="mod-vendors" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--adim)">📦</div><div><div class="hero-title">Vendors</div><div class="hero-desc">Sub-vendors, job boards, background check providers, and technology partners.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-vendor')">+ Add Vendor</button></div></div>
+      <div class="kgrid k4" id="vendor-kpis"></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Vendor Registry</div></div><div class="tbl-wrap" id="vendor-tbl">Loading…</div></div>
+    </div>
+
+    <!-- ══ EMPLOYEES ══════════════════════════════════════════ -->
+    <div id="mod-employees" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--gdim)">👥</div><div><div class="hero-title">Employees</div><div class="hero-desc">Full employee directory with profiles, departments, compensation, and status tracking.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-emp')">+ Add Employee</button></div></div>
+      <div class="kgrid k4" id="emp-kpis"></div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Employee Directory</div>
+          <div class="fc gap8">
+            <input type="text" class="finput" style="width:170px;padding:5px 9px;font-size:11px" placeholder="Search name, ID, title…" oninput="loadEmployees(this.value)">
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="emp-type" onchange="loadEmployees()"><option value="">All Types</option><option>Full-Time</option><option>Contractor</option></select>
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="emp-status" onchange="loadEmployees()"><option value="">All Statuses</option><option>Active</option><option>Onboarding</option><option>Terminated</option></select>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="emp-tbl">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ══ TIMESHEETS ════════════════════════════════════════ -->
+    <div id="mod-timesheets" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--tdim)">⏱️</div><div><div class="hero-title">Timesheets</div><div class="hero-desc">Track billable hours, multi-level approvals, OT alerts, and revenue estimation.</div></div><div class="hero-actions"><button class="btn btn-success btn-sm" onclick="approveAll()">✓ Approve All Pending</button></div></div>
+      <div class="kgrid k4" id="ts-kpis"></div>
+      <div class="tabs">
+        <div class="tab active" onclick="loadTimesheets('Pending',this)">Pending Approval</div>
+        <div class="tab" onclick="loadTimesheets('Approved',this)">Approved</div>
+        <div class="tab" onclick="loadTimesheets('',this)">All Timesheets</div>
+      </div>
+      <div class="card"><div class="card-hd"><div class="card-title" id="ts-title">Pending Timesheets</div></div><div class="tbl-wrap" id="ts-tbl">Loading…</div></div>
+    </div>
+
+    <!-- ══ PAYROLL ════════════════════════════════════════════ -->
+    <div id="mod-payroll" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--gdim)">💰</div><div><div class="hero-title">Payroll</div><div class="hero-desc">Payroll processing, schedules, and compliance reporting computed from live employee data.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="toast('Payroll run initiated…','info')">▶ Run Payroll</button></div></div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Cost of Labor Breakdown</div><span class="card-sub">Computed from DB</span></div><div class="tbl-wrap" id="pr-breakdown">Loading…</div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Payroll Schedule</div></div><div class="tbl-wrap" id="pr-schedule">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ JOBS ══════════════════════════════════════════════ -->
+    <div id="mod-jobs" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--adim)">📋</div><div><div class="hero-title">Job Requisitions</div><div class="hero-desc">Open positions, recruiter assignments, hiring targets, and applicant counts — live from DB.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-job')">+ Create Requisition</button></div></div>
+      <div class="kgrid k4" id="jobs-kpis"></div>
+      <div class="card">
+        <div class="card-hd">
+          <div class="card-title">Active Requisitions</div>
+          <div class="fc gap8">
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="req-pri" onchange="loadJobs()"><option value="">All Priorities</option><option>High</option><option>Medium</option><option>Normal</option></select>
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="req-status" onchange="loadJobs()"><option value="Active">Active</option><option value="">All</option><option value="Closed">Closed</option></select>
+          </div>
+        </div>
+        <div class="tbl-wrap" id="jobs-tbl">Loading…</div>
+      </div>
+    </div>
+
+    <!-- ══ SOURCING ═══════════════════════════════════════════ -->
+    <div id="mod-sourcing" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--bdim)">🔍</div><div><div class="hero-title">Sourcing</div><div class="hero-desc">Multi-channel talent sourcing metrics — volume, quality, cost-per-hire, and hire rate by source.</div></div></div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Source Volume</div><span class="card-sub">Candidates by channel</span></div><div class="card-body"><div style="height:240px"><canvas id="ch-source"></canvas></div></div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Source Quality</div><span class="card-sub">Hire rate by channel</span></div><div class="card-body" id="src-quality">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ PIPELINE ═══════════════════════════════════════════ -->
+    <div id="mod-pipeline" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--adim)">🎯</div><div><div class="hero-title">ATS Pipeline</div><div class="hero-desc">Live Kanban view of every candidate across all stages — click any card to view full profile.</div></div>
+        <div class="hero-actions">
+          <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="pipe-req" onchange="loadPipeline()"><option value="">All Requisitions</option></select>
+          <button class="btn btn-primary btn-sm" onclick="openModal('add-cand')">+ Add Candidate</button>
+        </div>
+      </div>
+      <div class="kgrid k4" id="pipe-kpis"></div>
+      <div class="kanban" id="kanban">Loading pipeline…</div>
+    </div>
+
+    <!-- ══ INTERVIEWS ══════════════════════════════════════════ -->
+    <div id="mod-interviews" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--bdim)">🎙️</div><div><div class="hero-title">Interviews</div><div class="hero-desc">Schedule interviews, coordinate availability, track scorecards and decisions.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('sched-int')">+ Schedule Interview</button></div></div>
+      <div class="kgrid k4" id="int-kpis"></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Interview Schedule</div></div><div class="tbl-wrap" id="int-tbl">Loading…</div></div>
+    </div>
+
+    <!-- ══ ONBOARDING ══════════════════════════════════════════ -->
+    <div id="mod-onboarding" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--gdim)">🚀</div><div><div class="hero-title">Onboarding</div><div class="hero-desc">Structured workflows — documents, equipment, system access, and 30/60/90-day milestones.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('start-onb')">+ Start Onboarding</button></div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Active Onboardees</div></div><div class="tbl-wrap" id="onb-tbl">Loading…</div></div>
+    </div>
+
+    <!-- ══ INVOICES ════════════════════════════════════════════ -->
+    <div id="mod-invoices" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:var(--rdim)">🧾</div><div><div class="hero-title">Invoices &amp; Billing</div><div class="hero-desc">Generate client invoices, track AR aging, mark payments, and escalate overdue accounts.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('create-inv')">+ Create Invoice</button></div></div>
+      <div class="kgrid k4" id="inv-kpis"></div>
+      <div class="g21">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-title">Invoice Register</div>
+            <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="inv-status" onchange="loadInvoices()"><option value="">All Statuses</option><option>Sent</option><option>Paid</option><option>Overdue</option><option>Draft</option></select>
+          </div>
+          <div class="tbl-wrap" id="inv-tbl">Loading…</div>
+        </div>
+        <div>
+          <div class="card mb12"><div class="card-hd"><div class="card-title">AR Aging</div></div><div class="card-body" id="ar-aging">Loading…</div></div>
+          <div class="card"><div class="card-hd"><div class="card-title">Activity</div></div><div class="card-body" style="padding:8px 14px" id="inv-activity">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ REPORTS ══════════════════════════════════════════════ -->
+    <div id="mod-reports" class="mod">
+      <div class="hero"><div class="hero-icon" style="background:rgba(139,146,165,.15)">📊</div><div><div class="hero-title">Reports &amp; Analytics</div><div class="hero-desc">All data queried live from SQLite database — real numbers, real time.</div></div></div>
+      <div class="tabs">
+        <div class="tab active" onclick="showRpt('financial',this)">Financial</div>
+        <div class="tab" onclick="showRpt('recruiter',this)">Recruiter Performance</div>
+        <div class="tab" onclick="showRpt('applicants',this)">Applicant Metrics</div>
+        <div class="tab" onclick="showRpt('clients',this)">Client Analytics</div>
+        <div class="tab" onclick="showRpt('vendors',this)">Vendor SLAs</div>
+        <div class="tab" onclick="showRpt('workforce',this)">Workforce</div>
+      </div>
+      <div id="rpt-content">Loading…</div>
+    </div>
+
+  </div><!-- /page -->
+</main>
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="mhd"><div class="m-title" id="m-title">Add</div><button class="mclose" onclick="closeModal()">✕</button></div>
+    <div class="mbody" id="m-body"></div>
+    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="m-submit" onclick="submitModal()">Save</button></div>
+  </div>
+</div>
+<div id="toasts"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CORE HELPERS
+// ═══════════════════════════════════════════════════════
+const API = '';
+let _charts = {};
+let _curMod = 'dashboard';
+let _curModalType = null;
+let _lookups = {};
+
+// API fetch
+async function apiFetch(url, opts={}) {
+  document.getElementById('loader').classList.add('on');
+  try {
+    const r = await fetch(API + url, { headers:{'Content-Type':'application/json'}, ...opts });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.message || 'API error');
+    return d.data;
+  } catch(e) {
+    toast(e.message || 'Network error', 'error');
+    throw e;
+  } finally {
+    document.getElementById('loader').classList.remove('on');
+  }
+}
+
+// Formatting
+const $ = id => document.getElementById(id);
+const fmt = {
+  money: v => v==null ? '–' : '$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}),
+  moneyK: v => { if(v==null) return '–'; if(v>=1000000) return '$'+(v/1000000).toFixed(1)+'M'; if(v>=1000) return '$'+Math.round(v/1000)+'K'; return '$'+Math.round(v); },
+  num: v => v==null ? '–' : Number(v).toLocaleString(),
+  pct: v => v==null ? '–' : v+'%',
+  date: v => v ? new Date(v+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '–',
+  dt: v => v ? new Date(v).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '–',
+  ini: n => n ? n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?',
+  avCol: n => ['av-blue','av-green','av-purple','av-amber','av-teal','av-pink'][(n||'').charCodeAt(0)%6],
+};
+
+const pillMap = {Active:'p-green',Approved:'p-green',Paid:'p-green',Compliant:'p-green',Healthy:'p-green',Placed:'p-green','Offer Accepted':'p-green',Advance:'p-green',
+  Pending:'p-amber',Processing:'p-amber',Upcoming:'p-amber',Watch:'p-amber','Due Soon':'p-amber',Onboarding:'p-teal','In Progress':'p-blue',Screening:'p-blue',
+  High:'p-red','At Risk':'p-red',Overdue:'p-red',Breach:'p-red',Rejected:'p-red','No Show':'p-red',
+  Medium:'p-amber',Normal:'p-gray',Draft:'p-gray',Scheduled:'p-gray','Not Started':'p-gray',Technical:'p-purple',Offer:'p-amber',
+  'Staff Augmentation':'p-blue','Direct Hire':'p-purple','MSA':'p-teal','MSA + SOW':'p-purple','Sub-Vendor':'p-amber','Job Board':'p-blue','Background Check':'p-purple',Technology:'p-teal',
+  FTE:'p-blue',Contractor:'p-amber',Returned:'p-gray','SLA Breach':'p-red',New:'p-blue',Submitted:'p-green',
+};
+function pill(t,def='p-gray') { return `<span class="pill ${pillMap[t]||def}">${t||'–'}</span>`; }
+function av(name,extra='') { return `<div class="avrow"><div class="av ${fmt.avCol(name)} ${extra}">${fmt.ini(name)}</div><div><div class="av-name">${name||'–'}</div></div></div>`; }
+function avFull(name, sub='', extra='') { return `<div class="avrow"><div class="av ${fmt.avCol(name)} ${extra}">${fmt.ini(name)}</div><div><div class="av-name">${name||'–'}</div><div class="av-meta">${sub}</div></div></div>`; }
+
+function toast(msg, type='info') {
+  const c=$('toasts'), t=document.createElement('div');
+  t.className=`toast t-${type}`;
+  const ico={success:'✓',error:'✕',info:'ℹ'};
+  t.innerHTML=`<span>${ico[type]||'ℹ'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+
+function setHtml(id, html) { const e=$(id); if(e) e.innerHTML=html; }
+
+function emptyState(icon, title, sub='') {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`;
+}
+
+function chartDefaults() {
+  return {
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a2332',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e2e8f4',bodyColor:'#7e8fa8',padding:10}},
+    scales:{x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d4d62',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#3d4d62',font:{size:10}}}}
+  };
+}
+
+function destroyChart(id) { if(_charts[id]){_charts[id].destroy();delete _charts[id];} }
+
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+const modCfg = {
+  dashboard:  {title:'Dashboard',         sub:'Executive Overview · Live Data',      add:null},
+  org:        {title:'Organization',       sub:'Departments & Structure',             add:'add-dept'},
+  clients:    {title:'Clients',            sub:'Account Management',                  add:'add-client'},
+  vendors:    {title:'Vendors',            sub:'Vendor Registry',                     add:'add-vendor'},
+  employees:  {title:'Employees',          sub:'Employee Directory',                  add:'add-emp'},
+  timesheets: {title:'Timesheets',         sub:'Hours & Approvals',                   add:null},
+  payroll:    {title:'Payroll',            sub:'Processing & Compliance',             add:null},
+  jobs:       {title:'Job Requisitions',   sub:'Open Positions',                      add:'add-job'},
+  sourcing:   {title:'Sourcing',           sub:'Talent Sourcing Analytics',           add:null},
+  pipeline:   {title:'ATS Pipeline',       sub:'Candidate Tracking',                 add:'add-cand'},
+  interviews: {title:'Interviews',         sub:'Schedule & Scorecards',              add:'sched-int'},
+  onboarding: {title:'Onboarding',         sub:'New Hire Workflows',                  add:'start-onb'},
+  invoices:   {title:'Invoices & Billing', sub:'AR & Collections',                   add:'create-inv'},
+  reports:    {title:'Reports',            sub:'Live Analytics from Database',        add:null},
+};
+
+function nav(id) {
+  document.querySelectorAll('.mod').forEach(m=>m.classList.remove('active'));
+  const mod=$('mod-'+id); if(mod) mod.classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.mod===id));
+  const cfg=modCfg[id]||{};
+  setHtml('tb-title', cfg.title||id);
+  setHtml('tb-sub', cfg.sub||'');
+  $('add-label').textContent = '+ Add';
+  _curMod = id;
+  loadMod(id);
+}
+
+function handleAdd() {
+  const cfg = modCfg[_curMod];
+  if(cfg?.add) openModal(cfg.add);
+  else toast('No add action for this module','info');
+}
+
+async function loadMod(id) {
+  const map = {
+    dashboard: loadDashboard, org: loadOrg, clients: loadClients,
+    vendors: loadVendors, employees: loadEmployees,
+    timesheets: () => { loadTsKpis(); loadTimesheets('Pending'); },
+    payroll: loadPayroll, jobs: loadJobs, sourcing: loadSourcing,
+    pipeline: loadPipeline, interviews: loadInterviews,
+    onboarding: loadOnboarding, invoices: loadInvoices,
+    reports: () => loadReport('financial'),
+  };
+  if(map[id]) map[id]();
+}
+
+// ═══════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════
+async function loadDashboard() {
+  try {
+    const d = await apiFetch('/api/dashboard');
+    const k = d.kpis;
+
+    setHtml('dash-kpis', `
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Active Employees</div><div class="kpi-value">${fmt.num(k.active_employees)}</div><div class="kpi-delta">All locations · Live</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Open Requisitions</div><div class="kpi-value">${fmt.num(k.open_requisitions)}</div><div class="kpi-delta kpi-up">▲ Active positions</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Revenue (MTD)</div><div class="kpi-value">${fmt.moneyK(k.revenue_mtd)}</div><div class="kpi-delta kpi-up">▲ Total invoiced</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">Pending Invoices</div><div class="kpi-value">${fmt.moneyK(k.pending_invoices)}</div><div class="kpi-delta kpi-dn">▼ Awaiting collection</div></div>`);
+
+    $('bdg-jobs').textContent = k.open_requisitions;
+    const total = Object.values(d.funnel||{}).reduce((a,b)=>a+b,0);
+    $('bdg-pipeline').textContent = total;
+
+    // Revenue chart
+    destroyChart('rev');
+    const ctx = $('ch-rev');
+    if(ctx && d.revenue_trend?.length) {
+      _charts.rev = new Chart(ctx, {
+        type:'bar',
+        data:{
+          labels: d.revenue_trend.map(t=>t.label||t.month),
+          datasets:[
+            {label:'Revenue',data:d.revenue_trend.map(t=>Math.round(t.revenue/1000)),backgroundColor:'rgba(79,145,250,.45)',borderColor:'#4f91fa',borderWidth:1,borderRadius:4},
+            {label:'Collected',data:d.revenue_trend.map(t=>Math.round((t.collected||0)/1000)),type:'line',borderColor:'#1ec886',backgroundColor:'transparent',tension:.4,pointRadius:3,borderWidth:2}
+          ]
+        },
+        options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:'#7e8fa8',font:{size:11},boxWidth:10}}},scales:{...chartDefaults().scales,y:{...chartDefaults().scales.y,ticks:{...chartDefaults().scales.y.ticks,callback:v=>'$'+v+'K'}}}}
+      });
+    }
+
+    // Activity feed
+    setHtml('dash-activity', `<div>${(d.activity||[]).slice(0,7).map(a=>`
+      <div class="tl-item">
+        <div class="tl-dot" style="background:var(--blue)"></div>
+        <div><div class="tl-title">${a.description}</div><div class="tl-meta">${a.user_name} · ${fmt.dt(a.created_at)}</div></div>
+      </div>`).join('')}</div>`);
+
+    // Funnel
+    const stages = ['Applied','Screening','Technical','Offer','Placed'];
+    const maxF = Math.max(...stages.map(s=>d.funnel[s]||0),1);
+    setHtml('dash-funnel', stages.map(s=>{
+      const v=d.funnel[s]||0;
+      return `<div class="sbar"><div class="sbar-label">${s}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round(v/maxF*100)}%;background:var(--blue)"></div></div><div class="sbar-val">${v}</div></div>`;
+    }).join('') + `<hr class="divider"><div class="fb"><span class="t2" style="font-size:11px">Total pipeline</span><span style="font-weight:700;font-family:var(--mono)">${total}</span></div>`);
+
+    // Recruiters
+    const maxR = Math.max(...(d.top_recruiters||[]).map(r=>r.hires),1);
+    setHtml('dash-recruiters', (d.top_recruiters||[]).length
+      ? (d.top_recruiters||[]).map(r=>`<div class="sbar"><div class="sbar-label">${r.name}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round(r.hires/maxR*100)}%;background:var(--green)"></div></div><div class="sbar-val">${r.hires} hires</div></div>`).join('')
+      : emptyState('🎯','No placements yet'));
+
+    // Client revenue
+    const maxC = Math.max(...(d.client_revenue||[]).map(c=>c.revenue),1);
+    setHtml('dash-clientrev', (d.client_revenue||[]).map(c=>
+      `<div class="sbar"><div class="sbar-label">${c.name}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round(c.revenue/maxC*100)}%;background:var(--blue)"></div></div><div class="sbar-val">${fmt.moneyK(c.revenue)}</div></div>`
+    ).join('') + `<hr class="divider"><div class="fb"><span class="t2" style="font-size:11px">Total MTD</span><span style="color:var(--green);font-weight:700;font-family:var(--mono)">${fmt.moneyK(k.revenue_mtd)}</span></div>`);
+
+    // Urgent reqs
+    setHtml('dash-reqs', `<table><thead><tr><th>Role</th><th>Client</th><th>Days Open</th><th>Priority</th></tr></thead><tbody>${
+      (d.urgent_requisitions||[]).map(r=>`<tr><td class="tbold" style="cursor:pointer" onclick="nav('jobs')">${r.title}</td><td>${r.client}</td><td class="tmono" style="${r.days_open>20?'color:var(--red)':''}">${r.days_open}d</td><td>${pill(r.priority)}</td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--txt2);padding:20px">No urgent reqs</td></tr>'
+    }</tbody></table>`);
+
+    // Payroll summary
+    const p = await apiFetch('/api/payroll/summary');
+    setHtml('dash-payroll', `<table><thead><tr><th>Component</th><th class="tr">Amount</th></tr></thead><tbody>
+      <tr><td class="tbold">Base Salaries</td><td class="tmono tr">${fmt.money(p.base_salaries)}</td></tr>
+      <tr><td class="tbold">Contractor Payments</td><td class="tmono tr">${fmt.money(p.contractor_payments)}</td></tr>
+      <tr><td class="tbold">Overtime Pay</td><td class="tmono tr">${fmt.money(p.overtime)}</td></tr>
+      <tr><td class="tbold">Benefits (Employer)</td><td class="tmono tr">${fmt.money(p.benefits)}</td></tr>
+      <tr><td class="tbold">Employer Taxes</td><td class="tmono tr">${fmt.money(p.taxes)}</td></tr>
+      <tr style="border-top:1px solid var(--bdr3)"><td class="tbold" style="font-size:13px">Total Cost of Labor</td><td class="tmono tr tg fw7" style="font-size:13px">${fmt.money(p.total)}</td></tr>
+    </tbody></table>`);
+
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// ORGANIZATION
+// ═══════════════════════════════════════════════════════
+async function loadOrg() {
+  try {
+    const [summary, depts, bus, offices] = await Promise.all([
+      apiFetch('/api/org/summary'), apiFetch('/api/departments'),
+      apiFetch('/api/business-units'), apiFetch('/api/offices')
+    ]);
+    setHtml('org-kpis', `
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Departments</div><div class="kpi-value">${summary.departments}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Office Locations</div><div class="kpi-value">${summary.offices}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Business Units</div><div class="kpi-value">${summary.business_units}</div></div>`);
+
+    $('dept-count').textContent = depts.length + ' departments';
+    setHtml('dept-tbl', `<table><thead><tr><th>Department</th><th>Head</th><th>Headcount</th><th>Budget</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      depts.map(d=>`<tr>
+        <td class="tbold">${d.name}</td><td>${d.head_name||'–'}</td>
+        <td class="tmono">${d.headcount||0}</td><td class="tmono">${fmt.moneyK(d.budget)}</td>
+        <td>${pill(d.status||'Active')}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="deleteDept(${d.id},'${d.name.replace(/'/g,'\\\'')}')" style="color:var(--red)">Remove</button></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+
+    setHtml('bu-list', bus.map(b=>`
+      <div style="background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;margin-bottom:8px">
+        <div class="fb"><div class="tbold">${b.name}</div><span class="pill p-blue">${b.headcount||0} staff</span></div>
+        <div style="font-size:11px;color:var(--txt2);margin-top:3px">${b.description||''}</div>
+      </div>`).join(''));
+
+    setHtml('office-tbl', `<table><thead><tr><th>Location</th><th>Type</th><th>Country</th><th>Staff</th></tr></thead><tbody>${
+      offices.map(o=>`<tr><td class="tbold">${o.name}</td><td>${o.type}</td><td>${o.country}</td><td class="tmono">${o.headcount}</td></tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+async function deleteDept(id, name) {
+  if(!confirm(`Remove department "${name}"?`)) return;
+  await apiFetch(`/api/departments/${id}`, {method:'DELETE'});
+  toast(`"${name}" removed`, 'success');
+  loadOrg();
+}
+
+// ═══════════════════════════════════════════════════════
+// CLIENTS
+// ═══════════════════════════════════════════════════════
+async function loadClients() {
+  const status = $('cl-status')?.value||'';
+  const industry = $('cl-industry')?.value||'';
+  try {
+    const rows = await apiFetch('/api/clients');
+    const filtered = rows.filter(c =>
+      (!status || c.status===status) &&
+      (!industry || c.industry===industry)
+    );
+    const revMtd = rows.reduce((s,c)=>s+(c.revenue_mtd||0),0);
+    setHtml('client-kpis', `
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Clients</div><div class="kpi-value">${rows.length}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active</div><div class="kpi-value">${rows.filter(c=>c.status==='Active').length}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(revMtd)}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">At Risk</div><div class="kpi-value">${rows.filter(c=>c.status==='At Risk').length}</div></div>`);
+
+    setHtml('client-tbl', filtered.length===0 ? emptyState('🤝','No clients found') :
+      `<table><thead><tr><th>Company</th><th>Industry</th><th>Contract</th><th>Open Reqs</th><th>Placements</th><th>Revenue MTD</th><th>Health</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      filtered.map(c=>`<tr>
+        <td>${avFull(c.name,c.primary_contact||'')}</td>
+        <td>${c.industry||'–'}</td><td>${pill(c.contract_type)}</td>
+        <td class="tmono">${c.open_reqs||0}</td><td class="tmono">${c.placements||0}</td>
+        <td class="tmono tg">${fmt.moneyK(c.revenue_mtd)}</td>
+        <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
+        <td>${pill(c.status)}</td>
+        <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="openModal('create-inv')">Invoice</button></div></td>
+      </tr>`).join('')}</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+function editClient(id) { toast('Opening client editor…','info'); }
+
+// ═══════════════════════════════════════════════════════
+// VENDORS
+// ═══════════════════════════════════════════════════════
+async function loadVendors() {
+  try {
+    const rows = await apiFetch('/api/vendors');
+    const avgSla = rows.length ? Math.round(rows.reduce((s,v)=>s+v.sla_score,0)/rows.length) : 0;
+    const spend = rows.reduce((s,v)=>s+(v.spend_mtd||0),0);
+    setHtml('vendor-kpis', `
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Active Vendors</div><div class="kpi-value">${rows.length}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Avg SLA Score</div><div class="kpi-value">${avgSla}%</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Spend MTD</div><div class="kpi-value">${fmt.moneyK(spend)}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">SLA Breaches</div><div class="kpi-value">${rows.filter(v=>v.sla_score<80).length}</div></div>`);
+
+    setHtml('vendor-tbl', `<table><thead><tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Contract End</th><th>Spend MTD</th><th>SLA Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(v=>{
+        const st = v.sla_score>=90?'var(--green)':v.sla_score>=80?'var(--amber)':'var(--red)';
+        const statusLabel = v.sla_score>=80?'Active':v.sla_score>=70?'Watch':'SLA Breach';
+        return `<tr>
+          <td class="tbold">${v.name}</td><td>${pill(v.category,'p-blue')}</td>
+          <td>${v.primary_contact||'–'}</td><td class="tmono">${fmt.date(v.contract_end)}</td>
+          <td class="tmono">${fmt.moneyK(v.spend_mtd)}</td>
+          <td style="font-weight:600;color:${st};font-family:var(--mono)">${v.sla_score}%</td>
+          <td>${pill(statusLabel)}</td>
+          <td><div class="tact">${v.sla_score<80?`<button class="btn btn-danger btn-xs" onclick="toast('Escalation sent!','success')">Escalate</button>`:`<button class="btn btn-ghost btn-xs">View</button>`}</div></td>
+        </tr>`;
+      }).join('')}</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// EMPLOYEES
+// ═══════════════════════════════════════════════════════
+async function loadEmployees(q='') {
+  const type = $('emp-type')?.value||'';
+  const status = $('emp-status')?.value||'';
+  try {
+    let url = '/api/employees?';
+    if(q) url+=`q=${encodeURIComponent(q)}&`;
+    if(type) url+=`employment_type=${encodeURIComponent(type)}&`;
+    if(status) url+=`status=${encodeURIComponent(status)}&`;
+    const rows = await apiFetch(url);
+    const fte = rows.filter(e=>e.employment_type==='Full-Time').length;
+    const contr = rows.filter(e=>e.employment_type==='Contractor').length;
+    const onb = rows.filter(e=>e.status==='Onboarding').length;
+    setHtml('emp-kpis',`
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Total Headcount</div><div class="kpi-value">${rows.length}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Full-Time</div><div class="kpi-value">${fte}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contractors</div><div class="kpi-value">${contr}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Onboarding</div><div class="kpi-value">${onb}</div></div>`);
+
+    setHtml('emp-tbl', rows.length===0 ? emptyState('👤','No employees found','Try adjusting your filters') :
+      `<table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Location</th><th>Type</th><th>Manager</th><th>Client</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(e=>`<tr>
+        <td>${avFull(e.first_name+' '+e.last_name, e.emp_id)}</td>
+        <td>${e.job_title||'–'}</td><td>${e.department_name||'–'}</td>
+        <td>${e.location||'–'}</td>
+        <td>${pill(e.employment_type==='Full-Time'?'FTE':e.employment_type)}</td>
+        <td>${e.manager_name||'–'}</td>
+        <td>${e.client_name ? `<span class="pill p-teal">${e.client_name}</span>` : '–'}</td>
+        <td>${pill(e.status)}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="toast('Opening profile…','info')">Profile</button>
+          ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="terminateEmp(${e.id},'${(e.first_name+' '+e.last_name).replace(/'/g,'\\\'')}')" style="font-size:9px;padding:2px 5px">Term.</button>`:''}
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+async function terminateEmp(id, name) {
+  if(!confirm(`Terminate "${name}"? This will set their status to Terminated.`)) return;
+  await apiFetch(`/api/employees/${id}`, {method:'DELETE'});
+  toast(`${name} terminated`, 'success');
+  loadEmployees();
+}
+
+// ═══════════════════════════════════════════════════════
+// TIMESHEETS
+// ═══════════════════════════════════════════════════════
+async function loadTsKpis() {
+  try {
+    const d = await apiFetch('/api/timesheets/summary');
+    setHtml('ts-kpis',`
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Total Hours (WTD)</div><div class="kpi-value">${fmt.num(d.total_hours)}</div><div class="kpi-delta">Week ending Apr 25</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Billable Hours</div><div class="kpi-value">${fmt.num(d.billable_hours)}</div><div class="kpi-delta kpi-up">${d.utilization}% utilization</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Pending Approval</div><div class="kpi-value">${d.pending_approval}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">OT Alerts</div><div class="kpi-value">${d.ot_alerts}</div></div>`);
+  } catch(e) {}
+}
+
+async function loadTimesheets(status='Pending', el) {
+  if(el) { el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+  $('ts-title').textContent = status ? `${status} Timesheets` : 'All Timesheets';
+  try {
+    const rows = await apiFetch('/api/timesheets'+(status?`?status=${status}`:''));
+    setHtml('ts-tbl', rows.length===0 ? emptyState('⏱️','No timesheets found') :
+      `<table><thead><tr><th>Employee</th><th>Client / Project</th><th>Week Ending</th><th>Reg Hrs</th><th>OT Hrs</th><th>Total</th><th>Rate</th><th>Est. Revenue</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(t=>`<tr>
+        <td>${avFull(t.employee_name,t.emp_id||'')}</td>
+        <td style="font-size:11.5px">${t.client_name||'Internal'} / ${t.project||'–'}</td>
+        <td class="tmono">${fmt.date(t.week_ending)}</td>
+        <td class="tmono">${t.regular_hours}</td>
+        <td class="tmono" style="${t.overtime_hours>0?'color:var(--amber)':''}">${t.overtime_hours}</td>
+        <td class="tmono fw7" style="color:var(--txt)">${t.total_hours}</td>
+        <td class="tmono">$${t.bill_rate}/hr</td>
+        <td class="tmono tg">${fmt.money(t.estimated_revenue)}</td>
+        <td>${pill(t.status)}</td>
+        <td><div class="tact">
+          ${t.status==='Pending'?`<button class="btn btn-success btn-xs" onclick="approveTs(${t.id})">✓ Approve</button><button class="btn btn-ghost btn-xs" onclick="returnTs(${t.id})">Return</button>`:''}
+          ${t.status==='Approved'?'<span style="font-size:11px;color:var(--green)">✓ Done</span>':''}
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+async function approveTs(id) {
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
+  toast('Timesheet approved!','success');
+  loadTimesheets('Pending'); loadTsKpis();
+}
+async function returnTs(id) {
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Returned',notes:'Returned for revision'})});
+  toast('Timesheet returned for revision','info');
+  loadTimesheets('Pending'); loadTsKpis();
+}
+async function approveAll() {
+  const rows = await apiFetch('/api/timesheets?status=Pending');
+  await Promise.all(rows.map(t=>apiFetch(`/api/timesheets/${t.id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})})));
+  toast(`${rows.length} timesheets approved!`,'success');
+  loadTimesheets('Pending'); loadTsKpis();
+}
+
+// ═══════════════════════════════════════════════════════
+// PAYROLL
+// ═══════════════════════════════════════════════════════
+async function loadPayroll() {
+  try {
+    const [summary, runs] = await Promise.all([apiFetch('/api/payroll/summary'), apiFetch('/api/payroll')]);
+    const total = summary.total||1;
+    setHtml('pr-breakdown',`<table><thead><tr><th>Component</th><th class="tr">Amount</th><th class="tr">% of Total</th></tr></thead><tbody>
+      <tr><td class="tbold">Base Salaries</td><td class="tmono tr">${fmt.money(summary.base_salaries)}</td><td class="tr">${Math.round(summary.base_salaries/total*100)}%</td></tr>
+      <tr><td class="tbold">Contractor Payments</td><td class="tmono tr">${fmt.money(summary.contractor_payments)}</td><td class="tr">${Math.round(summary.contractor_payments/total*100)}%</td></tr>
+      <tr><td class="tbold">Overtime Pay</td><td class="tmono tr">${fmt.money(summary.overtime)}</td><td class="tr">${Math.round(summary.overtime/total*100)}%</td></tr>
+      <tr><td class="tbold">Benefits (Employer)</td><td class="tmono tr">${fmt.money(summary.benefits)}</td><td class="tr">${Math.round(summary.benefits/total*100)}%</td></tr>
+      <tr><td class="tbold">Employer Taxes</td><td class="tmono tr">${fmt.money(summary.taxes)}</td><td class="tr">${Math.round(summary.taxes/total*100)}%</td></tr>
+      <tr style="border-top:1px solid var(--bdr3)"><td class="tbold" style="font-size:13px">Total Cost of Labor</td><td class="tmono tr tg fw7" style="font-size:13px">${fmt.money(total)}</td><td></td></tr>
+    </tbody></table>`);
+
+    setHtml('pr-schedule',`<table><thead><tr><th>Run Date</th><th>Type</th><th>Employees</th><th>Gross</th><th>Net</th><th>Status</th></tr></thead><tbody>${
+      runs.map(r=>`<tr><td>${fmt.date(r.run_date)}</td><td style="font-size:11px">${r.run_type}</td><td class="tmono">${r.employee_count}</td><td class="tmono">${fmt.moneyK(r.gross_amount)}</td><td class="tmono">${fmt.moneyK(r.net_amount)}</td><td>${pill(r.status)}</td></tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// JOB REQUISITIONS
+// ═══════════════════════════════════════════════════════
+async function loadJobs() {
+  const pri = $('req-pri')?.value||'';
+  const status = $('req-status')?.value||'Active';
+  try {
+    let url = '/api/requisitions?';
+    if(status) url+=`status=${status}&`;
+    if(pri) url+=`priority=${pri}&`;
+    const rows = await apiFetch(url);
+    const high = rows.filter(r=>r.priority==='High').length;
+    const apps = rows.reduce((s,r)=>s+(r.applicant_count||0),0);
+    setHtml('jobs-kpis',`
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Showing</div><div class="kpi-value">${rows.length}</div><div class="kpi-delta">Requisitions</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">High Priority</div><div class="kpi-value">${high}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Applicants</div><div class="kpi-value">${apps}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">In Pipeline</div><div class="kpi-value">${rows.reduce((s,r)=>s+(r.in_pipeline||0),0)}</div></div>`);
+
+    setHtml('jobs-tbl', rows.length===0 ? emptyState('📋','No requisitions found') :
+      `<table><thead><tr><th>Job Title</th><th>Client</th><th>Type</th><th>Recruiter</th><th>Applicants</th><th>In Pipeline</th><th>Days Open</th><th>Comp Range</th><th>Priority</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(r=>`<tr>
+        <td class="tbold" style="cursor:pointer" onclick="nav('pipeline')">${r.title}</td>
+        <td>${r.client_name||'–'}</td><td>${pill(r.engagement_type)}</td>
+        <td>${r.recruiter_name||'–'}</td>
+        <td class="tmono">${r.applicant_count||0}</td>
+        <td class="tmono">${r.in_pipeline||0}</td>
+        <td class="tmono" style="${r.days_open>20?'color:var(--red)':''}">${r.days_open}d</td>
+        <td class="tmono" style="font-size:11px">${r.comp_min?'$'+Math.round(r.comp_min/1000)+'K–$'+Math.round(r.comp_max/1000)+'K':'–'}</td>
+        <td>${pill(r.priority)}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="nav('pipeline')">View Pipeline</button>
+          <button class="btn btn-danger btn-xs" onclick="closeReq(${r.id})">Close</button>
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+async function closeReq(id) {
+  if(!confirm('Close this requisition?')) return;
+  await apiFetch(`/api/requisitions/${id}`,{method:'DELETE'});
+  toast('Requisition closed','success');
+  loadJobs();
+}
+
+// ═══════════════════════════════════════════════════════
+// SOURCING
+// ═══════════════════════════════════════════════════════
+async function loadSourcing() {
+  try {
+    const rows = await apiFetch('/api/sourcing/stats');
+    destroyChart('src');
+    const ctx = $('ch-source');
+    if(ctx && rows.length) {
+      _charts.src = new Chart(ctx, {
+        type:'doughnut',
+        data:{labels:rows.map(r=>r.source),datasets:[{data:rows.map(r=>r.total),backgroundColor:['#4f91fa','#1ec886','#e85757','#f5a623','#8b6cf7','#24c6c6','#f06292'],borderWidth:0}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#7e8fa8',boxWidth:10,font:{size:11}}},tooltip:{backgroundColor:'#1a2332',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e2e8f4',bodyColor:'#7e8fa8'}}}
+      });
+    }
+    const maxQ = Math.max(...rows.map(r=>r.hire_rate||0),1);
+    setHtml('src-quality', rows.map(r=>`<div class="sbar">
+      <div class="sbar-label">${r.source}</div>
+      <div class="sbar-track"><div class="sbar-fill" style="width:${Math.round((r.hire_rate||0)/maxQ*100)}%;background:var(--green)"></div></div>
+      <div class="sbar-val">${r.hired||0} hired · ${r.hire_rate||0}%</div>
+    </div>`).join(''));
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// PIPELINE
+// ═══════════════════════════════════════════════════════
+async function loadPipeline() {
+  try {
+    const reqs = await apiFetch('/api/requisitions?status=Active');
+    const sel = $('pipe-req');
+    if(sel && sel.options.length<2) {
+      reqs.forEach(r=>{ const o=document.createElement('option'); o.value=r.id; o.textContent=`${r.title} · ${r.client_name}`; sel.appendChild(o); });
+    }
+    const reqId = sel?.value||'';
+    const data = await apiFetch('/api/pipeline'+(reqId?`?requisition_id=${reqId}`:''));
+
+    setHtml('pipe-kpis',`
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total in Pipeline</div><div class="kpi-value">${data.total}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">In Technical</div><div class="kpi-value">${data.counts.Technical||0}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Offers Made</div><div class="kpi-value">${data.counts.Offer||0}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Placed</div><div class="kpi-value">${data.counts.Placed||0}</div></div>`);
+
+    const stages=['Applied','Screening','Technical','Offer','Placed'];
+    const stageColors={Applied:'var(--txt3)',Screening:'var(--blue)',Technical:'var(--purple)',Offer:'var(--amber)',Placed:'var(--green)'};
+    setHtml('kanban', stages.map(stage=>{
+      const cards = data.by_stage[stage]||[];
+      return `<div class="kcol">
+        <div class="kcol-hd" style="border-top:2px solid ${stageColors[stage]}">
+          <span class="kcol-name">${stage}</span><span class="kcol-cnt">${cards.length}</span>
+        </div>
+        <div class="kbody">${cards.length===0
+          ? '<div style="font-size:11px;color:var(--txt3);text-align:center;padding:12px">Empty</div>'
+          : cards.map(c=>`<div class="kcard" onclick="toast('${(c.candidate_name||'Candidate').replace(/'/g,'\\\'')} — ${c.role||''}','info')">
+              <div class="kc-name">${c.candidate_name||'–'}</div>
+              <div class="kc-meta">${c.current_title||'–'}<br>${c.years_exp||0} YOE · ${c.location||'–'}</div>
+              ${c.role?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${c.role}${c.client?' · '+c.client:''}</div>`:''}
+              <div class="kc-tags">${(c.skills||'').split(',').slice(0,2).filter(Boolean).map(s=>`<span class="pill p-blue">${s.trim()}</span>`).join('')}<span class="pill p-gray">${c.source||'–'}</span></div>
+            </div>`).join('')
+        }</div>
+      </div>`;
+    }).join(''));
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// INTERVIEWS
+// ═══════════════════════════════════════════════════════
+async function loadInterviews() {
+  try {
+    const [rows, summary] = await Promise.all([apiFetch('/api/interviews'), apiFetch('/api/interviews/summary')]);
+    setHtml('int-kpis',`
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Scheduled This Week</div><div class="kpi-value">${summary.scheduled_this_week||0}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Awaiting Feedback</div><div class="kpi-value">${summary.awaiting_feedback||0}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">Overdue Feedback</div><div class="kpi-value">${summary.overdue_feedback||0}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Pass Rate</div><div class="kpi-value">44%</div><div class="kpi-delta">Industry avg 38%</div></div>`);
+
+    setHtml('int-tbl', rows.length===0 ? emptyState('🎙️','No interviews scheduled') :
+      `<table><thead><tr><th>Candidate</th><th>Role</th><th>Round</th><th>Format</th><th>Interviewer(s)</th><th>Scheduled</th><th>Scorecard</th><th>Decision</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(i=>`<tr>
+        <td>${av(i.candidate_name)}</td>
+        <td style="font-size:11.5px">${i.role||'–'}</td>
+        <td style="font-size:11.5px">${i.round}</td>
+        <td>${pill(i.format,'p-blue')}</td>
+        <td style="font-size:11px;color:var(--txt2)">${i.interviewer||'–'}</td>
+        <td class="tmono" style="font-size:11px">${i.scheduled_at?fmt.dt(i.scheduled_at):'–'}</td>
+        <td>${pill(i.scorecard_status||'Not Started')}</td>
+        <td>${i.decision?pill(i.decision,'p-green'):'<span style="color:var(--txt3)">–</span>'}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="toast('Opening scorecard…','info')">Scorecard</button></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════
+async function loadOnboarding() {
+  try {
+    const rows = await apiFetch('/api/onboarding');
+    setHtml('onb-tbl', rows.length===0 ? emptyState('🚀','No active onboardees') :
+      `<table><thead><tr><th>Employee</th><th>Role</th><th>Client</th><th>Start Date</th><th>Progress</th><th>30-Day</th><th>60-Day</th><th>90-Day</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(o=>`<tr>
+        <td>${avFull(o.employee_name,o.emp_id||'')}</td>
+        <td style="font-size:11.5px">${o.job_title||'–'}</td>
+        <td>${o.client_name?`<span class="pill p-teal">${o.client_name}</span>`:'Internal'}</td>
+        <td class="tmono">${fmt.date(o.start_date)}</td>
+        <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${o.progress_pct||0}%;background:${(o.progress_pct||0)>75?'var(--green)':(o.progress_pct||0)>40?'var(--amber)':'var(--blue)'}"></div></div><span class="pval">${o.progress_pct||0}%</span></div></td>
+        <td>${pill(o.day30_status||'Pending')}</td>
+        <td>${pill(o.day60_status||'Pending')}</td>
+        <td>${pill(o.day90_status||'Pending')}</td>
+        <td>${pill(o.status)}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="toast('Opening checklist…','info')">Checklist</button></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+  } catch(e) { console.error(e); }
+}
+
+// ═══════════════════════════════════════════════════════
+// INVOICES
+// ═══════════════════════════════════════════════════════
+async function loadInvoices() {
+  const status = $('inv-status')?.value||'';
+  try {
+    const [summary, rows, activity] = await Promise.all([
+      apiFetch('/api/invoices/summary'),
+      apiFetch('/api/invoices'+(status?`?status=${status}`:'')),
+      apiFetch('/api/activity?limit=8')
+    ]);
+    setHtml('inv-kpis',`
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Invoiced MTD</div><div class="kpi-value">${fmt.moneyK(summary.total_invoiced)}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Collected</div><div class="kpi-value">${fmt.moneyK(summary.paid)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Outstanding</div><div class="kpi-value">${fmt.moneyK(summary.outstanding)}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">Overdue</div><div class="kpi-value">${fmt.moneyK(summary.overdue)}</div></div>`);
+
+    setHtml('inv-tbl', rows.length===0 ? emptyState('🧾','No invoices found') :
+      `<table><thead><tr><th>Invoice #</th><th>Client</th><th>Type</th><th>Period</th><th>Amount</th><th>Due Date</th><th>Days OD</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(i=>`<tr>
+        <td class="tbold tmono">${i.invoice_number}</td>
+        <td>${i.client_name||'–'}</td>
+        <td>${pill(i.invoice_type)}</td>
+        <td style="font-size:11px;color:var(--txt2)">${i.period_start?fmt.date(i.period_start)+' – '+fmt.date(i.period_end):'–'}</td>
+        <td class="tmono" style="${i.status==='Overdue'?'color:var(--red)':i.status==='Paid'?'color:var(--green)':''}">${fmt.money(i.amount)}</td>
+        <td class="tmono">${fmt.date(i.due_date)}</td>
+        <td class="tmono" style="${(i.days_overdue||0)>0?'color:var(--red)':'color:var(--txt3)'}">${(i.days_overdue||0)>0?i.days_overdue+'d OD':i.status==='Paid'?'–':'–'}</td>
+        <td>${pill(i.status)}</td>
+        <td><div class="tact">
+          ${i.status!=='Paid'?`<button class="btn btn-success btn-xs" onclick="markPaid(${i.id},'${i.invoice_number}')">✓ Paid</button>`:''}
+          ${i.status==='Overdue'?`<button class="btn btn-danger btn-xs" onclick="toast('Escalation sent to GloboCorp!','success')">Escalate</button>`:`<button class="btn btn-ghost btn-xs" onclick="toast('Opening ${i.invoice_number}…','info')">View</button>`}
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>`);
+
+    const aging = summary.ar_aging||{};
+    const maxA = Math.max(aging.current||0,aging.d30_60||0,aging.d60_90||0,aging.d90_plus||0,1);
+    setHtml('ar-aging', [
+      ['Current (0–30d)', aging.current||0, 'var(--green)'],
+      ['31–60 days', aging.d30_60||0, 'var(--amber)'],
+      ['61–90 days', aging.d60_90||0, 'var(--red)'],
+      ['90+ days', aging.d90_plus||0, 'var(--red)'],
+    ].map(([label,val,color])=>`<div class="sbar"><div class="sbar-label">${label}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round(val/maxA*100)}%;background:${color}"></div></div><div class="sbar-val">${fmt.moneyK(val)}</div></div>`).join('')
+    + `<hr class="divider"><div class="fb"><span class="t2" style="font-size:11px">Total Outstanding</span><span class="fw7 tmono">${fmt.moneyK(summary.outstanding)}</span></div>`);
+
+    const invActivity = (activity||[]).filter(a=>a.entity_type==='invoices').slice(0,5);
+    setHtml('inv-activity', invActivity.length ? invActivity.map(a=>`<div class="tl-item"><div class="tl-dot" style="background:var(--blue)"></div><div><div class="tl-title">${a.description}</div><div class="tl-meta">${a.user_name} · ${fmt.dt(a.created_at)}</div></div></div>`).join('') : '<div style="color:var(--txt2);font-size:12px;padding:4px">No recent invoice activity</div>');
+  } catch(e) { console.error(e); }
+}
+
+async function markPaid(id, num) {
+  await apiFetch(`/api/invoices/${id}`,{method:'PUT',body:JSON.stringify({status:'Paid',paid_date:new Date().toISOString().split('T')[0]})});
+  toast(`Invoice ${num} marked as paid! 💰`,'success');
+  loadInvoices();
+}
+
+// ═══════════════════════════════════════════════════════
+// REPORTS
+// ═══════════════════════════════════════════════════════
+async function showRpt(type, el) {
+  if(el){ el.closest('.tabs').querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); }
+  Object.values(_charts).forEach(c=>{if(c.destroy)c.destroy();}); _charts={};
+  await loadReport(type);
+}
+
+async function loadReport(type) {
+  setHtml('rpt-content','<div style="padding:40px;text-align:center;color:var(--txt2)">Loading report from database…</div>');
+  try {
+    const data = await apiFetch(`/api/reports/${type}`);
+    const renders = {financial:rptFinancial,recruiter:rptRecruiter,applicants:rptApplicants,clients:rptClients,vendors:rptVendors,workforce:rptWorkforce};
+    if(renders[type]) renders[type](data);
+  } catch(e) { setHtml('rpt-content',emptyState('📊','Failed to load report')); }
+}
+
+function rptFinancial(data) {
+  setHtml('rpt-content',`
+    <div class="kgrid k4 mb16">
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(data.revenue_mtd)}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Gross Margin</div><div class="kpi-value">${data.gross_margin||0}%</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Payroll MTD</div><div class="kpi-value">${fmt.moneyK(data.payroll_mtd)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Collection Rate</div><div class="kpi-value">84%</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-hd"><div class="card-title">Revenue vs Collected (Monthly)</div></div><div class="card-body"><div style="height:240px"><canvas id="rch-rev"></canvas></div></div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Revenue by Client</div></div><div class="card-body"><div style="height:240px"><canvas id="rch-cli"></canvas></div></div></div>
+    </div>
+    <div class="card"><div class="card-hd"><div class="card-title">Monthly Revenue Detail</div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Month</th><th class="tr">Revenue</th><th class="tr">Collected</th><th class="tr">Collection Rate</th></tr></thead><tbody>${
+      (data.trend||[]).map(t=>`<tr><td class="tbold">${t.label}</td><td class="tmono tr tg">${fmt.money(t.revenue)}</td><td class="tmono tr">${fmt.money(t.collected)}</td><td class="tmono tr">${t.revenue?Math.round((t.collected||0)/t.revenue*100)+'%':'–'}</td></tr>`).join('')
+    }</tbody></table></div></div>`);
+
+  setTimeout(()=>{
+    const c1=$('rch-rev');
+    if(c1&&data.trend?.length){_charts.rrev=new Chart(c1,{type:'bar',data:{labels:data.trend.map(t=>t.label),datasets:[{label:'Revenue',data:data.trend.map(t=>Math.round(t.revenue/1000)),backgroundColor:'rgba(79,145,250,.45)',borderColor:'#4f91fa',borderRadius:4,borderWidth:1},{label:'Collected',data:data.trend.map(t=>Math.round((t.collected||0)/1000)),type:'line',borderColor:'#1ec886',backgroundColor:'transparent',tension:.4,pointRadius:4,borderWidth:2}]},options:{...chartDefaults(),plugins:{...chartDefaults().plugins,legend:{display:true,labels:{color:'#7e8fa8',font:{size:11},boxWidth:10}}},scales:{...chartDefaults().scales,y:{...chartDefaults().scales.y,ticks:{...chartDefaults().scales.y.ticks,callback:v=>'$'+v+'K'}}}}});}
+    const c2=$('rch-cli');
+    if(c2&&data.client_revenue?.length){_charts.rcli=new Chart(c2,{type:'doughnut',data:{labels:data.client_revenue.map(c=>c.name),datasets:[{data:data.client_revenue.map(c=>c.revenue),backgroundColor:['#4f91fa','#8b6cf7','#f5a623','#24c6c6','#1ec886','#7e8fa8','#e85757','#f06292'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#7e8fa8',boxWidth:10,font:{size:11}}},tooltip:{backgroundColor:'#1a2332',borderColor:'rgba(255,255,255,.1)',borderWidth:1,titleColor:'#e2e8f4',bodyColor:'#7e8fa8',callbacks:{label:c=>`${c.label}: ${fmt.moneyK(c.raw)}`}}}}});}
+  },50);
+}
+
+function rptRecruiter(data) {
+  const max = Math.max(...(data||[]).map(r=>r.hires||0),1);
+  setHtml('rpt-content',`<div class="card"><div class="card-hd"><div class="card-title">Recruiter Leaderboard</div><span class="card-sub">Computed from live applications data</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>#</th><th>Recruiter</th><th>Applications</th><th>Interviews</th><th>Hires</th><th>Avg TTF</th><th>Performance</th></tr></thead><tbody>${
+    (data||[]).map((r,i)=>`<tr>
+      <td class="tmono" style="color:var(--amber);font-weight:700">${i+1}</td>
+      <td>${avFull(r.name,'Recruiter')}</td>
+      <td class="tmono">${r.total_apps||0}</td><td class="tmono">${r.interviews||0}</td>
+      <td class="tmono tg fw7">${r.hires||0}</td>
+      <td class="tmono">${r.avg_ttf||'–'}d</td>
+      <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${Math.round((r.hires||0)/max*100)}%;background:var(--green)"></div></div><span class="pval">${r.hires||0}</span></div></td>
+    </tr>`).join('')||'<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--txt2)">No recruiter data yet</td></tr>'
+  }</tbody></table></div></div>`);
+}
+
+function rptApplicants(data) {
+  setHtml('rpt-content',`<div class="g2">
+    <div class="card"><div class="card-hd"><div class="card-title">Funnel by Recruiter</div></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Recruiter</th><th>Applied</th><th>Screened</th><th>Interviewed</th><th>Offered</th><th>Hired</th><th>Conv%</th></tr></thead><tbody>${
+      (data.by_recruiter||[]).map(r=>`<tr>
+        <td class="tbold">${r.recruiter||'Unassigned'}</td>
+        <td class="tmono">${r.total||0}</td><td class="tmono">${r.screened||0}</td>
+        <td class="tmono">${r.interviewed||0}</td><td class="tmono">${r.offered||0}</td>
+        <td class="tmono tg fw7">${r.hired||0}</td>
+        <td class="tmono">${r.total?Math.round((r.hired||0)/r.total*100)+'%':'–'}</td>
+      </tr>`).join('')
+    }</tbody></table></div></div>
+    <div class="card"><div class="card-hd"><div class="card-title">Hire Rate by Source</div></div>
+    <div class="card-body">${(data.by_source||[]).map(s=>{const max=Math.max(...(data.by_source||[]).map(x=>x.hire_rate||0),1);return`<div class="sbar"><div class="sbar-label">${s.source}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round((s.hire_rate||0)/max*100)}%;background:var(--green)"></div></div><div class="sbar-val">${s.hired||0} hired · ${s.hire_rate||0}%</div></div>`;}).join('')}</div>
+    </div></div>`);
+}
+
+function rptClients(data) {
+  setHtml('rpt-content',`<div class="card"><div class="card-hd"><div class="card-title">Client Performance Matrix</div><span class="card-sub">Live from database</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Client</th><th>Industry</th><th class="tr">Revenue MTD</th><th class="tr">Total Revenue</th><th>Placements</th><th>Open Reqs</th><th>Health</th><th>Status</th></tr></thead><tbody>${
+    (data||[]).map(c=>`<tr>
+      <td>${av(c.name)}</td><td>${c.industry||'–'}</td>
+      <td class="tmono tr tg">${fmt.moneyK(c.revenue_mtd)}</td>
+      <td class="tmono tr">${fmt.moneyK(c.total_revenue)}</td>
+      <td class="tmono">${c.active_placements||0}</td>
+      <td class="tmono">${c.open_reqs||0}</td>
+      <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score||0}%;background:${(c.health_score||0)>70?'var(--green)':'var(--red)'}"></div></div><span class="pval">${c.health_score||0}</span></div></td>
+      <td>${pill(c.status)}</td>
+    </tr>`).join('')
+  }</tbody></table></div></div>`);
+}
+
+function rptVendors(data) {
+  setHtml('rpt-content',`<div class="card"><div class="card-hd"><div class="card-title">Vendor SLA Compliance</div><span class="card-sub">Live from database</span></div>
+    <div class="tbl-wrap"><table><thead><tr><th>Vendor</th><th>Category</th><th>SLA Description</th><th>Spend MTD</th><th>SLA Score</th><th>Compliance</th></tr></thead><tbody>${
+    (data||[]).map(v=>`<tr>
+      <td class="tbold">${v.name}</td><td>${pill(v.category,'p-blue')}</td>
+      <td style="font-size:11px;color:var(--txt2)">${v.sla_description||'–'}</td>
+      <td class="tmono">${fmt.moneyK(v.spend_mtd)}</td>
+      <td style="font-weight:600;color:${v.sla_score>=90?'var(--green)':v.sla_score>=80?'var(--amber)':'var(--red)'};font-family:var(--mono)">${v.sla_score}%</td>
+      <td>${pill(v.compliance_status)}</td>
+    </tr>`).join('')
+  }</tbody></table></div></div>`);
+}
+
+function rptWorkforce(data) {
+  const maxH = Math.max(...(data.by_department||[]).map(d=>d.headcount||0),1);
+  setHtml('rpt-content',`
+    <div class="kgrid k4 mb16">
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Total Headcount</div><div class="kpi-value">${data.totals?.total||0}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Full-Time</div><div class="kpi-value">${data.totals?.fte||0}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contractors</div><div class="kpi-value">${data.totals?.contractors||0}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Onboarding</div><div class="kpi-value">${data.totals?.onboarding||0}</div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-hd"><div class="card-title">Headcount by Department</div></div><div class="card-body">${
+        (data.by_department||[]).map(d=>`<div class="sbar"><div class="sbar-label">${d.name}</div><div class="sbar-track"><div class="sbar-fill" style="width:${Math.round((d.headcount||0)/maxH*100)}%;background:var(--blue)"></div></div><div class="sbar-val">${d.headcount||0} (${d.fte||0} FTE + ${d.contractors||0} CTR)</div></div>`).join('')
+      }</div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Department Table</div></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Department</th><th>Total</th><th>FTE</th><th>Contractors</th></tr></thead><tbody>${
+        (data.by_department||[]).map(d=>`<tr><td class="tbold">${d.name}</td><td class="tmono fw7">${d.headcount||0}</td><td class="tmono">${d.fte||0}</td><td class="tmono">${d.contractors||0}</td></tr>`).join('')
+      }</tbody></table></div></div>
+    </div>`);
+}
+
+// ═══════════════════════════════════════════════════════
+// GLOBAL SEARCH
+// ═══════════════════════════════════════════════════════
+let _searchTimeout;
+async function doSearch(q) {
+  clearTimeout(_searchTimeout);
+  const drop = $('sdrop');
+  if(!q || q.length < 2) { drop.classList.remove('open'); return; }
+  _searchTimeout = setTimeout(async()=>{
+    try {
+      const results = await apiFetch(`/api/search?q=${encodeURIComponent(q)}`);
+      if(!results.length) { drop.innerHTML='<div style="padding:12px;color:var(--txt2);font-size:12px">No results found</div>'; drop.classList.add('open'); return; }
+      const typeNav = {employee:'employees',client:'clients',candidate:'pipeline',requisition:'jobs'};
+      drop.innerHTML = results.map(r=>`
+        <div class="sr-item" onclick="nav('${typeNav[r.type]||r.type}');$('sdrop').classList.remove('open');$('gsearch').value=''">
+          <span class="sr-type">${r.type}</span>
+          <div class="sr-text"><div class="sr-label">${r.label}</div><div class="sr-sub">${r.sub||''}</div></div>
+        </div>`).join('');
+      drop.classList.add('open');
+    } catch(e) {}
+  }, 300);
+}
+
+document.addEventListener('click', e=>{ if(!e.target.closest('.search-wrap')) $('sdrop').classList.remove('open'); });
+
+// ═══════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════
+const modalDefs = {
+  'add-client': {
+    title: 'Add New Client',
+    submit: 'Create Client',
+    endpoint: '/api/clients',
+    method: 'POST',
+    fields: () => `
+      <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required placeholder="Acme Corporation"></div><div class="fg"><label class="flabel">Industry</label><select class="fselect" name="industry"><option>Technology</option><option>Finance</option><option>Healthcare</option><option>Retail</option><option>Manufacturing</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type"><option>Staff Augmentation</option><option>MSA + SOW</option><option>Direct Hire</option><option>Retained Search</option></select></div><div class="fg"><label class="flabel">Billing Rate / Fee</label><input class="finput" name="billing_rate" placeholder="$145/hr or 18%"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" placeholder="Jane Smith"></div><div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email" placeholder="jane@acme.com"></div></div>
+      <div class="fg"><label class="flabel">Address</label><input class="finput" name="address" placeholder="123 Main St, New York, NY 10001"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms"><option>Net 30</option><option>Net 15</option><option>Net 45</option><option>Net 60</option></select></div><div class="fg"><label class="flabel">Account Manager</label><input class="finput" name="account_manager" placeholder="Aisha Kumar"></div></div>`,
+    afterSave: loadClients
+  },
+  'add-vendor': {
+    title: 'Add Vendor',
+    submit: 'Add Vendor',
+    endpoint: '/api/vendors',
+    method: 'POST',
+    fields: () => `
+      <div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required placeholder="Sterling BGC"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Category</label><select class="fselect" name="category"><option>Job Board</option><option>Sub-Vendor</option><option>Background Check</option><option>Technology</option><option>Legal</option></select></div><div class="fg"><label class="flabel">Contract End Date</label><input class="finput" type="date" name="contract_end"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" placeholder="Jane Smith"></div><div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email" placeholder="jane@vendor.com"></div></div>
+      <div class="fg"><label class="flabel">SLA Description</label><textarea class="finput ftextarea" name="sla_description" placeholder="e.g. Background checks completed within 72 hours…"></textarea></div>`,
+    afterSave: loadVendors
+  },
+  'add-emp': {
+    title: 'Add Employee / Contractor',
+    submit: 'Create Profile',
+    endpoint: '/api/employees',
+    method: 'POST',
+    fields: () => `
+      <div class="frow"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Jane"></div><div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Smith"></div></div>
+      <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane.smith@company.com"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" placeholder="Software Engineer"></div><div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type"><option>Full-Time</option><option>Contractor</option><option>Part-Time</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Location</label><select class="fselect" name="location"><option>New York (HQ)</option><option>San Francisco</option><option>Austin</option><option>Remote</option><option>London</option><option>Hyderabad</option></select></div><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Annual Salary ($)</label><input class="finput" type="number" name="salary" placeholder="120000"></div><div class="fg"><label class="flabel">Bill Rate ($/hr, if contractor)</label><input class="finput" type="number" name="bill_rate" placeholder="95"></div></div>`,
+    afterSave: loadEmployees
+  },
+  'add-job': {
+    title: 'Create Job Requisition',
+    submit: 'Create Requisition',
+    endpoint: '/api/requisitions',
+    method: 'POST',
+    fields: () => `
+      <div class="fg"><label class="flabel">Job Title *</label><input class="finput" name="title" required placeholder="Senior Software Engineer"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Client *</label><select class="fselect" name="client_id" id="mf-client"><option value="">Loading clients…</option></select></div><div class="fg"><label class="flabel">Engagement Type</label><select class="fselect" name="engagement_type"><option>Staff Augmentation</option><option>Direct Hire</option><option>Retained Search</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority"><option>High</option><option>Medium</option><option>Normal</option></select></div><div class="fg"><label class="flabel">Recruiter</label><select class="fselect" name="recruiter_id" id="mf-rec"><option value="">Loading…</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Comp Min ($)</label><input class="finput" type="number" name="comp_min" placeholder="130000"></div><div class="fg"><label class="flabel">Comp Max ($)</label><input class="finput" type="number" name="comp_max" placeholder="160000"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Remote / New York, NY"></div><div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start"></div></div>
+      <div class="fg"><label class="flabel">Job Description</label><textarea class="finput ftextarea" name="description" placeholder="Key responsibilities, requirements…"></textarea></div>`,
+    afterSave: loadJobs,
+    afterRender: async () => {
+      const [clients, emps] = await Promise.all([apiFetch('/api/lookup/clients'), apiFetch('/api/lookup/employees')]);
+      const cs=$('mf-client'); cs.innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      const rs=$('mf-rec'); rs.innerHTML='<option value="">No preference</option>'+emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+    }
+  },
+  'add-cand': {
+    title: 'Add Candidate to Pipeline',
+    submit: 'Add Candidate',
+    endpoint: '/api/candidates',
+    method: 'POST',
+    fields: () => `
+      <div class="frow"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Jane"></div><div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Doe"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane.doe@email.com"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" placeholder="+1 (555) 123-4567"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" placeholder="Software Engineer"></div><div class="fg"><label class="flabel">Years of Experience</label><input class="finput" type="number" name="years_exp" placeholder="5"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="New York, NY"></div><div class="fg"><label class="flabel">Source</label><select class="fselect" name="source"><option>LinkedIn</option><option>Referral</option><option>Indeed</option><option>Career Site</option><option>Agency</option><option>GitHub</option></select></div></div>
+      <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills" placeholder="React, Node.js, TypeScript, AWS"></div>`,
+    afterSave: loadPipeline
+  },
+  'sched-int': {
+    title: 'Schedule Interview',
+    submit: 'Schedule',
+    endpoint: '/api/interviews',
+    method: 'POST',
+    fields: () => `
+      <div class="fg"><label class="flabel">Application ID</label><input class="finput" type="number" name="application_id" placeholder="Application ID (from pipeline)"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Round</label><select class="fselect" name="round"><option>Round 1 — HR Screen</option><option>Round 2 — Technical</option><option>Panel Final</option><option>Executive</option></select></div><div class="fg"><label class="flabel">Format</label><select class="fselect" name="format"><option>Video</option><option>Phone</option><option>In-Person</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Date &amp; Time</label><input class="finput" type="datetime-local" name="scheduled_at"></div><div class="fg"><label class="flabel">Interviewer(s)</label><input class="finput" name="interviewer" placeholder="Ravi Kumar, Priya M."></div></div>
+      <div class="fg"><label class="flabel">Video Link / Room</label><input class="finput" name="location_link" placeholder="https://zoom.us/j/123456 or Room 4B"></div>`,
+    afterSave: loadInterviews
+  },
+  'start-onb': {
+    title: 'Start Onboarding',
+    submit: 'Start Onboarding',
+    endpoint: '/api/onboarding',
+    method: 'POST',
+    fields: () => `
+      <div class="fg"><label class="flabel">Employee</label><select class="fselect" name="employee_id" id="mf-emp"><option value="">Loading employees…</option></select></div>
+      <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div><div class="fg"><label class="flabel">Template</label><select class="fselect" name="template"><option>Standard FTE</option><option>Contractor</option><option>Remote Employee</option><option>Executive</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Buddy / Mentor</label><input class="finput" name="buddy_name" placeholder="Marcus Torres"></div><div class="fg"><label class="flabel">Equipment</label><select class="fselect" name="equipment"><option>MacBook Pro 14"</option><option>MacBook Air M3</option><option>Dell Latitude</option><option>BYOD</option></select></div></div>`,
+    afterSave: loadOnboarding,
+    afterRender: async () => {
+      const emps = await apiFetch('/api/lookup/employees');
+      const el=$('mf-emp'); el.innerHTML=emps.map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})</option>`).join('');
+    }
+  },
+  'create-inv': {
+    title: 'Create Invoice',
+    submit: 'Generate Invoice',
+    endpoint: '/api/invoices',
+    method: 'POST',
+    fields: () => `
+      <div class="frow"><div class="fg"><label class="flabel">Client *</label><select class="fselect" name="client_id" id="mf-inv-client"><option value="">Loading…</option></select></div><div class="fg"><label class="flabel">Invoice Type</label><select class="fselect" name="invoice_type"><option>Staff Augmentation</option><option>Direct Hire</option><option>Retained Search</option><option>Milestone Payment</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Period Start</label><input class="finput" type="date" name="period_start"></div><div class="fg"><label class="flabel">Period End</label><input class="finput" type="date" name="period_end"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Amount ($) *</label><input class="finput" type="number" name="amount" required placeholder="45000"></div><div class="fg"><label class="flabel">Due Date</label><input class="finput" type="date" name="due_date"></div></div>
+      <div class="fg"><label class="flabel">PO Number / Notes</label><input class="finput" name="notes" placeholder="PO-2026-0482"></div>`,
+    afterSave: loadInvoices,
+    afterRender: async () => {
+      const clients = await apiFetch('/api/lookup/clients');
+      const el=$('mf-inv-client'); el.innerHTML=clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    }
+  },
+  'add-dept': {
+    title: 'Add Department',
+    submit: 'Create Department',
+    endpoint: '/api/departments',
+    method: 'POST',
+    fields: () => `
+      <div class="fg"><label class="flabel">Department Name *</label><input class="finput" name="name" required placeholder="Customer Success"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Department Head</label><input class="finput" name="head_name" placeholder="Jane Smith"></div><div class="fg"><label class="flabel">Annual Budget ($)</label><input class="finput" type="number" name="budget" placeholder="500000"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="New York"></div><div class="fg"><label class="flabel">Cost Center Code</label><input class="finput" name="cost_center" placeholder="CC-042"></div></div>`,
+    afterSave: loadOrg
+  },
+};
+
+function openModal(type) {
+  const def = modalDefs[type];
+  if(!def) { toast('Unknown modal type: '+type,'error'); return; }
+  _curModalType = type;
+  $('m-title').textContent = def.title;
+  $('m-body').innerHTML = `<form id="mform">${def.fields()}</form>`;
+  $('m-submit').textContent = def.submit || 'Save';
+  $('overlay').classList.add('open');
+  if(def.afterRender) def.afterRender();
+}
+
+function closeModal() { $('overlay').classList.remove('open'); _curModalType=null; }
+function overlayClick(e) { if(e.target===$('overlay')) closeModal(); }
+
+async function submitModal() {
+  const def = modalDefs[_curModalType];
+  if(!def) return;
+  const form = $('mform');
+  if(!form) return;
+  if(!form.checkValidity()) { form.reportValidity(); return; }
+
+  // Gather form data
+  const data = {};
+  new FormData(form).forEach((v,k) => { data[k] = v; });
+
+  // Type-cast numeric fields
+  ['salary','bill_rate','comp_min','comp_max','amount','tax_amount','budget','years_exp','employee_id','client_id','recruiter_id','application_id','department_id'].forEach(f => {
+    if(data[f] !== undefined && data[f] !== '') data[f] = parseFloat(data[f]) || null;
+    else if(data[f] === '') data[f] = null;
+  });
+
+  try {
+    const result = await apiFetch(def.endpoint, {method:def.method, body:JSON.stringify(data)});
+    toast(def.submit?.replace('Create','Created').replace('Add','Added').replace('Start','Started').replace('Generate','Generated').replace('Schedule','Scheduled')||'Saved!','success');
+    closeModal();
+    if(def.afterSave) def.afterSave();
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if(e.key==='Escape') closeModal();
+  if((e.metaKey||e.ctrlKey) && e.key==='k') { e.preventDefault(); $('gsearch').focus(); }
+});
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  loadDashboard();
+  setTimeout(()=>toast('HireFlow Pro — Connected to SQLite DB 🗄️','success'),600);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ["python312"]
+
+[phases.install]
+cmds = ["pip install flask==3.1.0"]
+
+[start]
+cmd = "python api/app.py $PORT"
