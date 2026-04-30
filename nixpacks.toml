@@ -2,7 +2,10 @@
 nixPkgs = ["python312"]
 
 [phases.install]
-cmds = ["python3 -m ensurepip --upgrade", "python3 -m pip install flask==3.1.0"]
+cmds = [
+  "python3 -m venv /app/.venv",
+  "/app/.venv/bin/pip install flask==3.1.0"
+]
 
 [start]
-cmd = "python3 api/app.py $PORT"
+cmd = "/app/.venv/bin/python api/app.py $PORT"

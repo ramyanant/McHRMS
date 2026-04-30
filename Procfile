@@ -1,1 +1,1 @@
-web: python3 api/app.py $PORT
+web: /app/.venv/bin/python api/app.py $PORT
