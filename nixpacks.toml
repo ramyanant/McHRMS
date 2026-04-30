@@ -2,7 +2,7 @@
 nixPkgs = ["python312", "python312Packages.pip"]
 
 [phases.install]
-cmds = ["pip3 install flask==3.1.0"] 
+cmds = ["pip3 install flask==3.1.0 --break-system-packages"]
 
 [start]
 cmd = "python3 api/app.py $PORT"
