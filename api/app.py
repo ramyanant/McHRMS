@@ -11,12 +11,26 @@ from flask import Flask, request, jsonify, g, send_from_directory
 
 # ── App setup ────────────────────────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC   = os.path.join(BASE_DIR, 'static')
 
-# DB_PATH: use env var (set in Railway/Render dashboard) for persistent disk,
-# otherwise fall back to the local db/ folder for development.
-_default_db = os.path.join(BASE_DIR, 'db', 'hireflow.db')
+# static/ and db/ may be next to app.py OR at the repo root (one level up).
+# This handles both local dev and Railway/Render where cwd is /app.
+def _find_dir(name):
+    candidates = [
+        os.path.join(BASE_DIR, name),          # api/static  or  api/db
+        os.path.join(BASE_DIR, '..', name),    # repo root:  static/  or  db/
+        os.path.join('/app', name),            # /app/static  (Railway working dir)
+    ]
+    for c in candidates:
+        if os.path.isdir(c):
+            return os.path.abspath(c)
+    return os.path.abspath(os.path.join(BASE_DIR, '..', name))
+
+STATIC = _find_dir('static')
+print(f"[startup] static folder: {STATIC}  (exists={os.path.isdir(STATIC)})", flush=True)
+
+_default_db = os.path.join(_find_dir('db'), 'hireflow.db')
 DB_PATH = os.environ.get('DB_PATH', _default_db)
+print(f"[startup] DB path: {DB_PATH}", flush=True)
 
 app = Flask(__name__, static_folder=STATIC)
 app.config['JSON_SORT_KEYS'] = False
