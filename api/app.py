@@ -1294,6 +1294,7 @@ def health():
 
 @app.route('/api/admin/reset-db', methods=['GET','POST'])
 def reset_db():
+    import os as _os, traceback as _tb
     secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
     if secret != 'mchrta-reset-2026':
         return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
@@ -1306,18 +1307,34 @@ def reset_db():
               </button>
             </form>
         </body></html>'''
-    import os as _os
-    if _os.path.exists(DB_PATH):
-        _os.remove(DB_PATH)
-    _bootstrap_db()
-    return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
-        <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
-        <p style="font-size:16px">You can now log in with:</p>
-        <p style="font-size:20px;font-weight:bold">Username: admin<br>Password: Admin@123</p>
-        <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">
-          Go to Login Page
-        </a>
-    </body></html>'''
+    try:
+        # Step 1: Close any open DB connections
+        if 'db' in g:
+            g.db.close()
+            g.pop('db', None)
+        # Step 2: Delete old DB file
+        if _os.path.exists(DB_PATH):
+            _os.remove(DB_PATH)
+        # Step 3: Recreate fresh
+        _bootstrap_db()
+        return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+            <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
+            <p style="font-size:16px">You can now log in with:</p>
+            <p style="background:#e8f5eb;border:1px solid #2d8f3e;border-radius:8px;padding:16px;font-size:18px;font-weight:bold">
+              Username: admin<br>Password: Admin@123
+            </p>
+            <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">
+              Go to Login Page &rarr;
+            </a>
+        </body></html>'''
+    except Exception as e:
+        err_detail = _tb.format_exc()
+        return f'''<html><body style="font-family:sans-serif;padding:40px;background:#fff0f0">
+            <h2 style="color:#c0392b">Reset Failed</h2>
+            <p><strong>Error:</strong> {str(e)}</p>
+            <pre style="background:#f4f5f7;padding:12px;border-radius:6px;font-size:11px;overflow-x:auto">{err_detail}</pre>
+            <p>Please share this error with your developer.</p>
+        </body></html>'''
 
 # ═══════════════════════════════════════════════════════
 # RUN
