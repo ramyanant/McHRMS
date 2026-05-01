@@ -45,8 +45,24 @@ def _seed(conn):
     c.execute("INSERT INTO master_countries(code,name) VALUES('IN','India')")
     c.execute("INSERT INTO master_countries(code,name) VALUES('US','United States')")
     in_id = c.execute("SELECT id FROM master_countries WHERE code='IN'").fetchone()[0]
-    c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,'TS','Telangana')",(in_id,))
-    c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,'MH','Maharashtra')",(in_id,))
+    all_india_states = [
+        ('AN','Andaman & Nicobar Islands'),('AP','Andhra Pradesh'),
+        ('AR','Arunachal Pradesh'),('AS','Assam'),('BR','Bihar'),
+        ('CH','Chandigarh'),('CG','Chhattisgarh'),('DN','Dadra & Nagar Haveli & Daman & Diu'),
+        ('DL','Delhi'),('GA','Goa'),('GJ','Gujarat'),('HR','Haryana'),
+        ('HP','Himachal Pradesh'),('JK','Jammu & Kashmir'),('JH','Jharkhand'),
+        ('KA','Karnataka'),('KL','Kerala'),('LA','Ladakh'),('LD','Lakshadweep'),
+        ('MP','Madhya Pradesh'),('MH','Maharashtra'),('MN','Manipur'),
+        ('ML','Meghalaya'),('MZ','Mizoram'),('NL','Nagaland'),('OD','Odisha'),
+        ('PY','Puducherry'),('PB','Punjab'),('RJ','Rajasthan'),('SK','Sikkim'),
+        ('TN','Tamil Nadu'),('TS','Telangana'),('TR','Tripura'),
+        ('UP','Uttar Pradesh'),('UK','Uttarakhand'),('WB','West Bengal'),
+    ]
+    for code, name in all_india_states:
+        c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",(in_id,code,name))
+    # US states
+    for code, name in [('CA','California'),('NY','New York'),('TX','Texas'),('WA','Washington'),('IL','Illinois'),('FL','Florida')]:
+        c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",(us_id,code,name))
     for n in ["Full-Time","Contractor (C2C)","Part-Time","Intern"]:
         c.execute("INSERT INTO master_employment_types(name) VALUES(?)",(n,))
     for n in ["Staff Augmentation","Direct Hire","MSA","MSA + SOW","Retained Search"]:
@@ -107,7 +123,7 @@ def _seed(conn):
         ("TechCorp","Finance",ct_sa,"$165/hr",pt30,"Sara","sara@tc.com","Admin",94),
         ("GloboCorp","Retail",ct_dh,"18% fee",pt30,"Mike","mike@gc.com","Admin",42),
     ]:
-        c.execute("""INSERT INTO clients(name,industry,contract_type_id,billing_rate,payment_terms_id,
+        c.execute("""INSERT INTO clients(name,industry,contract_type_id,currency,payment_terms_id,
             primary_contact,contact_email,account_manager,health_score) VALUES(?,?,?,?,?,?,?,?,?)""",
             (name,ind,ctype,rate,pt,poc,email,mgr,score))
     c.execute("""INSERT INTO vendors(name,category_id,primary_contact,contact_email,sla_score,spend_mtd,sla_description)
@@ -336,8 +352,13 @@ def masters(table):
     if table not in allowed: return err("Unknown master table", 404)
     tbl = allowed[table]
     country = request.args.get('country_id')
-    if table == 'states' and country:
-        return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(country,)))
+    if table == 'states':
+        if country:
+            return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(country,)))
+        # Default: return India states (country_id=1) if no filter
+        india = get_db().execute("SELECT id FROM master_countries WHERE code='IN'").fetchone()
+        if india:
+            return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(india[0],)))
     return ok(rows(f"SELECT * FROM {tbl} WHERE is_active=1 ORDER BY {'sort_order,name' if 'sort_order' in tbl else 'name'}"))
 
 @app.route('/api/masters/<table>', methods=['POST'])
@@ -372,9 +393,14 @@ def organisation():
         if not org: return ok({})
         org['gst_registrations'] = rows("""SELECT g.*,s.name as state_name
             FROM organisation_gst g LEFT JOIN master_states s ON s.id=g.state_id
-            WHERE g.organisation_id=? ORDER BY g.is_primary DESC""",(org['id'],))
+            WHERE g.organisation_id=? AND g.is_active=1 ORDER BY g.is_primary DESC""",(org['id'],))
         org['bank_accounts'] = rows("""SELECT * FROM organisation_bank_accounts
             WHERE organisation_id=? AND is_active=1 ORDER BY is_primary DESC""",(org['id'],))
+        org['labour_certs'] = rows("""SELECT lc.*,s.name as state_name
+            FROM organisation_labour_certs lc LEFT JOIN master_states s ON s.id=lc.state_id
+            WHERE lc.organisation_id=? AND lc.is_active=1 ORDER BY lc.id""",(org['id'],))
+        org['documents'] = rows("""SELECT * FROM organisation_documents
+            WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC""",(org['id'],))
         return ok(org)
     d = request.get_json()
     existing = db.execute("SELECT id FROM organisation LIMIT 1").fetchone()
@@ -382,6 +408,7 @@ def organisation():
               'reg_address_line1','reg_address_line2','reg_city','reg_state_id','reg_pincode','reg_country_id',
               'biz_address_line1','biz_address_line2','biz_city','biz_state_id','biz_pincode','biz_country_id',
               'poc_name','poc_email','poc_phone','pan','cin','tan','msme_number',
+              'iec_code','profession_tax_number','pf_number','esi_number',
               'incorporation_date','financial_year_start']
     vals = [d.get(f) for f in fields]
     if existing:
@@ -421,6 +448,48 @@ def gst_detail(gid):
     db.execute("UPDATE organisation_gst SET gstin=?,state_id=?,trade_name=?,is_primary=? WHERE id=?",
                (d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('is_primary',0),gid))
     db.commit(); return ok(msg="GST updated")
+
+@app.route('/api/organisation/labour-certs', methods=['POST'])
+@require_auth
+def add_labour_cert():
+    d=request.get_json()
+    org=get_db().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    if not org: return err("Organisation not set up yet.")
+    get_db().execute("""INSERT INTO organisation_labour_certs
+        (organisation_id,cert_number,issuing_authority,state_id,valid_from,valid_until)
+        VALUES(?,?,?,?,?,?)""",
+        (org[0],d['cert_number'],d.get('issuing_authority'),d.get('state_id'),
+         d.get('valid_from'),d.get('valid_until')))
+    get_db().commit()
+    return ok(msg="Labour certificate added",status=201)
+
+@app.route('/api/organisation/labour-certs/<int:lid>', methods=['DELETE'])
+@require_auth
+def delete_labour_cert(lid):
+    get_db().execute("UPDATE organisation_labour_certs SET is_active=0 WHERE id=?",(lid,))
+    get_db().commit()
+    return ok(msg="Labour certificate removed")
+
+@app.route('/api/organisation/documents', methods=['GET','POST'])
+@require_auth
+def org_documents():
+    db=get_db()
+    org=db.execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    if not org: return err("Organisation not set up yet.")
+    if request.method=='GET':
+        return ok(rows("SELECT * FROM organisation_documents WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC",(org[0],)))
+    d=request.get_json()
+    db.execute("INSERT INTO organisation_documents(organisation_id,doc_type,doc_name,file_url,file_size) VALUES(?,?,?,?,?)",
+               (org[0],d['doc_type'],d['doc_name'],d.get('file_url'),d.get('file_size')))
+    db.commit()
+    return ok(msg="Document record added",status=201)
+
+@app.route('/api/organisation/documents/<int:did>', methods=['DELETE'])
+@require_auth
+def delete_org_document(did):
+    get_db().execute("UPDATE organisation_documents SET is_active=0 WHERE id=?",(did,))
+    get_db().commit()
+    return ok(msg="Document removed")
 
 @app.route('/api/organisation/banks', methods=['POST'])
 @require_auth
@@ -559,10 +628,10 @@ def clients():
             LEFT JOIN master_countries co ON co.id=c.country_id
             WHERE c.is_active=1 ORDER BY c.name"""))
     d=request.get_json()
-    cur=db.execute("""INSERT INTO clients(name,industry,contract_type_id,billing_rate,payment_terms_id,
+    cur=db.execute("""INSERT INTO clients(name,industry,contract_type_id,currency,payment_terms_id,
         primary_contact,contact_email,contact_phone,address_line1,city,state_id,country_id,gstin,pan,account_manager)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('billing_rate'),d.get('payment_terms_id'),
+        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
          d.get('primary_contact'),d.get('contact_email'),d.get('contact_phone'),d.get('address_line1'),
          d.get('city'),d.get('state_id'),d.get('country_id'),d.get('gstin'),d.get('pan'),d.get('account_manager')))
     db.commit(); return ok({"id":cur.lastrowid},"Client created",201)
@@ -577,10 +646,10 @@ def client_detail(cid):
     if request.method=='DELETE':
         db.execute("UPDATE clients SET is_active=0 WHERE id=?",(cid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
-    db.execute("""UPDATE clients SET name=?,industry=?,contract_type_id=?,billing_rate=?,payment_terms_id=?,
+    db.execute("""UPDATE clients SET name=?,industry=?,contract_type_id=?,currency=?,payment_terms_id=?,
         primary_contact=?,contact_email=?,contact_phone=?,address_line1=?,city=?,state_id=?,
         country_id=?,gstin=?,pan=?,account_manager=?,health_score=?,updated_at=datetime('now') WHERE id=?""",
-        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('billing_rate'),d.get('payment_terms_id'),
+        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
          d.get('primary_contact'),d.get('contact_email'),d.get('contact_phone'),d.get('address_line1'),
          d.get('city'),d.get('state_id'),d.get('country_id'),d.get('gstin'),d.get('pan'),
          d.get('account_manager'),d.get('health_score',80),cid))

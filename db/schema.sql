@@ -46,9 +46,33 @@ CREATE TABLE IF NOT EXISTS organisation (
     email TEXT, phone TEXT, website TEXT,
     poc_name TEXT, poc_email TEXT, poc_phone TEXT,
     pan TEXT, cin TEXT, tan TEXT, msme_number TEXT,
+    iec_code TEXT,
+    profession_tax_number TEXT,
+    pf_number TEXT,
+    esi_number TEXT,
     incorporation_date DATE, financial_year_start TEXT DEFAULT '04-01',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS organisation_labour_certs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    organisation_id INTEGER NOT NULL REFERENCES organisation(id),
+    cert_number TEXT NOT NULL,
+    issuing_authority TEXT,
+    state_id INTEGER REFERENCES master_states(id),
+    valid_from DATE, valid_until DATE,
+    is_active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+
+CREATE TABLE IF NOT EXISTS organisation_documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    organisation_id INTEGER NOT NULL REFERENCES organisation(id),
+    doc_type TEXT NOT NULL,
+    doc_name TEXT NOT NULL,
+    file_url TEXT,
+    file_size TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    is_active INTEGER DEFAULT 1);
 CREATE TABLE IF NOT EXISTS organisation_gst (
     id INTEGER PRIMARY KEY AUTOINCREMENT, organisation_id INTEGER NOT NULL REFERENCES organisation(id),
     gstin TEXT NOT NULL, state_id INTEGER REFERENCES master_states(id),
@@ -79,7 +103,7 @@ CREATE TABLE IF NOT EXISTS office_locations (
 CREATE TABLE IF NOT EXISTS clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
     industry TEXT, contract_type_id INTEGER REFERENCES master_contract_types(id),
-    billing_rate TEXT, payment_terms_id INTEGER REFERENCES master_payment_terms(id),
+    currency TEXT DEFAULT 'INR', payment_terms_id INTEGER REFERENCES master_payment_terms(id),
     primary_contact TEXT, contact_email TEXT, contact_phone TEXT,
     address_line1 TEXT, address_line2 TEXT, city TEXT,
     state_id INTEGER REFERENCES master_states(id), pincode TEXT,

@@ -34,14 +34,25 @@ def seed_db():
     # ── Master: States (India) ───────────────────────────
     india_id = c.execute("SELECT id FROM master_countries WHERE code='IN'").fetchone()[0]
     us_id    = c.execute("SELECT id FROM master_countries WHERE code='US'").fetchone()[0]
+    india_states = [
+        ('AN','Andaman & Nicobar Islands'),('AP','Andhra Pradesh'),
+        ('AR','Arunachal Pradesh'),('AS','Assam'),('BR','Bihar'),
+        ('CH','Chandigarh'),('CG','Chhattisgarh'),('DN','Dadra & Nagar Haveli & Daman & Diu'),
+        ('DL','Delhi'),('GA','Goa'),('GJ','Gujarat'),('HR','Haryana'),
+        ('HP','Himachal Pradesh'),('JK','Jammu & Kashmir'),('JH','Jharkhand'),
+        ('KA','Karnataka'),('KL','Kerala'),('LA','Ladakh'),('LD','Lakshadweep'),
+        ('MP','Madhya Pradesh'),('MH','Maharashtra'),('MN','Manipur'),
+        ('ML','Meghalaya'),('MZ','Mizoram'),('NL','Nagaland'),('OD','Odisha'),
+        ('PY','Puducherry'),('PB','Punjab'),('RJ','Rajasthan'),('SK','Sikkim'),
+        ('TN','Tamil Nadu'),('TS','Telangana'),('TR','Tripura'),
+        ('UP','Uttar Pradesh'),('UK','Uttarakhand'),('WB','West Bengal'),
+    ]
+    c.executemany("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",
+                  [(india_id,code,name) for code,name in india_states])
     c.executemany("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)", [
-        (india_id,"AP","Andhra Pradesh"),(india_id,"KA","Karnataka"),
-        (india_id,"MH","Maharashtra"),(india_id,"TN","Tamil Nadu"),
-        (india_id,"TS","Telangana"),(india_id,"DL","Delhi"),
-        (india_id,"GJ","Gujarat"),(india_id,"WB","West Bengal"),
-        (india_id,"RJ","Rajasthan"),(india_id,"UP","Uttar Pradesh"),
         (us_id,"CA","California"),(us_id,"NY","New York"),
         (us_id,"TX","Texas"),(us_id,"WA","Washington"),
+        (us_id,"IL","Illinois"),(us_id,"FL","Florida"),
     ])
     # ── Master: Employment types ─────────────────────────
     c.executemany("INSERT INTO master_employment_types(name) VALUES(?)", [
@@ -173,13 +184,13 @@ def seed_db():
     pt30  = c.execute("SELECT id FROM master_payment_terms WHERE name='Net 30'").fetchone()[0]
     pt45  = c.execute("SELECT id FROM master_payment_terms WHERE name='Net 45'").fetchone()[0]
     for name, ind, ctype, rate, pt, poc, email, mgr, score in [
-        ("Acme Inc.","Technology",ct_sa,"$145/hr",pt30,"Brian Cole","brian@acme.com","Aisha Kumar",98),
-        ("TechCorp","Finance",ct_ms,"$165/hr",pt30,"Sara Fine","sara@techcorp.com","Carlos Mendez",94),
-        ("GloboCorp","Retail",ct_dh,"18% fee",pt45,"Mike Rand","mike@globo.com","Jenny Liu",42),
-        ("DataSys","Healthcare",ct_ms,"$135/hr",pt30,"Amy Ling","amy@datasys.com","Dev Rao",86),
-        ("NovaTech","Manufacturing",ct_sa,"$120/hr",pt30,"Rob Steel","rob@novatech.com","Sara Hassan",91),
+        ("Acme Inc.","Technology",ct_sa,"USD",pt30,"Brian Cole","brian@acme.com","Aisha Kumar",98),
+        ("TechCorp","Finance",ct_ms,"USD",pt30,"Sara Fine","sara@techcorp.com","Carlos Mendez",94),
+        ("GloboCorp","Retail",ct_dh,"INR",pt45,"Mike Rand","mike@globo.com","Jenny Liu",42),
+        ("DataSys","Healthcare",ct_ms,"USD",pt30,"Amy Ling","amy@datasys.com","Dev Rao",86),
+        ("NovaTech","Manufacturing",ct_sa,"USD",pt30,"Rob Steel","rob@novatech.com","Sara Hassan",91),
     ]:
-        c.execute("""INSERT INTO clients(name,industry,contract_type_id,billing_rate,payment_terms_id,
+        c.execute("""INSERT INTO clients(name,industry,contract_type_id,currency,payment_terms_id,
             primary_contact,contact_email,account_manager,health_score) VALUES(?,?,?,?,?,?,?,?,?)""",
             (name,ind,ctype,rate,pt,poc,email,mgr,score))
     conn.commit()

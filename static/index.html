@@ -617,7 +617,7 @@ async function tryAutoLogin(){
 async function loadMasters(){
   const tables=['employment-types','contract-types','vendor-categories','invoice-statuses',
                 'application-stages','candidate-sources','payment-terms','priority-levels',
-                'timesheet-statuses','user-roles','countries','interview-formats','onboarding-templates'];
+                'timesheet-statuses','user-roles','countries','interview-formats','onboarding-templates','states'];
   await Promise.all(tables.map(async t=>{
     try{_masters[t]=await apiFetch(`/api/masters/${t}`)||[];}catch(e){_masters[t]=[];}
   }));
@@ -748,21 +748,69 @@ async function loadOrgProfile(){
   }catch(e){setHtml('org-profile-content','<div class="empty"><div class="empty-title">Error loading organisation profile</div></div>');}
 }
 
+// ── Validation helpers ──────────────────────────────────────
+const validators = {
+  pan: v => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid PAN — format: AAAAA0000A',
+  cin: v => !v || /^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(v.toUpperCase()) ? '' : 'Invalid CIN — format: L12345AB1234ABC123456',
+  tan: v => !v || /^[A-Z]{4}[0-9]{5}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid TAN — format: ABCD01234E',
+  gstin: v => !v || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid GSTIN — format: 36AAAAA0000A1Z5',
+  iec: v => !v || /^[A-Z]{2}[0-9]{7}[A-Z]{1}$/.test(v.toUpperCase()) || /^[0-9]{10}$/.test(v) ? '' : 'Invalid IEC — format: AB1234567C or 10 digits',
+  pan_firm: v => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid PAN format',
+  ifsc: v => !v || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.toUpperCase()) ? '' : 'Invalid IFSC — format: HDFC0001234',
+  pincode: v => !v || /^[0-9]{6}$/.test(v) ? '' : 'Invalid PIN code — must be 6 digits',
+  phone: v => !v || /^[+]?[0-9\s\-()]{8,15}$/.test(v) ? '' : 'Invalid phone number',
+  email: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : 'Invalid email address',
+  pf: v => !v || /^[A-Z]{2}\/[A-Z]{3}\/[0-9]{7}\/[0-9]{3}\/[0-9]{7}$/.test(v.toUpperCase()) || v.length>=5 ? '' : 'Invalid PF number',
+  esi: v => !v || /^[0-9]{17}$/.test(v) ? '' : 'Invalid ESI number — must be 17 digits',
+};
+
+function validateField(key, val) {
+  const map = {pan:'pan',cin:'cin',tan:'tan',gstin:'gstin',iec_code:'iec',
+                pf_number:'pf',esi_number:'esi',ifsc_code:'ifsc',
+                reg_pincode:'pincode',biz_pincode:'pincode',
+                email:'email',poc_email:'email',contact_email:'email'};
+  const v = map[key];
+  return v ? validators[v](val) : '';
+}
+
+function attachFieldValidation() {
+  document.querySelectorAll('#org-profile-content [data-key]').forEach(el => {
+    el.addEventListener('blur', function() {
+      const err = validateField(this.dataset.key, this.value);
+      let errEl = this.nextElementSibling;
+      if(errEl && errEl.classList.contains('field-err')) errEl.remove();
+      if(err) {
+        const e = document.createElement('div');
+        e.className='field-err';
+        e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
+        e.textContent='⚠ '+err;
+        this.after(e);
+        this.style.borderColor='var(--red)';
+      } else {
+        this.style.borderColor='';
+      }
+    });
+    // Uppercase certain fields
+    if(['pan','cin','tan','gstin','iec_code','ifsc_code'].includes(el.dataset.key)){
+      el.addEventListener('input',function(){this.value=this.value.toUpperCase();});
+    }
+  });
+}
+
 function renderOrgProfile(editMode){
   _orgEditMode=editMode;
   $('org-edit-btn').style.display=editMode?'none':'';
   $('org-save-btn').style.display=editMode?'':'none';
   $('org-cancel-btn').style.display=editMode?'':'none';
   const d=_orgData;
-  const fi=(key,label,type='text',placeholder='')=>{
+  const fi=(key,label,type='text',placeholder='',hint='')=>{
     const val=d[key]||'';
-    if(editMode) return`<div class="fg"><label class="flabel">${label}</label><input class="finput" data-key="${key}" type="${type}" value="${val}" placeholder="${placeholder}"></div>`;
+    if(editMode) return`<div class="fg"><label class="flabel">${label}</label><input class="finput" data-key="${key}" type="${type}" value="${val}" placeholder="${placeholder}"><${hint?`div style="font-size:10px;color:var(--txt3);margin-top:2px">${hint}</div`:'span'}></div>`;
     return`<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value ${!val?'empty':''}">${val||'Not set'}</div></div>`;
   };
   const frow=(...items)=>`<div class="frow${items.length===3?' frow3':''}">${items.join('')}</div>`;
 
   const stateOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==d.biz_state_id?'selected':''}>${s.name}</option>`).join('');
-  const countryOpts=(_masters['countries']||[]).map(c=>`<option value="${c.id}" ${c.id==d.biz_country_id?'selected':''}>${c.name}</option>`).join('');
 
   setHtml('org-profile-content',`
     <div class="g2">
@@ -774,6 +822,8 @@ function renderOrgProfile(editMode){
           ${frow(fi('incorporation_date','Date of Incorporation','date'),fi('msme_number','MSME Number','text',''))}
           ${frow(fi('email','Official Email','email','info@mcraan.com'),fi('phone','Phone','tel','+91-40-12345678'))}
           ${fi('website','Website','url','https://www.mcraan.com')}
+          ${frow(fi('iec_code','Import-Export Code (IEC)','text','AABCU0000A','Format: 2 letters + 7 digits + 1 letter, OR 10 digits'),fi('profession_tax_number','Profession Tax Reg. Number','text','27AAAAA0000A1Z5'))}
+          ${frow(fi('pf_number','Provident Fund (PF) Number','text','MH/BAN/0000000/000/0000000','Format: State/Region/Estab.Code/Extension/Account'),fi('esi_number','ESI Number','text','12345678901234567','17-digit ESI registration number'))}
         </div>
       </div>
       <div>
@@ -829,8 +879,26 @@ function renderOrgProfile(editMode){
         </tbody></table>
       </div>
     </div>
+    <!-- Labour Dept Certificates -->
+    <div class="org-section mb12">
+      <div class="org-section-title">📋 Labour Department Certificates
+        ${editMode?`<button class="btn btn-ghost btn-xs" onclick="openModal('add-labour')">+ Add Certificate</button>`:''}
+      </div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>Certificate Number</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th>${editMode?'<th>Actions</th>':''}</tr></thead><tbody>
+        ${(d.labour_certs||[]).map(lc=>`<tr>
+          <td class="tbold tmono">${lc.cert_number}</td>
+          <td>${lc.issuing_authority||'–'}</td>
+          <td>${lc.state_name||'–'}</td>
+          <td class="tmono">${fmt.date(lc.valid_from)}</td>
+          <td class="tmono">${fmt.date(lc.valid_until)}</td>
+          ${editMode?`<td><button class="btn btn-danger btn-xs" onclick="removeLabourCert(${lc.id})">Remove</button></td>`:''}
+        </tr>`).join('')||`<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No labour certificates added</td></tr>`}
+        </tbody></table>
+      </div>
+    </div>
     <!-- Bank Accounts -->
-    <div class="org-section">
+    <div class="org-section mb12">
       <div class="org-section-title">🏦 Bank Accounts
         ${editMode?`<button class="btn btn-ghost btn-xs" onclick="openModal('add-bank')">+ Add Account</button>`:''}
       </div>
@@ -849,15 +917,44 @@ function renderOrgProfile(editMode){
         </tr>`).join('')||`<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--txt2)">No bank accounts added</td></tr>`}
         </tbody></table>
       </div>
+    </div>
+    <!-- Documents -->
+    <div class="org-section">
+      <div class="org-section-title">📁 Documents
+        ${editMode?`<button class="btn btn-ghost btn-xs" onclick="openModal('add-doc')">+ Add Document</button>`:''}
+      </div>
+      <div class="tbl-wrap">
+        <table><thead><tr><th>Document Type</th><th>Document Name</th><th>File Size</th><th>Uploaded</th>${editMode?'<th>Actions</th>':''}</tr></thead><tbody>
+        ${(d.documents||[]).map(doc=>`<tr>
+          <td>${pill(doc.doc_type,'p-blue')}</td>
+          <td class="tbold">${doc.doc_name}</td>
+          <td style="font-size:11px;color:var(--txt2)">${doc.file_size||'–'}</td>
+          <td class="tmono" style="font-size:11px">${fmt.dt(doc.uploaded_at)}</td>
+          ${editMode?`<td><button class="btn btn-danger btn-xs" onclick="removeDoc(${doc.id})">Remove</button></td>`:''}
+        </tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt2)">No documents uploaded</td></tr>`}
+        </tbody></table>
+      </div>
     </div>`);
 }
 
-function toggleOrgEdit(){renderOrgProfile(true);}
+function toggleOrgEdit(){renderOrgProfile(true);setTimeout(attachFieldValidation,100);}
 function cancelOrgEdit(){renderOrgProfile(false);}
 
 async function saveOrgProfile(){
   const data={..._orgData};
-  document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{data[el.dataset.key]=el.value||null;});
+  let hasErr=false;
+  document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{
+    data[el.dataset.key]=el.value||null;
+    const err=validateField(el.dataset.key,el.value);
+    let errEl=el.nextElementSibling;
+    if(errEl&&errEl.classList.contains('field-err'))errEl.remove();
+    if(err){
+      const e=document.createElement('div');e.className='field-err';
+      e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
+      e.textContent='⚠ '+err;el.after(e);el.style.borderColor='var(--red)';hasErr=true;
+    }
+  });
+  if(hasErr){toast('Please fix validation errors before saving','error');return;}
   try{
     await apiFetch('/api/organisation',{method:'PUT',body:JSON.stringify(data)});
     toast('Organisation profile saved!','success');
@@ -874,6 +971,16 @@ async function removeBank(id){
   if(!confirm('Remove this bank account?'))return;
   await apiFetch(`/api/organisation/banks/${id}`,{method:'DELETE'});
   toast('Bank account removed','success');loadOrgProfile();
+}
+async function removeLabourCert(id){
+  if(!confirm('Remove this labour certificate?'))return;
+  await apiFetch(`/api/organisation/labour-certs/${id}`,{method:'DELETE'});
+  toast('Labour certificate removed','success');loadOrgProfile();
+}
+async function removeDoc(id){
+  if(!confirm('Remove this document record?'))return;
+  await apiFetch(`/api/organisation/documents/${id}`,{method:'DELETE'});
+  toast('Document removed','success');loadOrgProfile();
 }
 
 // ═══════════════════════════════════════════════════
@@ -917,16 +1024,48 @@ async function loadClients(){
       <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(revMtd)}</div></div>
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">At Risk</div><div class="kpi-value">${rows.filter(c=>c.health_score<=50).length}</div></div>`);
     setHtml('client-tbl',filtered.length===0?'<div class="empty"><div class="empty-title">No clients found</div></div>'
-      :`<table><thead><tr><th>Company</th><th>Industry</th><th>Contract</th><th>Open Reqs</th><th>Placements</th><th>Revenue MTD</th><th>GST</th><th>Health</th><th>Actions</th></tr></thead><tbody>${
+      :`<table><thead><tr><th>Company</th><th>Industry</th><th>Contract</th><th>Open Reqs</th><th>Placements</th><th>Revenue MTD</th><th>Currency</th><th>GST</th><th>Health</th><th>Actions</th></tr></thead><tbody>${
       filtered.map(c=>`<tr>
         <td>${avFull(c.name,c.primary_contact||'')}</td>
         <td>${c.industry||'–'}</td><td>${pill(c.contract_type||'–')}</td>
         <td class="tmono">${c.open_reqs||0}</td><td class="tmono">${c.placements||0}</td>
         <td class="tmono tg">${fmt.moneyK(c.revenue_mtd)}</td>
+        <td><span class="pill p-charcoal">${c.currency||'INR'}</span></td>
         <td class="tmono" style="font-size:11px">${c.gstin||'–'}</td>
         <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
-        <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="toast('Opening ${c.name}…','info')">View</button><button class="btn btn-ghost btn-xs" onclick="openModal('create-inv')">Invoice</button></div></td>
+        <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="openModal('create-inv')">Invoice</button></div></td>
       </tr>`).join('')}</tbody></table>`);
+  }catch(e){console.error(e);}
+}
+
+async function editClient(id){
+  try{
+    const c=await apiFetch(`/api/clients/${id}`);
+    if(!c)return;
+    // Pre-fill master selects then open modal
+    _curModalType='edit-client';
+    $('m-title').textContent='Edit Client';
+    $('m-body').innerHTML=`<form id="mform">
+      <input type="hidden" name="_id" value="${c.id}">
+      <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required value="${c.name||''}"></div><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${(_masters['contract-types']||[]).map(m=>`<option value="${m.id}" ${m.id==c.contract_type_id?'selected':''}>${m.name}</option>`).join('')}</select></div>
+        <div class="fg"><label class="flabel">Billing Currency</label><select class="fselect" name="currency">${['INR','USD','GBP','SGD','AED','EUR','AUD'].map(cur=>`<option value="${cur}" ${cur==c.currency?'selected':''}>${cur}</option>`).join('')}</select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}" ${m.id==c.payment_terms_id?'selected':''}>${m.name}</option>`).join('')}</select></div>
+        <div class="fg"><label class="flabel">Account Manager</label><input class="finput" name="account_manager" value="${c.account_manager||''}"></div>
+      </div>
+      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div><div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()" onblur="validateInlineGst(this)"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div><div class="fg"><label class="flabel">Health Score (0–100)</label><input class="finput" type="number" name="health_score" min="0" max="100" value="${c.health_score||80}"></div></div>
+      <div class="fg"><label class="flabel">Address</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
+      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div></div>
+    </form>`;
+    $('m-submit').textContent='Save Changes';
+    $('overlay').classList.add('open');
+    // Store client id for submit
+    $('overlay').dataset.editClientId=id;
   }catch(e){console.error(e);}
 }
 
@@ -1405,7 +1544,7 @@ const modalDefs={
     title:'Add New Client',submit:'Create Client',endpoint:'/api/clients',method:'POST',
     fields:()=>`
       <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required placeholder="Acme Corp"></div><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" placeholder="Technology"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${masterOpts('contract-types','id','name','Select type…')}</select></div><div class="fg"><label class="flabel">Billing Rate / Fee</label><input class="finput" name="billing_rate" placeholder="$145/hr or 18%"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${masterOpts('contract-types','id','name','Select type…')}</select></div><div class="fg"><label class="flabel">Billing Currency</label><select class="fselect" name="currency"><option value="INR">INR — Indian Rupee</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="SGD">SGD — Singapore Dollar</option><option value="AED">AED — UAE Dirham</option><option value="EUR">EUR — Euro</option><option value="AUD">AUD — Australian Dollar</option></select></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${masterOpts('payment-terms','id','name')}</select></div><div class="fg"><label class="flabel">Account Manager</label><input class="finput" name="account_manager" placeholder="Aisha Kumar"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" placeholder="Jane Smith"></div><div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email" placeholder="jane@acme.com"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" placeholder="+91-9000000000"></div><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" placeholder="36AAAAA0000A1Z5"></div></div>
@@ -1527,14 +1666,56 @@ const modalDefs={
   'add-gst':{
     title:'Add GST Registration',submit:'Add GST',endpoint:'/api/organisation/gst',method:'POST',
     fields:()=>`
-      <div class="fg"><label class="flabel">GSTIN *</label><input class="finput" name="gstin" required placeholder="36AAAAA0000A1Z5" style="text-transform:uppercase"></div>
-      <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id" id="gst-state-sel"><option value="">Loading…</option></select></div><div class="fg"><label class="flabel">Registration Date</label><input class="finput" type="date" name="registration_date"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Trade Name</label><input class="finput" name="trade_name" placeholder="McRaaN Consulting"></div><div class="fg"><label class="flabel">Primary?</label><select class="fselect" name="is_primary"><option value="0">No</option><option value="1">Yes</option></select></div></div>`,
+      <div class="fg"><label class="flabel">GSTIN *</label><input class="finput" name="gstin" required placeholder="36AAAAA0000A1Z5" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onblur="validateInlineGst(this)">
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px">Format: 2-digit state code + PAN + 3 chars (e.g. 36AAAAA0000A1Z5)</div>
+      </div>
+      <div class="frow"><div class="fg"><label class="flabel">State *</label><select class="fselect" name="state_id" id="gst-state-sel"><option value="">Loading states…</option></select></div><div class="fg"><label class="flabel">Registration Date</label><input class="finput" type="date" name="registration_date"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Trade Name</label><input class="finput" name="trade_name" placeholder="McRaaN Consulting Pvt Ltd"></div><div class="fg"><label class="flabel">Set as Primary?</label><select class="fselect" name="is_primary"><option value="0">No</option><option value="1">Yes — Primary GST</option></select></div></div>`,
     afterSave:loadOrgProfile,
     afterRender:async()=>{
-      const states=await apiFetch('/api/masters/states?country_id=1');
+      const states=await apiFetch('/api/masters/states');
       const el=$('gst-state-sel');if(el)el.innerHTML='<option value="">Select state…</option>'+(states||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     }
+  },
+  'add-labour':{
+    title:'Add Labour Department Certificate',submit:'Add Certificate',endpoint:'/api/organisation/labour-certs',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Certificate Number *</label><input class="finput" name="cert_number" required placeholder="MH/HYD/0000001"></div>
+      <div class="fg"><label class="flabel">Issuing Authority</label><input class="finput" name="issuing_authority" placeholder="Labour Commissioner, Telangana"></div>
+      <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id" id="labour-state-sel"><option value="">Loading…</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Valid From</label><input class="finput" type="date" name="valid_from"></div><div class="fg"><label class="flabel">Valid Until</label><input class="finput" type="date" name="valid_until"></div></div>`,
+    afterSave:loadOrgProfile,
+    afterRender:async()=>{
+      const states=await apiFetch('/api/masters/states');
+      const el=$('labour-state-sel');if(el)el.innerHTML='<option value="">Select state…</option>'+(states||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+    }
+  },
+  'add-doc':{
+    title:'Add Document Record',submit:'Save Document',endpoint:'/api/organisation/documents',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Document Type *</label>
+        <select class="fselect" name="doc_type">
+          <option value="Incorporation Certificate">Incorporation Certificate</option>
+          <option value="PAN Card">PAN Card</option>
+          <option value="TAN Certificate">TAN Certificate</option>
+          <option value="IEC Certificate">IEC Certificate</option>
+          <option value="GST Certificate">GST Certificate</option>
+          <option value="Labour License">Labour License</option>
+          <option value="PF Registration">PF Registration</option>
+          <option value="ESI Registration">ESI Registration</option>
+          <option value="MSME Certificate">MSME Certificate</option>
+          <option value="Shop & Establishment">Shop &amp; Establishment</option>
+          <option value="Professional Tax">Professional Tax</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="e.g. Certificate of Incorporation — MCA"></div>
+      <div class="fg"><label class="flabel">File URL / Reference</label><input class="finput" name="file_url" placeholder="https://drive.google.com/file/… or storage path"></div>
+      <div class="fg"><label class="flabel">File Size / Notes</label><input class="finput" name="file_size" placeholder="e.g. 2.4 MB, PDF, Issued 2020"></div>
+      <div style="background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;font-size:11.5px;color:var(--txt2)">
+        ℹ️ Direct file upload coming soon. For now, paste a Google Drive or cloud storage link.
+      </div>`,
+    afterSave:loadOrgProfile
   },
   'add-bank':{
     title:'Add Bank Account',submit:'Add Account',endpoint:'/api/organisation/banks',method:'POST',
@@ -1562,7 +1743,44 @@ function openModal(type){
 function closeModal(){$('overlay').classList.remove('open');_curModalType=null;}
 function overlayClick(e){if(e.target===$('overlay'))closeModal();}
 
+function validateInlineGst(el){
+  const err=validators.gstin(el.value);
+  let errEl=el.nextElementSibling?.nextElementSibling;
+  if(errEl&&errEl.classList.contains('field-err'))errEl.remove();
+  if(err&&el.value.length>5){
+    const e=document.createElement('div');e.className='field-err';
+    e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
+    e.textContent='⚠ '+err;el.parentNode.appendChild(e);
+    el.style.borderColor='var(--red)';
+  } else { el.style.borderColor=''; }
+}
+
+// Form field validation for modals
+function validateModalField(el){
+  const name=el.name;
+  const map={gstin:'gstin',pan:'pan',tan:'tan',ifsc_code:'ifsc',iec_code:'iec'};
+  const v=map[name];if(!v)return;
+  const err=validators[v](el.value);
+  let errEl=el.nextElementSibling;
+  if(errEl&&errEl.classList.contains('field-err'))errEl.remove();
+  if(err){
+    const e=document.createElement('div');e.className='field-err';
+    e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
+    e.textContent='⚠ '+err;el.after(e);el.style.borderColor='var(--red)';
+  } else { el.style.borderColor=''; }
+}
+
 async function submitModal(){
+  // Handle inline edit-client (no modalDef)
+  if(_curModalType==='edit-client'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
+    const id=data._id;delete data._id;
+    ['contract_type_id','payment_terms_id','health_score'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
+    try{await apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Client updated!','success');closeModal();loadClients();}catch(e){}
+    return;
+  }
   const def=modalDefs[_curModalType];if(!def)return;
   const form=$('mform');if(!form)return;
   if(!form.checkValidity()){form.reportValidity();return;}
