@@ -1292,6 +1292,17 @@ def lu_departments():
 def health():
     return ok({"status":"ok","app":"McHR&TA","db":DB_PATH})
 
+@app.route('/api/admin/reset-db', methods=['POST'])
+def reset_db():
+    secret = request.headers.get('X-Reset-Secret','')
+    if secret != 'mchrta-reset-2026':
+        return err("Unauthorized", 401)
+    import os as _os
+    if _os.path.exists(DB_PATH):
+        _os.remove(DB_PATH)
+    _bootstrap_db()
+    return ok(msg="Database reset complete. Login: admin / Admin@123")
+
 # ═══════════════════════════════════════════════════════
 # RUN
 # ═══════════════════════════════════════════════════════
