@@ -198,6 +198,23 @@ tbody tr:hover td{background:var(--green-lt)}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
 .empty-title{font-size:14px;font-weight:600;color:var(--txt);margin-bottom:6px}
 .empty-sub{font-size:12px;color:var(--txt2)}
+.stars{color:#f5a623;font-size:13px;letter-spacing:1px}
+.rating-input{display:flex;gap:4px}
+.rating-input span{font-size:20px;cursor:pointer;color:var(--bdr2);transition:color .12s}
+.rating-input span.on,.rating-input span:hover{color:#f5a623}
+.tag-input{display:flex;align-items:center;gap:4px;flex-wrap:wrap;border:1px solid var(--bdr2);border-radius:var(--r);padding:4px 8px;background:var(--surface);cursor:text;min-height:38px}
+.tag-item{background:var(--green-lt);color:var(--green-dk);font-size:11px;padding:2px 8px;border-radius:12px;display:flex;align-items:center;gap:4px}
+.tag-item button{background:none;border:none;color:var(--green-dk);font-size:14px;cursor:pointer;padding:0;line-height:1}
+.profile-panel{position:fixed;top:0;right:0;bottom:0;width:720px;background:var(--surface);box-shadow:-8px 0 32px rgba(0,0,0,.12);z-index:900;overflow-y:auto;transform:translateX(100%);transition:transform .3s ease}
+.profile-panel.open{transform:translateX(0)}
+.profile-overlay{position:fixed;inset:0;background:rgba(26,32,44,.4);z-index:899;opacity:0;pointer-events:none;transition:opacity .3s}
+.profile-overlay.open{opacity:1;pointer-events:all}
+.profile-hd{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--s2);position:sticky;top:0;z-index:1}
+.profile-body{padding:20px}
+.ptab{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px}
+.ptab-item{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap}
+.ptab-item:hover{color:var(--charcoal)}.ptab-item.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
+.payslip-modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:24px;max-width:680px;margin:0 auto}
 </style>
 </head>
 <body>
@@ -356,18 +373,28 @@ tbody tr:hover td{background:var(--green-lt)}
 
 <!-- ORG STRUCTURE -->
 <div id="mod-org-structure" class="mod">
-  <div class="hero"><div class="hero-icon" style="background:var(--blue-dim)">🏢</div><div><div class="hero-title">Organisation Structure</div><div class="hero-desc">Business units, departments, headcount, and office locations.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-dept')">+ Add Department</button></div></div>
-  <div class="kgrid k3" id="org-kpis"></div>
+  <div class="hero"><div class="hero-icon" style="background:var(--blue-dim)">🏢</div>
+    <div><div class="hero-title">Organisation Structure</div><div class="hero-desc">Business units, departments, cost centres, and office locations.</div></div>
+    <div class="hero-actions">
+      <button class="btn btn-ghost btn-sm" onclick="openModal('add-bu')">+ Business Unit</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('add-cc')">+ Cost Centre</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal('add-dept')">+ Department</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('add-location')">+ Location</button>
+    </div>
+  </div>
+  <div class="kgrid k4" id="org-kpis"></div>
   <div class="g2">
-    <div class="card"><div class="card-hd"><div class="card-title">Departments</div><span class="card-sub" id="dept-count"></span></div><div class="tbl-wrap" id="dept-tbl">Loading…</div></div>
     <div>
-      <div class="card mb12"><div class="card-hd"><div class="card-title">Business Units</div></div><div class="card-body" id="bu-list">Loading…</div></div>
+      <div class="card mb12"><div class="card-hd"><div class="card-title">Departments</div><span class="card-sub" id="dept-count"></span></div><div class="tbl-wrap" id="dept-tbl">Loading…</div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">Cost Centres</div></div><div class="tbl-wrap" id="cc-tbl">Loading…</div></div>
+    </div>
+    <div>
+      <div class="card mb12"><div class="card-hd"><div class="card-title">Business Units</div></div><div class="tbl-wrap" id="bu-tbl">Loading…</div></div>
       <div class="card"><div class="card-hd"><div class="card-title">Office Locations</div></div><div class="tbl-wrap" id="office-tbl">Loading…</div></div>
     </div>
   </div>
 </div>
 
-<!-- CLIENTS -->
 <div id="mod-clients" class="mod">
   <div class="hero"><div class="hero-icon" style="background:var(--blue-dim)">🤝</div><div><div class="hero-title">Clients</div><div class="hero-desc">Account management, contracts, billing rates, and relationship health scores.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-client')">+ Add Client</button></div></div>
   <div class="kgrid k4" id="client-kpis"></div>
@@ -492,6 +519,25 @@ tbody tr:hover td{background:var(--green-lt)}
 </main>
 </div><!-- /mapp -->
 
+<!-- PROFILE PANEL -->
+<div class="profile-overlay" id="prof-overlay" onclick="closeProfPanel()"></div>
+<div class="profile-panel" id="prof-panel">
+  <div class="profile-hd">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="av av-lg av-green" id="pp-av">?</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:var(--txt)" id="pp-name">–</div>
+        <div style="font-size:12px;color:var(--txt2)" id="pp-meta">–</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="closeProfPanel()">✕ Close</button>
+  </div>
+  <div class="profile-body">
+    <div class="ptab" id="pp-tabs"></div>
+    <div id="pp-content">Loading…</div>
+  </div>
+</div>
+
 <!-- MODAL -->
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
   <div class="modal">
@@ -592,7 +638,20 @@ function afterLogin(){
   $('sb-role').textContent=u.role;
   $('sb-av').textContent=fmt.ini(u.full_name||u.username);
   if(u.role!=='Admin')$('nav-users').style.display='none';
-  loadMasters().then(()=>{nav('dashboard');});
+  loadMasters().then(()=>{
+    if(u.role==='Employee'){
+      // Hide most nav items, show employee portal
+      document.querySelectorAll('.ni').forEach(el=>{
+        const m=el.dataset.mod;
+        if(!['dashboard','timesheets','employees'].includes(m))el.style.display='none';
+      });
+      nav('dashboard');
+      // Pre-open own profile if linked
+      if(u.employee_id)setTimeout(()=>openEmployeeProfile(u.employee_id),800);
+    } else {
+      nav('dashboard');
+    }
+  });
   $('lerr').classList.remove('show');
 }
 
@@ -617,7 +676,8 @@ async function tryAutoLogin(){
 async function loadMasters(){
   const tables=['employment-types','contract-types','vendor-categories','invoice-statuses',
                 'application-stages','candidate-sources','payment-terms','priority-levels',
-                'timesheet-statuses','user-roles','countries','interview-formats','onboarding-templates','states'];
+                'timesheet-statuses','user-roles','countries','interview-formats','onboarding-templates',
+                'states','relationship-types'];
   await Promise.all(tables.map(async t=>{
     try{_masters[t]=await apiFetch(`/api/masters/${t}`)||[];}catch(e){_masters[t]=[];}
   }));
@@ -667,7 +727,7 @@ function nav(id){
   const loaders={
     'dashboard':loadDashboard,'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
     'clients':loadClients,'vendors':loadVendors,'employees':loadEmployees,
-    'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':loadPayroll,
+    'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
     'users':loadUsers,'reports':()=>loadReport('financial'),
@@ -680,7 +740,11 @@ const addMap={
   'pipeline':'add-cand','interviews':'sched-int','onboarding':'start-onb','invoices':'create-inv',
   'users':'add-user','org-structure':'add-dept',
 };
-function handleAdd(){const t=addMap[_curMod];if(t)openModal(t);else toast('No add action for this module','info');}
+function handleAdd(){
+  const noAddMods=['org-profile','org-structure','reports','sourcing','dashboard'];
+  if(noAddMods.includes(_curMod)){toast('Use the specific Add buttons on this page','info');return;}
+  const t=addMap[_curMod];if(t)openModal(t);else toast('No add action for this module','info');
+}
 
 // ═══════════════════════════════════════════════════
 // DASHBOARD
@@ -988,27 +1052,100 @@ async function removeDoc(id){
 // ═══════════════════════════════════════════════════
 async function loadOrgStructure(){
   try{
-    const[summary,depts,bus,offices]=await Promise.all([
+    const[summary,depts,bus,ccs,offices]=await Promise.all([
       apiFetch('/api/org/summary'),apiFetch('/api/departments'),
-      apiFetch('/api/business-units'),apiFetch('/api/offices')
+      apiFetch('/api/business-units'),apiFetch('/api/cost-centres'),apiFetch('/api/offices')
     ]);
     setHtml('org-kpis',`
-      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Departments</div><div class="kpi-value">${summary.departments}</div></div>
-      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Office Locations</div><div class="kpi-value">${summary.offices}</div></div>
-      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Business Units</div><div class="kpi-value">${summary.business_units}</div></div>`);
-    $('dept-count').textContent=depts.length+' departments';
-    setHtml('dept-tbl',`<table><thead><tr><th>Department</th><th>Head</th><th>Headcount</th><th>Budget</th><th>Unit</th><th>Actions</th></tr></thead><tbody>${
-      depts.map(d=>`<tr><td class="tbold">${d.name}</td><td>${d.head_name||'–'}</td><td class="tmono">${d.headcount||0}</td><td class="tmono">${fmt.moneyK(d.budget)}</td><td>${d.business_unit||'–'}</td>
-      <td><button class="btn btn-danger btn-xs" onclick="deleteDept(${d.id},'${d.name.replace(/'/g,"\\'")}')">Remove</button></td></tr>`).join('')
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Departments</div><div class="kpi-value">${summary.departments||0}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Business Units</div><div class="kpi-value">${summary.business_units||0}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Cost Centres</div><div class="kpi-value">${summary.cost_centres||0}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Offices</div><div class="kpi-value">${summary.offices||0}</div></div>`);
+    $('dept-count')&&($('dept-count').textContent=depts.length+' departments');
+    setHtml('dept-tbl',`<table><thead><tr><th>Department</th><th>Head</th><th>HC</th><th>Budget</th><th>BU</th><th>Cost Centre</th><th>Actions</th></tr></thead><tbody>${
+      depts.map(d=>`<tr>
+        <td class="tbold">${d.name}</td><td>${d.head_name||'–'}</td>
+        <td class="tmono">${d.headcount||0}</td><td class="tmono">${fmt.moneyK(d.budget)}</td>
+        <td style="font-size:11px">${d.business_unit||'–'}</td>
+        <td style="font-size:11px">${d.cost_centre_name||'–'}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('dept',${d.id})">Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('dept',${d.id},'${d.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+        </div></td></tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--txt2)">No departments added yet</td></tr>`
     }</tbody></table>`);
-    setHtml('bu-list',bus.map(b=>`<div style="background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;margin-bottom:8px"><div class="fb"><div class="tbold">${b.name}</div><span class="pill p-green">${b.headcount||0} staff</span></div><div style="font-size:11px;color:var(--txt2);margin-top:3px">${b.description||''}</div></div>`).join(''));
-    setHtml('office-tbl',`<table><thead><tr><th>Location</th><th>Type</th><th>City</th><th>Country</th><th>Staff</th></tr></thead><tbody>${
-      offices.map(o=>`<tr><td class="tbold">${o.name}</td><td>${o.type}</td><td>${o.city||'–'}</td><td>${o.country_name||'–'}</td><td class="tmono">${o.headcount}</td></tr>`).join('')
+    setHtml('bu-tbl',`<table><thead><tr><th>Business Unit</th><th>Head</th><th>Depts</th><th>Staff</th><th>Actions</th></tr></thead><tbody>${
+      bus.map(b=>`<tr>
+        <td class="tbold">${b.name}</td><td>${b.head_name||'–'}</td>
+        <td class="tmono">${b.dept_count||0}</td><td class="tmono">${b.headcount||0}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('bu',${b.id})">Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('bu',${b.id},'${b.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+        </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No business units added yet</td></tr>`
+    }</tbody></table>`);
+    setHtml('cc-tbl',`<table><thead><tr><th>Code</th><th>Name</th><th>Business Unit</th><th>Budget</th><th>Actions</th></tr></thead><tbody>${
+      ccs.map(c=>`<tr>
+        <td class="tbold tmono">${c.code}</td><td>${c.name}</td>
+        <td style="font-size:11px">${c.business_unit||'–'}</td>
+        <td class="tmono">${fmt.moneyK(c.budget)}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('cc',${c.id})">Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('cc',${c.id},'${c.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+        </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No cost centres added yet</td></tr>`
+    }</tbody></table>`);
+    setHtml('office-tbl',`<table><thead><tr><th>Location</th><th>Type</th><th>City</th><th>Country</th><th>Staff</th><th>Actions</th></tr></thead><tbody>${
+      offices.map(o=>`<tr>
+        <td class="tbold">${o.name}</td><td>${o.type}</td><td>${o.city||'–'}</td>
+        <td>${o.country_name||'–'}</td><td class="tmono">${o.headcount}</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('location',${o.id})">Edit</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('location',${o.id},'${o.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+        </div></td></tr>`).join('')||`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No offices added yet</td></tr>`
     }</tbody></table>`);
   }catch(e){console.error(e);}
 }
-async function deleteDept(id,name){if(!confirm(`Remove "${name}"?`))return;await apiFetch(`/api/departments/${id}`,{method:'DELETE'});toast(`"${name}" removed`,'success');loadOrgStructure();}
 
+async function deleteOrgEntry(type,id,name){
+  if(!confirm(`Remove "${name}"?`))return;
+  const urls={dept:`/api/departments/${id}`,bu:`/api/business-units/${id}`,cc:`/api/cost-centres/${id}`,location:`/api/offices/${id}`};
+  await apiFetch(urls[type],{method:'DELETE'});
+  toast(`"${name}" removed`,'success'); loadOrgStructure();
+}
+
+async function editOrgEntry(type,id){
+  const urls={dept:`/api/departments/${id}`,bu:`/api/business-units/${id}`,cc:`/api/cost-centres/${id}`,location:`/api/offices/${id}`};
+  const r=await apiFetch(urls[type]);
+  if(!r)return;
+  // Build BU options
+  const bus=_masters['business-units']||await apiFetch('/api/lookup/business-units')||[];
+  const buOpts=`<option value="">None</option>`+bus.map(b=>`<option value="${b.id}" ${b.id==r.business_unit_id?'selected':''}>${b.name}</option>`).join('');
+  const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==r.state_id?'selected':''}>${s.name}</option>`).join('');
+  const forms={
+    dept:`<div class="fg"><label class="flabel">Department Name *</label><input class="finput" name="name" required value="${r.name||''}"></div>
+          <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id">${buOpts}</select></div>
+          <div class="fg"><label class="flabel">Department Head</label><input class="finput" name="head_name" value="${r.head_name||''}"></div></div>
+          <div class="frow"><div class="fg"><label class="flabel">Annual Budget (₹)</label><input class="finput" type="number" name="budget" value="${r.budget||0}"></div>
+          <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${r.location||''}"></div></div>`,
+    bu:`<div class="fg"><label class="flabel">Business Unit Name *</label><input class="finput" name="name" required value="${r.name||''}"></div>
+        <div class="fg"><label class="flabel">Head / Owner</label><input class="finput" name="head_name" value="${r.head_name||''}"></div>
+        <div class="fg"><label class="flabel">Description</label><input class="finput" name="description" value="${r.description||''}"></div>`,
+    cc:`<div class="frow"><div class="fg"><label class="flabel">Code *</label><input class="finput" name="code" required value="${r.code||''}"></div>
+        <div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" required value="${r.name||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id">${buOpts}</select></div>
+        <div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="${r.budget||0}"></div></div>`,
+    location:`<div class="fg"><label class="flabel">Location Name *</label><input class="finput" name="name" required value="${r.name||''}"></div>
+              <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${r.city||''}"></div>
+              <div class="fg"><label class="flabel">Type</label><select class="fselect" name="type">${['Headquarters','Regional','Satellite'].map(t=>`<option ${r.type==t?'selected':''}>${t}</option>`).join('')}</select></div></div>
+              <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div>
+              <div class="fg"><label class="flabel">Headcount</label><input class="finput" type="number" name="headcount" value="${r.headcount||0}"></div></div>`,
+  };
+  const titles={dept:'Edit Department',bu:'Edit Business Unit',cc:'Edit Cost Centre',location:'Edit Location'};
+  _curModalType='org-edit';
+  $('m-title').textContent=titles[type];
+  $('m-body').innerHTML=`<form id="mform">${forms[type]}</form>`;
+  $('m-submit').textContent='Save Changes';
+  $('overlay').dataset.putUrl=urls[type];
+  $('overlay').classList.add('open');
+}
 // ═══════════════════════════════════════════════════
 // CLIENTS
 // ═══════════════════════════════════════════════════
@@ -1016,59 +1153,138 @@ async function loadClients(){
   const status=$('cl-status')?.value||'';
   try{
     const rows=await apiFetch('/api/clients');
-    const filtered=status?rows.filter(c=>c.is_active===1&&(status==='Active'?c.health_score>50:c.health_score<=50)):rows;
+    const filtered=status?rows.filter(c=>status==='Active'?c.health_score>50:c.health_score<=50):rows;
     const revMtd=rows.reduce((s,c)=>s+(c.revenue_mtd||0),0);
     setHtml('client-kpis',`
       <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Clients</div><div class="kpi-value">${rows.length}</div></div>
       <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active</div><div class="kpi-value">${rows.filter(c=>c.health_score>50).length}</div></div>
       <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(revMtd)}</div></div>
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">At Risk</div><div class="kpi-value">${rows.filter(c=>c.health_score<=50).length}</div></div>`);
-    setHtml('client-tbl',filtered.length===0?'<div class="empty"><div class="empty-title">No clients found</div></div>'
-      :`<table><thead><tr><th>Company</th><th>Industry</th><th>Contract</th><th>Open Reqs</th><th>Placements</th><th>Revenue MTD</th><th>Currency</th><th>GST</th><th>Health</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('client-tbl',filtered.length===0?`<div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No clients found</div></div>`
+      :`<table><thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Rating</th><th>Currency</th><th>Account Mgr</th><th>Open Reqs</th><th>Revenue MTD</th><th>GST</th><th>Health</th><th>Actions</th></tr></thead><tbody>${
       filtered.map(c=>`<tr>
         <td>${avFull(c.name,c.primary_contact||'')}</td>
-        <td>${c.industry||'–'}</td><td>${pill(c.contract_type||'–')}</td>
-        <td class="tmono">${c.open_reqs||0}</td><td class="tmono">${c.placements||0}</td>
-        <td class="tmono tg">${fmt.moneyK(c.revenue_mtd)}</td>
+        <td>${c.industry||'–'}</td>
+        <td>${pill(c.status||'Active')}</td>
+        <td><span class="stars">${'★'.repeat(c.rating||0)}${'☆'.repeat(5-(c.rating||0))}</span></td>
         <td><span class="pill p-charcoal">${c.currency||'INR'}</span></td>
-        <td class="tmono" style="font-size:11px">${c.gstin||'–'}</td>
+        <td style="font-size:11.5px">${c.account_manager_name||'–'}</td>
+        <td class="tmono">${c.open_reqs||0}</td>
+        <td class="tmono tg">${fmt.moneyK(c.revenue_mtd)}</td>
+        <td class="tmono" style="font-size:10px">${c.gstin||'–'}</td>
         <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
-        <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">Edit</button><button class="btn btn-ghost btn-xs" onclick="openModal('create-inv')">Invoice</button></div></td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="viewClient(${c.id})">View</button>
+          <button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">Edit</button>
+        </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
-async function editClient(id){
+async function viewClient(id){
   try{
     const c=await apiFetch(`/api/clients/${id}`);
     if(!c)return;
-    // Pre-fill master selects then open modal
-    _curModalType='edit-client';
-    $('m-title').textContent='Edit Client';
-    $('m-body').innerHTML=`<form id="mform">
-      <input type="hidden" name="_id" value="${c.id}">
-      <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required value="${c.name||''}"></div><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div></div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${(_masters['contract-types']||[]).map(m=>`<option value="${m.id}" ${m.id==c.contract_type_id?'selected':''}>${m.name}</option>`).join('')}</select></div>
-        <div class="fg"><label class="flabel">Billing Currency</label><select class="fselect" name="currency">${['INR','USD','GBP','SGD','AED','EUR','AUD'].map(cur=>`<option value="${cur}" ${cur==c.currency?'selected':''}>${cur}</option>`).join('')}</select></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}" ${m.id==c.payment_terms_id?'selected':''}>${m.name}</option>`).join('')}</select></div>
-        <div class="fg"><label class="flabel">Account Manager</label><input class="finput" name="account_manager" value="${c.account_manager||''}"></div>
-      </div>
-      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div><div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()" onblur="validateInlineGst(this)"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div><div class="fg"><label class="flabel">Health Score (0–100)</label><input class="finput" type="number" name="health_score" min="0" max="100" value="${c.health_score||80}"></div></div>
-      <div class="fg"><label class="flabel">Address</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
-      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div></div>
-    </form>`;
-    $('m-submit').textContent='Save Changes';
-    $('overlay').classList.add('open');
-    // Store client id for submit
-    $('overlay').dataset.editClientId=id;
-  }catch(e){console.error(e);}
+    // Open profile panel for client
+    $('pp-av').textContent=fmt.ini(c.name);$('pp-av').className='av av-lg av-blue';
+    $('pp-name').textContent=c.name;
+    $('pp-meta').textContent=`${c.industry||'–'} · ${c.status||'Active'} · ${c.currency||'INR'}`;
+    $('pp-tabs').innerHTML=`<div class="ptab-item active" onclick="showClientTab('overview',this)">Overview</div>
+      <div class="ptab-item" onclick="showClientTab('contacts',this)">Contacts</div>
+      <div class="ptab-item" onclick="showClientTab('address',this)">Address</div>
+      <div class="ptab-item" onclick="showClientTab('docs',this,${id})">Documents</div>`;
+    window._curClient=c;
+    showClientTab('overview', $('pp-tabs').firstChild);
+    $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
+  }catch(e){}
 }
 
+function showClientTab(tab,el,id){
+  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const c=window._curClient||{};
+  const tabs={
+    overview:`<div class="g2 mb12">
+      ${[['Contract Type',c.contract_type||'–'],['Payment Terms',c.payment_terms||'–'],['Currency',c.currency||'INR'],['Health Score',c.health_score+'/100'],['Referred By',c.referred_by||'–'],['Rating','★'.repeat(c.rating||0)+'☆'.repeat(5-(c.rating||0))],['GST',c.gstin||'–'],['PAN',c.pan||'–']].map(([l,v])=>`<div><div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${l}</div><div style="font-size:13px;font-weight:500;color:var(--txt)">${v}</div></div>`).join('')}
+      </div>`,
+    contacts:`<div class="mb12">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Primary Contact</div>
+      <div class="g2">${[['Name',c.primary_contact||'–'],['Designation',c.primary_contact_designation||'–'],['Email',c.contact_email||'–'],['Phone',c.contact_phone||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>
+      </div>
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px;margin-top:12px">Billing Contact</div>
+      <div class="g2">${[['Name',c.billing_contact_name||'–'],['Designation',c.billing_contact_designation||'–'],['Email',c.billing_contact_email||'–'],['Phone',c.billing_contact_phone||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>`,
+    address:`<div class="g2">${[['Line 1',c.address_line1||'–'],['Line 2',c.address_line2||'–'],['City',c.city||'–'],['State',c.state_name||'–'],['Pincode',c.pincode||'–'],['Country',c.country_name||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>`,
+    docs:`<div id="client-docs-list">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-client-doc')">+ Upload Document</button></div>`,
+  };
+  setHtml('pp-content',tabs[tab]||'');
+  if(tab==='docs'&&c.id){
+    apiFetch(`/api/clients/${c.id}/documents`).then(docs=>{
+      setHtml('client-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteClientDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`
+        :`<div class="empty"><div class="empty-title">No documents uploaded</div></div>`);
+    });
+  }
+}
+
+async function deleteClientDoc(id){if(!confirm('Remove document?'))return;await apiFetch(`/api/clients/documents/${id}`,{method:'DELETE'});toast('Document removed','success');showClientTab('docs',$('pp-tabs').children[3],window._curClient?.id);}
+
+async function editClient(id){
+  try{
+    const[c,emps]=await Promise.all([apiFetch(`/api/clients/${id}`),apiFetch('/api/lookup/employees')]);
+    if(!c)return;
+    const empOpts=`<option value="">None</option>`+(emps||[]).map(e=>`<option value="${e.id}" ${e.id==c.account_manager_id?'selected':''}>${e.name}</option>`).join('');
+    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==c.state_id?'selected':''}>${s.name}</option>`).join('');
+    const coOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(co=>`<option value="${co.id}" ${co.id==c.country_id?'selected':''}>${co.name}</option>`).join('');
+    const ctOpts=(_masters['contract-types']||[]).map(m=>`<option value="${m.id}" ${m.id==c.contract_type_id?'selected':''}>${m.name}</option>`).join('');
+    const ptOpts=(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}" ${m.id==c.payment_terms_id?'selected':''}>${m.name}</option>`).join('');
+    const curOpts=['INR','USD','GBP','SGD','AED','EUR','AUD'].map(cur=>`<option ${cur==c.currency?'selected':''}>${cur}</option>`).join('');
+    const stOpts2=['Active','Inactive','At Risk','On Hold'].map(s=>`<option ${s==c.status?'selected':''}>${s}</option>`).join('');
+    _curModalType='edit-client';
+    $('m-title').textContent='Edit Client — '+c.name;
+    $('m-body').innerHTML=`<form id="mform">
+      <input type="hidden" name="_id" value="${c.id}">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Company Details</div>
+      <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required value="${c.name||''}"></div><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${stOpts2}</select></div>
+        <div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(c.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(c.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${c.rating||0}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
+        <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Billing Currency</label><select class="fselect" name="currency">${curOpts}</select></div>
+        <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${empOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${c.referred_by||''}"></div>
+        <div class="fg"><label class="flabel">Health Score (0–100)</label><input class="finput" type="number" min="0" max="100" name="health_score" value="${c.health_score||80}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Primary Contact</div>
+      <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div>
+        <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${c.primary_contact_designation||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div>
+        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Billing Contact</div>
+      <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="billing_contact_name" value="${c.billing_contact_name||''}"></div>
+        <div class="fg"><label class="flabel">Designation</label><input class="finput" name="billing_contact_designation" value="${c.billing_contact_designation||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" name="billing_contact_email" value="${c.billing_contact_email||''}"></div>
+        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="billing_contact_phone" value="${c.billing_contact_phone||''}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Address</div>
+      <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
+      <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${c.address_line2||''}"></div>
+      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div>
+        <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${c.pincode||''}"></div>
+        <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div></div>
+      <div class="divider"></div>
+      <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+    </form>`;
+    $('m-submit').textContent='Save Client';
+    $('overlay').classList.add('open');
+  }catch(e){console.error(e);}
+}
+function setRating(n){
+  document.querySelectorAll('#rating-stars span').forEach((s,i)=>{s.textContent=i<n?'★':'☆';s.classList.toggle('on',i<n);});
+  $('rating-val').value=n;
+}
 // ═══════════════════════════════════════════════════
 // VENDORS
 // ═══════════════════════════════════════════════════
@@ -1082,20 +1298,97 @@ async function loadVendors(){
       <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Avg SLA Score</div><div class="kpi-value">${avg}%</div></div>
       <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Spend MTD</div><div class="kpi-value">${fmt.moneyK(spend)}</div></div>
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">SLA Breaches</div><div class="kpi-value">${rows.filter(v=>v.sla_score<80).length}</div></div>`);
-    setHtml('vendor-tbl',`<table><thead><tr><th>Vendor</th><th>Category</th><th>Contact</th><th>GST</th><th>Contract End</th><th>Spend MTD</th><th>SLA Score</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
-      rows.map(v=>{const st=v.sla_score>=90?'var(--green-dk)':v.sla_score>=80?'var(--amber)':'var(--red)';return`<tr>
-        <td class="tbold">${v.name}</td><td>${pill(v.category||'–','p-blue')}</td>
-        <td>${v.primary_contact||'–'}</td>
-        <td class="tmono" style="font-size:11px">${v.gstin||'–'}</td>
+    setHtml('vendor-tbl',`<table><thead><tr><th>Vendor</th><th>Category</th><th>Status</th><th>Rating</th><th>Account Mgr</th><th>GST</th><th>Contract End</th><th>Spend MTD</th><th>SLA</th><th>Actions</th></tr></thead><tbody>${
+      rows.map(v=>{const sc=v.sla_score>=90?'var(--green-dk)':v.sla_score>=80?'var(--amber)':'var(--red)';return`<tr>
+        <td class="tbold">${v.name}</td>
+        <td>${pill(v.category||'–','p-blue')}</td>
+        <td>${pill(v.status||'Active')}</td>
+        <td><span class="stars">${'★'.repeat(v.rating||0)}${'☆'.repeat(5-(v.rating||0))}</span></td>
+        <td style="font-size:11.5px">${v.account_manager_name||'–'}</td>
+        <td class="tmono" style="font-size:10px">${v.gstin||'–'}</td>
         <td class="tmono">${fmt.date(v.contract_end)}</td>
         <td class="tmono">${fmt.moneyK(v.spend_mtd)}</td>
-        <td style="font-weight:600;color:${st};font-family:var(--mono)">${v.sla_score}%</td>
-        <td>${pill(v.sla_score>=80?'Active':v.sla_score>=70?'Watch':'SLA Breach')}</td>
-        <td>${v.sla_score<80?`<button class="btn btn-danger btn-xs" onclick="toast('Escalation sent!','success')">Escalate</button>`:`<button class="btn btn-ghost btn-xs">View</button>`}</td>
+        <td style="font-weight:600;color:${sc};font-family:var(--mono)">${v.sla_score}%</td>
+        <td><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="viewVendor(${v.id})">View</button>
+          <button class="btn btn-ghost btn-xs" onclick="editVendor(${v.id})">Edit</button>
+        </div></td>
       </tr>`;}).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
+async function viewVendor(id){
+  const v=await apiFetch(`/api/vendors/${id}`);
+  if(!v)return;
+  $('pp-av').textContent=fmt.ini(v.name);$('pp-av').className='av av-lg av-amber';
+  $('pp-name').textContent=v.name;
+  $('pp-meta').textContent=`${v.category||'–'} · SLA ${v.sla_score}% · ${v.status||'Active'}`;
+  window._curVendor=v;
+  $('pp-tabs').innerHTML=`<div class="ptab-item active" onclick="showVendorTab('overview',this)">Overview</div>
+    <div class="ptab-item" onclick="showVendorTab('banking',this)">Banking</div>
+    <div class="ptab-item" onclick="showVendorTab('address',this)">Address</div>
+    <div class="ptab-item" onclick="showVendorTab('docs',this)">Documents</div>`;
+  showVendorTab('overview',$('pp-tabs').firstChild);
+  $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
+}
+
+function showVendorTab(tab,el){
+  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));el.classList.add('active');
+  const v=window._curVendor||{};
+  const tabs={
+    overview:`<div class="g2">${[['Contact',v.primary_contact||'–'],['Designation',v.primary_contact_designation||'–'],['Email',v.contact_email||'–'],['Phone',v.contact_phone||'–'],['GST',v.gstin||'–'],['PAN',v.pan||'–'],['Contract End',fmt.date(v.contract_end)],['Referred By',v.referred_by||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v2}</div></div>`).join('')}</div>
+      <div class="divider"></div><div><div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:6px">SLA</div><p style="font-size:12.5px;color:var(--txt2)">${v.sla_description||'No SLA defined'}</p></div>`,
+    banking:`<div class="g2">${[['Account Name',v.bank_account_name||'–'],['Bank',v.bank_name||'–'],['Branch',v.bank_branch||'–'],['Account Number',v.bank_account_number||'–'],['IFSC',v.bank_ifsc||'–'],['SWIFT',v.bank_swift||'–'],['Account Type',v.bank_account_type||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;font-family:var(--mono);color:var(--txt)">${v2}</div></div>`).join('')}</div>`,
+    address:`<div class="g2">${[['Line 1',v.address_line1||'–'],['Line 2',v.address_line2||'–'],['City',v.city||'–'],['State',v.state_name||'–'],['Pincode',v.pincode||'–'],['Country',v.country_name||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v2}</div></div>`).join('')}</div>`,
+    docs:`<div id="vendor-docs-list">Loading…</div><div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-vendor-doc')">+ Upload Document</button></div>`,
+  };
+  setHtml('pp-content',tabs[tab]||'');
+  if(tab==='docs'&&v.id){
+    apiFetch(`/api/vendors/${v.id}/documents`).then(docs=>{
+      setHtml('vendor-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteVendorDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`);
+    });
+  }
+}
+async function deleteVendorDoc(id){if(!confirm('Remove?'))return;await apiFetch(`/api/vendors/documents/${id}`,{method:'DELETE'});toast('Removed','success');showVendorTab('docs',$('pp-tabs').children[3]);}
+
+async function editVendor(id){
+  try{
+    const[v,emps]=await Promise.all([apiFetch(`/api/vendors/${id}`),apiFetch('/api/lookup/employees')]);
+    if(!v)return;
+    const empOpts=`<option value="">None</option>`+(emps||[]).map(e=>`<option value="${e.id}" ${e.id==v.account_manager_id?'selected':''}>${e.name}</option>`).join('');
+    const catOpts=(_masters['vendor-categories']||[]).map(m=>`<option value="${m.id}" ${m.id==v.category_id?'selected':''}>${m.name}</option>`).join('');
+    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==v.state_id?'selected':''}>${s.name}</option>`).join('');
+    const coOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(c=>`<option value="${c.id}" ${c.id==v.country_id?'selected':''}>${c.name}</option>`).join('');
+    _curModalType='edit-vendor';
+    $('m-title').textContent='Edit Vendor — '+v.name;
+    $('m-body').innerHTML=`<form id="mform">
+      <input type="hidden" name="_id" value="${v.id}">
+      <div class="frow"><div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required value="${v.name||''}"></div><div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${catOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Inactive','Watch','Suspended'].map(s=>`<option ${s==v.status?'selected':''}>${s}</option>`).join('')}</select></div>
+        <div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(v.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(v.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${v.rating||0}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${empOpts}</select></div><div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${v.referred_by||''}"></div></div>
+      <div class="divider"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" value="${v.primary_contact||''}"></div><div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${v.primary_contact_designation||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${v.contact_email||''}"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${v.contact_phone||''}"></div></div>
+      <div class="divider"></div>
+      <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${v.address_line1||''}"></div>
+      <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${v.address_line2||''}"></div>
+      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${v.city||''}"></div><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${v.pincode||''}"></div><div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${v.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${v.pan||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase">Banking Details</div>
+      <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${v.bank_account_name||''}"></div><div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${v.bank_name||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${v.bank_branch||''}"></div><div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type">${['Current','Savings'].map(t=>`<option ${t==v.bank_account_type?'selected':''}>${t}</option>`).join('')}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${v.bank_account_number||''}"></div><div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${v.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+      <div class="divider"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Contract End Date</label><input class="finput" type="date" name="contract_end" value="${v.contract_end||''}"></div><div class="fg"><label class="flabel">SLA Score (0–100)</label><input class="finput" type="number" min="0" max="100" name="sla_score" value="${v.sla_score||90}"></div></div>
+      <div class="fg"><label class="flabel">SLA Description</label><textarea class="finput" name="sla_description" style="min-height:70px">${v.sla_description||''}</textarea></div>
+    </form>`;
+    $('m-submit').textContent='Save Vendor';
+    $('overlay').classList.add('open');
+  }catch(e){console.error(e);}
+}
 // ═══════════════════════════════════════════════════
 // EMPLOYEES
 // ═══════════════════════════════════════════════════
@@ -1115,22 +1408,260 @@ async function loadEmployees(q=''){
       <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Full-Time</div><div class="kpi-value">${fte}</div></div>
       <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contractors</div><div class="kpi-value">${ctr}</div></div>
       <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Onboarding</div><div class="kpi-value">${onb}</div></div>`);
-    setHtml('emp-tbl',rows.length===0?'<div class="empty"><div class="empty-title">No employees found</div></div>'
-      :`<table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Location</th><th>Type</th><th>Client</th><th>Manager</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('emp-tbl',rows.length===0?`<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>`
+      :`<table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Type</th><th>Reporting Mgr</th><th>Client</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
       rows.map(e=>`<tr>
-        <td>${avFull(e.first_name+' '+e.last_name,e.emp_id)}</td>
-        <td>${e.job_title||'–'}</td><td>${e.department_name||'–'}</td>
-        <td>${e.location||'–'}</td>
-        <td>${pill(e.employment_type==='Full-Time'?'Full-Time':e.employment_type||'–')}</td>
-        <td>${e.client_name?`<span class="pill p-teal">${e.client_name}</span>`:'–'}</td>
-        <td>${e.manager_name||'–'}</td>
+        <td><div class="avrow"><div class="av ${fmt.avCol(e.first_name+' '+e.last_name)}">${fmt.ini(e.first_name+' '+e.last_name)}</div>
+          <div><div class="av-name">${e.first_name} ${e.middle_name?e.middle_name+' ':''} ${e.last_name}</div><div class="av-meta" style="font-family:var(--mono)">${e.emp_id}</div></div></div></td>
+        <td style="font-size:11.5px">${e.job_title||'–'}</td>
+        <td style="font-size:11.5px">${e.department_name||'–'}</td>
+        <td>${pill(e.employment_type==='Full-Time'?'Full-Time':e.employment_type&&e.employment_type.includes('Contractor')?'Contractor':e.employment_type||'–')}</td>
+        <td style="font-size:11.5px">${e.reporting_manager_name||'–'}</td>
+        <td>${e.client_name?`<span class="pill p-teal" style="font-size:9px">${e.client_name}</span>`:'–'}</td>
+        <td><span class="stars" style="font-size:11px">${'★'.repeat(e.rating||0)}${'☆'.repeat(5-(e.rating||0))}</span></td>
         <td>${pill(e.status)}</td>
         <td><div class="tact">
-          <button class="btn btn-ghost btn-xs" onclick="toast('Opening profile…','info')">Profile</button>
-          ${e.status==='Active'?`<button class="btn btn-danger btn-xs" style="font-size:9px" onclick="termEmp(${e.id},'${(e.first_name+' '+e.last_name).replace(/'/g,"\\'")}')">Term.</button>`:''}
+          <button class="btn btn-ghost btn-xs" onclick="openEmployeeProfile(${e.id})">Profile</button>
+          <button class="btn btn-ghost btn-xs" onclick="editEmployee(${e.id})">Edit</button>
+          ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="termEmp(${e.id},'${(e.first_name+' '+e.last_name).replace(/'/g,"\\'")}')">Term.</button>`:''}
         </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
+}
+
+async function termEmp(id,name){
+  if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
+  await apiFetch(`/api/employees/${id}`,{method:'DELETE'});
+  toast(`${name} terminated`,'success');loadEmployees();
+}
+
+async function openEmployeeProfile(id){
+  try{
+    const e=await apiFetch(`/api/employees/${id}`);
+    if(!e)return;
+    const fullName=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`;
+    $('pp-av').textContent=fmt.ini(fullName);$('pp-av').className='av av-lg av-green';
+    $('pp-name').textContent=fullName;
+    $('pp-meta').textContent=`${e.emp_id} · ${e.job_title||'–'} · ${e.department_name||'–'}`;
+    window._curEmp=e;
+    $('pp-tabs').innerHTML=`
+      <div class="ptab-item active" onclick="showEmpTab('overview',this)">Overview</div>
+      <div class="ptab-item" onclick="showEmpTab('personal',this)">Personal</div>
+      <div class="ptab-item" onclick="showEmpTab('addresses',this)">Addresses</div>
+      <div class="ptab-item" onclick="showEmpTab('emergency',this)">Emergency</div>
+      <div class="ptab-item" onclick="showEmpTab('education',this)">Education</div>
+      <div class="ptab-item" onclick="showEmpTab('experience',this)">Experience</div>
+      <div class="ptab-item" onclick="showEmpTab('statutory',this)">Statutory &amp; Banking</div>
+      <div class="ptab-item" onclick="showEmpTab('payslips',this)">Payslips</div>
+      <div class="ptab-item" onclick="showEmpTab('docs',this)">Documents</div>`;
+    showEmpTab('overview',$('pp-tabs').firstChild);
+    $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
+  }catch(err){console.error(err);}
+}
+
+function showEmpTab(tab,el){
+  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const e=window._curEmp||{};
+  const field=(l,v)=>`<div><div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">${l}</div><div style="font-size:13px;color:var(--txt)">${v||'–'}</div></div>`;
+  const tabs={
+    overview:`<div class="g2 mb12">${[
+      ['Employee ID',e.emp_id],['Job Title',e.job_title],
+      ['Department',e.department_name],['Employment Type',e.employment_type],
+      ['Start Date',fmt.date(e.start_date)],['Status',pill(e.status)],
+      ['Reporting Manager',e.reporting_manager_name],['Client',e.client_name],
+      ['Location',e.location],['Rating','★'.repeat(e.rating||0)+'☆'.repeat(5-(e.rating||0))],
+      ['Billable',e.billable?`Yes — ${fmt.money(e.billable_amount)}/yr`:'No'],
+      ['Referred By',e.referred_by],
+    ].map(([l,v])=>field(l,v)).join('')}</div>`,
+    personal:`<div class="g2">${[
+      ['Official Email',e.email],['Official Phone',e.phone],
+      ['Personal Email',e.personal_email],['Personal Phone',e.personal_phone],
+    ].map(([l,v])=>field(l,v)).join('')}</div>`,
+    addresses:`<div id="emp-addr-content">Loading…</div>`,
+    emergency:`<div id="emp-emg-content">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-emergency')">+ Add Contact</button></div>`,
+    education:`<div id="emp-edu-content">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-education')">+ Add Education</button></div>`,
+    experience:`<div id="emp-exp-content">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-experience')">+ Add Experience</button></div>`,
+    statutory:`<div class="g2 mb12">${[
+      ['PAN',`<span class="tmono">${e.pan||'–'}</span>`],
+      ['Aadhaar',`<span class="tmono">${e.aadhaar||'–'}</span>`],
+      ['Passport',`<span class="tmono">${e.passport_number||'–'}</span>`],
+      ['PF Number',`<span class="tmono">${e.pf_number||'–'}</span>`],
+      ['ESI Number',`<span class="tmono">${e.esi_number||'–'}</span>`],
+    ].map(([l,v])=>field(l,v)).join('')}</div>
+    <div class="divider"></div>
+    <div style="font-size:12px;font-weight:600;margin-bottom:8px">Banking</div>
+    <div class="g2">${[
+      ['Account Name',e.bank_account_name],['Bank',e.bank_name],
+      ['Branch',e.bank_branch],['Account Number',`<span class="tmono">${e.bank_account_number||'–'}</span>`],
+      ['IFSC',`<span class="tmono">${e.bank_ifsc||'–'}</span>`],
+    ].map(([l,v])=>field(l,v)).join('')}</div>`,
+    payslips:`<div id="emp-payslips-content">Loading…</div>`,
+    docs:`<div id="emp-docs-content">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-emp-doc')">+ Upload Document</button></div>`,
+  };
+  setHtml('pp-content',tabs[tab]||'');
+  // Load async content
+  if(tab==='addresses') apiFetch(`/api/employees/${e.id}/addresses`).then(addrs=>setHtml('emp-addr-content',renderAddresses(addrs)));
+  if(tab==='emergency') apiFetch(`/api/employees/${e.id}/emergency-contacts`).then(cs=>setHtml('emp-emg-content',renderEmergency(cs)));
+  if(tab==='education') apiFetch(`/api/employees/${e.id}/education`).then(ed=>setHtml('emp-edu-content',renderEducation(ed)));
+  if(tab==='experience') apiFetch(`/api/employees/${e.id}/experience`).then(ex=>setHtml('emp-exp-content',renderExperience(ex)));
+  if(tab==='payslips'){
+    const slips=e.payslips||[];
+    setHtml('emp-payslips-content',slips.length?`<table><thead><tr><th>Month</th><th>CTC</th><th>Earnings</th><th>Deductions</th><th>Net Salary</th><th>Actions</th></tr></thead><tbody>${
+      slips.map(s=>`<tr><td class="tbold">${s.month}</td><td class="tmono">${fmt.money(s.ctc)}</td><td class="tmono tg">${fmt.money(s.total_earnings)}</td><td class="tmono tr2">${fmt.money(s.total_deductions)}</td><td class="tmono fw7">${fmt.money(s.net_salary)}</td>
+        <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.id},'${s.month}')">Payslip</button></td></tr>`).join('')}</tbody></table>`
+      :`<div class="empty"><div class="empty-title">No payroll entries found</div></div>`);
+  }
+  if(tab==='docs') apiFetch(`/api/employees/${e.id}/documents`).then(docs=>setHtml('emp-docs-content',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`));
+}
+
+function renderAddresses(addrs){
+  if(!addrs||!addrs.length) return '<div class="empty"><div class="empty-title">No addresses on file</div></div>';
+  return addrs.map(a=>`<div class="mb12"><div style="font-size:12px;font-weight:600;margin-bottom:6px">${a.address_type} Address</div>
+    <div class="g2">${[['Line 1',a.address_line1],['Line 2',a.address_line2],['City',a.city],['State',a.state_name],['Pincode',a.pincode],['Country',a.country_name]].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v||'–'}</div></div>`).join('')}</div></div>`).join('<hr class="divider">');
+}
+function renderEmergency(cs){
+  if(!cs||!cs.length) return '<div class="empty"><div class="empty-title">No emergency contacts</div></div>';
+  return `<table><thead><tr><th>Name</th><th>Relationship</th><th>Phone</th><th>Email</th><th>Primary</th><th>Actions</th></tr></thead><tbody>${
+    cs.map(c=>`<tr><td class="tbold">${c.name}</td><td>${c.relationship||'–'}</td><td class="tmono">${c.phone||'–'}</td><td>${c.email||'–'}</td>
+      <td>${c.is_primary?'<span class="pill p-green">Primary</span>':'–'}</td>
+      <td><button class="btn btn-danger btn-xs" onclick="deleteEmgContact(${c.id})">Remove</button></td></tr>`).join('')}</tbody></table>`;
+}
+function renderEducation(ed){
+  if(!ed||!ed.length) return '<div class="empty"><div class="empty-title">No education records</div></div>';
+  return `<table><thead><tr><th>Institution</th><th>Degree</th><th>Field</th><th>Years</th><th>Grade</th><th>Actions</th></tr></thead><tbody>${
+    ed.map(e=>`<tr><td class="tbold">${e.institution}</td><td>${e.degree||'–'}</td><td>${e.field_of_study||'–'}</td>
+      <td class="tmono">${e.start_year||'–'} – ${e.end_year||'Present'}</td><td>${e.grade||'–'}</td>
+      <td><button class="btn btn-danger btn-xs" onclick="deleteEdu(${e.id})">Remove</button></td></tr>`).join('')}</tbody></table>`;
+}
+function renderExperience(ex){
+  if(!ex||!ex.length) return '<div class="empty"><div class="empty-title">No experience records</div></div>';
+  return `<table><thead><tr><th>Company</th><th>Designation</th><th>Location</th><th>Period</th><th>Actions</th></tr></thead><tbody>${
+    ex.map(e=>`<tr><td class="tbold">${e.company}</td><td>${e.designation||'–'}</td><td>${e.location||'–'}</td>
+      <td class="tmono" style="font-size:11px">${fmt.date(e.start_date)} – ${e.is_current?'Present':fmt.date(e.end_date)}</td>
+      <td><button class="btn btn-danger btn-xs" onclick="deleteExp(${e.id})">Remove</button></td></tr>`).join('')}</tbody></table>`;
+}
+async function deleteEmgContact(id){await apiFetch(`/api/employees/emergency-contacts/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('emergency',$('pp-tabs').children[3]);}
+async function deleteEdu(id){await apiFetch(`/api/employees/education/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('education',$('pp-tabs').children[4]);}
+async function deleteExp(id){await apiFetch(`/api/employees/experience/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('experience',$('pp-tabs').children[5]);}
+async function deleteEmpDoc(id){await apiFetch(`/api/employees/documents/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('docs',$('pp-tabs').children[8]);}
+
+async function viewPayslip(empId, month){
+  const entries=await apiFetch(`/api/payroll/entries?month=${month}`);
+  const entry=entries?.entries?.find(e=>e.employee_id===empId);
+  if(!entry){toast('No payslip found for this month','error');return;}
+  _curModalType='payslip';
+  $('m-title').textContent=`Payslip — ${entry.employee_name} · ${month}`;
+  $('m-body').innerHTML=`<div class="payslip-modal">
+    <div class="fb mb12">
+      <div><div style="font-size:14px;font-weight:700">${entry.employee_name}</div>
+        <div style="font-size:12px;color:var(--txt2)">${entry.emp_id} · ${entry.job_title||'–'} · ${entry.department_name||'–'}</div></div>
+      <div style="text-align:right"><div style="font-size:12px;color:var(--txt2)">Pay Period</div><div style="font-weight:700">${month}</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="g2">
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin:10px 0 6px;text-transform:uppercase">Earnings</div>
+        <table style="font-size:12px;width:100%">
+          <tr><td>Basic Salary</td><td class="tr tmono">${fmt.money(entry.basic)}</td></tr>
+          <tr><td>HRA</td><td class="tr tmono">${fmt.money(entry.hra)}</td></tr>
+          <tr><td>Medical Allowance</td><td class="tr tmono">${fmt.money(entry.medical_allowance)}</td></tr>
+          <tr><td>Special Allowance</td><td class="tr tmono">${fmt.money(entry.special_allowance)}</td></tr>
+          <tr><td>Other Allowances</td><td class="tr tmono">${fmt.money(entry.other_allowances)}</td></tr>
+          <tr><td>Incentive</td><td class="tr tmono tg">${fmt.money(entry.incentive)}</td></tr>
+          ${entry.lop_amount>0?`<tr style="color:var(--red)"><td>Less: LOP (${entry.lop_days} days)</td><td class="tr tmono">–${fmt.money(entry.lop_amount)}</td></tr>`:''}
+          <tr style="font-weight:700;border-top:2px solid var(--bdr)"><td>Gross Earnings</td><td class="tr tmono tg">${fmt.money(entry.total_earnings)}</td></tr>
+        </table>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin:10px 0 6px;text-transform:uppercase">Deductions</div>
+        <table style="font-size:12px;width:100%">
+          <tr><td>Profession Tax</td><td class="tr tmono">${fmt.money(entry.profession_tax)}</td></tr>
+          <tr><td>PF (Employee)</td><td class="tr tmono">${fmt.money(entry.pf_employee)}</td></tr>
+          <tr><td>PF (Employer)</td><td class="tr tmono t2">${fmt.money(entry.pf_employer)}</td></tr>
+          <tr><td>Medical Insurance</td><td class="tr tmono">${fmt.money(entry.medical_insurance)}</td></tr>
+          <tr><td>TDS</td><td class="tr tmono">${fmt.money(entry.tds)}</td></tr>
+          <tr><td>ESI (Employee)</td><td class="tr tmono">${fmt.money(entry.esi_employee)}</td></tr>
+          <tr><td>ESI (Employer)</td><td class="tr tmono t2">${fmt.money(entry.esi_employer)}</td></tr>
+          <tr><td>Other Deductions</td><td class="tr tmono">${fmt.money(entry.other_deductions)}</td></tr>
+          <tr style="font-weight:700;border-top:2px solid var(--bdr)"><td>Total Deductions</td><td class="tr tmono tr2">${fmt.money(entry.total_deductions)}</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="fb" style="background:var(--green-lt);padding:12px 16px;border-radius:var(--r);border:1px solid rgba(45,143,62,.2)">
+      <span style="font-size:14px;font-weight:700">Net Salary</span>
+      <span style="font-size:20px;font-weight:700;color:var(--green-dk);font-family:var(--mono)">${fmt.money(entry.net_salary)}</span>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:12px;color:var(--txt2)">CTC: ${fmt.money(entry.ctc)}/yr</div>
+  </div>`;
+  $('m-submit').style.display='none';
+  $('overlay').classList.add('open');
+}
+
+async function editEmployee(id){
+  try{
+    const[e,emps,depts]=await Promise.all([apiFetch(`/api/employees/${id}`),apiFetch('/api/lookup/employees'),apiFetch('/api/lookup/departments')]);
+    if(!e)return;
+    const empOpts=`<option value="">None</option>`+(emps||[]).filter(em=>em.id!==id).map(em=>`<option value="${em.id}" ${em.id==e.reporting_manager_id?'selected':''}>${em.name}</option>`).join('');
+    const deptOpts=`<option value="">None</option>`+(depts||[]).map(d=>`<option value="${d.id}" ${d.id==e.department_id?'selected':''}>${d.name}</option>`).join('');
+    const etOpts=(_masters['employment-types']||[]).map(m=>`<option value="${m.id}" ${m.id==e.employment_type_id?'selected':''}>${m.name}</option>`).join('');
+    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==e.state_id?'selected':''}>${s.name}</option>`).join('');
+    const coOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    _curModalType='edit-employee';
+    $('m-title').textContent=`Edit — ${e.first_name} ${e.last_name}`;
+    $('m-body').innerHTML=`<form id="mform" style="max-height:65vh;overflow-y:auto;padding-right:4px">
+      <input type="hidden" name="_id" value="${e.id}">
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Identity</div>
+      <div class="frow frow3"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required value="${e.first_name||''}"></div>
+        <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="${e.middle_name||''}"></div>
+        <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required value="${e.last_name||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" value="${e.emp_id||''}" placeholder="Auto-generated if blank"></div>
+        <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Onboarding','On Leave','Terminated'].map(s=>`<option ${s==e.status?'selected':''}>${s}</option>`).join('')}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(e.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(e.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${e.rating||0}"></div>
+        <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${e.referred_by||''}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Role & Organisation</div>
+      <div class="frow"><div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${e.job_title||''}"></div>
+        <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${etOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${deptOpts}</select></div>
+        <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id">${empOpts}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${e.location||''}"></div>
+        <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${e.start_date||''}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Compensation</div>
+      <div class="frow"><div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" value="${e.salary||0}"></div>
+        <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="${e.bill_rate||0}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="document.getElementById('billable-amt').style.display=this.value=='1'?'block':'none'"><option value="0" ${!e.billable?'selected':''}>No</option><option value="1" ${e.billable?'selected':''}>Yes</option></select></div>
+        <div class="fg" id="billable-amt" style="display:${e.billable?'block':'none'}"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" value="${e.billable_amount||0}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Contact</div>
+      <div class="frow"><div class="fg"><label class="flabel">Official Email</label><input class="finput" type="email" name="email" value="${e.email||''}"></div>
+        <div class="fg"><label class="flabel">Official Phone</label><input class="finput" name="phone" value="${e.phone||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
+        <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Statutory IDs</div>
+      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}" oninput="this.value=this.value.toUpperCase()" placeholder="AAAAA0000A"></div>
+        <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}" maxlength="12" placeholder="12-digit Aadhaar"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Passport Number</label><input class="finput" name="passport_number" value="${e.passport_number||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div>
+      <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}" placeholder="17-digit ESI number"></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Banking</div>
+      <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${e.bank_account_name||''}"></div>
+        <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${e.bank_name||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${e.bank_account_number||''}"></div>
+        <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" value="${e.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+    </form>`;
+    $('m-submit').style.display='';$('m-submit').textContent='Save Employee';
+    $('overlay').classList.add('open');
+  }catch(err){console.error(err);}
 }
 async function termEmp(id,name){if(!confirm(`Terminate "${name}"?`))return;await apiFetch(`/api/employees/${id}`,{method:'DELETE'});toast(`${name} terminated`,'success');loadEmployees();}
 
@@ -1178,23 +1709,95 @@ async function approveAll(){const rows=await apiFetch('/api/timesheets?status=Pe
 // PAYROLL
 // ═══════════════════════════════════════════════════
 async function loadPayroll(){
+  // Load months into filter
   try{
-    const[summary,runs]=await Promise.all([apiFetch('/api/payroll/summary'),apiFetch('/api/payroll')]);
-    const tot=summary.total||1;
-    setHtml('pr-breakdown',`<table><thead><tr><th>Component</th><th class="tr">Amount</th><th class="tr">% of Total</th></tr></thead><tbody>
-      <tr><td class="tbold">Base Salaries</td><td class="tmono tr">${fmt.money(summary.base_salaries)}</td><td class="tr">${Math.round(summary.base_salaries/tot*100)}%</td></tr>
-      <tr><td class="tbold">Contractor Payments</td><td class="tmono tr">${fmt.money(summary.contractor_payments)}</td><td class="tr">${Math.round(summary.contractor_payments/tot*100)}%</td></tr>
-      <tr><td class="tbold">Overtime Pay</td><td class="tmono tr">${fmt.money(summary.overtime)}</td><td class="tr">${Math.round(summary.overtime/tot*100)}%</td></tr>
-      <tr><td class="tbold">Benefits (Employer)</td><td class="tmono tr">${fmt.money(summary.benefits)}</td><td class="tr">${Math.round(summary.benefits/tot*100)}%</td></tr>
-      <tr><td class="tbold">Employer Taxes</td><td class="tmono tr">${fmt.money(summary.taxes)}</td><td class="tr">${Math.round(summary.taxes/tot*100)}%</td></tr>
-      <tr style="border-top:2px solid var(--bdr)"><td class="tbold" style="font-size:13px">Total Cost of Labor</td><td class="tmono tr tg fw7" style="font-size:13px">${fmt.money(tot)}</td><td></td></tr>
-    </tbody></table>`);
-    setHtml('pr-schedule',`<table><thead><tr><th>Run Date</th><th>Type</th><th>Employees</th><th>Gross</th><th>Net</th><th>Status</th></tr></thead><tbody>${
-      runs.map(r=>`<tr><td>${fmt.date(r.run_date)}</td><td style="font-size:11px">${r.run_type||'–'}</td><td class="tmono">${r.employee_count}</td><td class="tmono">${fmt.moneyK(r.gross_amount)}</td><td class="tmono">${fmt.moneyK(r.net_amount)}</td><td>${pill(r.status)}</td></tr>`).join('')
-    }</tbody></table>`);
-  }catch(e){console.error(e);}
+    const months=await apiFetch('/api/payroll/months');
+    const sel=$('pr-month');
+    if(sel&&sel.options.length<=1){
+      (months||[]).forEach(m=>{const o=document.createElement('option');o.value=m.month;o.textContent=m.month;sel.appendChild(o);});
+    }
+  }catch(e){}
+  await loadPayrollEntries();
 }
 
+async function loadPayrollEntries(){
+  const month=$('pr-month')?.value||'';
+  const type=$('pr-type')?.value||'';
+  try{
+    const data=await apiFetch(`/api/payroll/entries?month=${month}&employment_type=${encodeURIComponent(type)}`);
+    const entries=data.entries||[];
+    const summary=data.summary||{};
+    $('pr-period').textContent=month?`Period: ${month}`:`All months · ${entries.length} entries`;
+    // Payroll register table - full breakdown
+    setHtml('pr-register',entries.length===0?`<div class="empty"><div class="empty-title">No payroll entries found</div><div class="empty-sub">Run payroll or adjust filters</div></div>`
+      :`<div style="overflow-x:auto"><table style="font-size:11px;min-width:1400px">
+        <thead><tr>
+          <th style="white-space:nowrap">Emp Code</th><th>Name</th><th>Type</th>
+          <th class="tr">CTC</th><th class="tr">Basic</th><th class="tr">HRA</th>
+          <th class="tr">Medical</th><th class="tr">Special</th><th class="tr">Others</th>
+          <th class="tr">Incentive</th><th class="tr">LOP</th><th class="tr" style="background:var(--green-lt)">Gross</th>
+          <th class="tr">Prof Tax</th><th class="tr">PF (Ee)</th><th class="tr">PF (Er)</th>
+          <th class="tr">Med Ins</th><th class="tr">TDS</th><th class="tr">ESI (Ee)</th>
+          <th class="tr">ESI (Er)</th><th class="tr" style="background:var(--red-dim)">Total Ded</th>
+          <th class="tr" style="background:var(--green-lt)">Net Salary</th><th>Actions</th>
+        </tr></thead><tbody>${
+        entries.map(e=>`<tr>
+          <td class="tmono" style="white-space:nowrap">${e.emp_id}</td>
+          <td class="tbold" style="white-space:nowrap">${e.employee_name}</td>
+          <td>${e.employment_type?.includes('Contractor')?'<span class="pill p-amber" style="font-size:9px">CTR</span>':'<span class="pill p-green" style="font-size:9px">FTE</span>'}</td>
+          <td class="tmono tr">${fmt.moneyK(e.ctc)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.basic)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.hra)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.medical_allowance)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.special_allowance)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.other_allowances)}</td>
+          <td class="tmono tr tg">${fmt.moneyK(e.incentive)}</td>
+          <td class="tmono tr" style="color:var(--red)">${e.lop_days>0?e.lop_days+'d':'–'}</td>
+          <td class="tmono tr fw7 tg" style="background:var(--green-lt)">${fmt.moneyK(e.total_earnings)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.profession_tax)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.pf_employee)}</td>
+          <td class="tmono tr t2">${fmt.moneyK(e.pf_employer)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.medical_insurance)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.tds)}</td>
+          <td class="tmono tr">${fmt.moneyK(e.esi_employee)}</td>
+          <td class="tmono tr t2">${fmt.moneyK(e.esi_employer)}</td>
+          <td class="tmono tr fw7 tr2" style="background:var(--red-dim)">${fmt.moneyK(e.total_deductions)}</td>
+          <td class="tmono tr fw7 tg" style="background:var(--green-lt)">${fmt.moneyK(e.net_salary)}</td>
+          <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.employee_id},'${e.month}')">Payslip</button></td>
+        </tr>`).join('')}
+        </tbody>
+        <tfoot style="background:var(--s2);font-weight:700;border-top:2px solid var(--bdr)">
+          <tr>
+            <td colspan="3" style="padding:8px 12px;font-size:11px">TOTAL (${entries.length} employees)</td>
+            <td class="tmono tr">${fmt.moneyK(summary.total_ctc)}</td>
+            <td colspan="7"></td>
+            <td class="tmono tr tg">${fmt.moneyK(summary.total_net_salary+summary.total_deductions)}</td>
+            <td colspan="4"></td>
+            <td class="tmono tr">${fmt.moneyK(summary.total_tds)}</td>
+            <td colspan="2"></td>
+            <td class="tmono tr tr2">${fmt.moneyK(summary.total_deductions)}</td>
+            <td class="tmono tr tg">${fmt.moneyK(summary.total_net_salary)}</td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table></div>`);
+    // Cumulative summary cards
+    setHtml('pr-cumulative',`<div class="kgrid k4" style="padding:16px">
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Total CTC</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_ctc)}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Net Salaries</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_net_salary)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Total Incentive</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_incentive)}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Deductions</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_deductions)}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Profession Tax</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_pt)}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">PF (Employee)</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_pf_employee)}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">PF (Employer)</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_pf_employer)}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">TDS</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_tds)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Medical Insurance</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_medical_insurance)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">ESI (Employee)</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_esi_employee)}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">ESI (Employer)</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(summary.total_esi_employer)}</div></div>
+      <div class="kpi" style="--kc:var(--charcoal)"><div class="kpi-label">Head Count</div><div class="kpi-value" style="font-size:18px">${summary.count}</div></div>
+    </div>`);
+  }catch(e){console.error(e);}
+}
 // ═══════════════════════════════════════════════════
 // JOBS
 // ═══════════════════════════════════════════════════
@@ -1677,6 +2280,100 @@ const modalDefs={
       const el=$('gst-state-sel');if(el)el.innerHTML='<option value="">Select state…</option>'+(states||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
     }
   },
+  'add-bu':{
+    title:'Add Business Unit',submit:'Create',endpoint:'/api/business-units',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" required placeholder="Technology Services"></div>
+      <div class="fg"><label class="flabel">Head / Owner</label><input class="finput" name="head_name" placeholder="Ravi Kumar"></div>
+      <div class="fg"><label class="flabel">Description</label><input class="finput" name="description" placeholder="Engineering, DevOps, QA"></div>`,
+    afterSave:loadOrgStructure
+  },
+  'add-cc':{
+    title:'Add Cost Centre',submit:'Create',endpoint:'/api/cost-centres',method:'POST',
+    fields:()=>`
+      <div class="frow"><div class="fg"><label class="flabel">Code *</label><input class="finput" name="code" required placeholder="CC-001"></div>
+        <div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" required placeholder="Engineering"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id" id="cc-bu-sel"><option value="">Loading…</option></select></div>
+        <div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" placeholder="4200000"></div></div>`,
+    afterSave:loadOrgStructure,
+    afterRender:async()=>{const bus=await apiFetch('/api/business-units')||[];const el=$('cc-bu-sel');if(el)el.innerHTML='<option value="">None</option>'+bus.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');}
+  },
+  'add-location':{
+    title:'Add Office Location',submit:'Create',endpoint:'/api/offices',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Location Name *</label><input class="finput" name="name" required placeholder="Hyderabad (HQ)"></div>
+      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" placeholder="Hyderabad"></div>
+        <div class="fg"><label class="flabel">Type</label><select class="fselect" name="type"><option>Headquarters</option><option>Regional</option><option>Satellite</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id"><option value="">Select…</option>${(_masters['states']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}</select></div>
+        <div class="fg"><label class="flabel">Headcount</label><input class="finput" type="number" name="headcount" value="0"></div></div>`,
+    afterSave:loadOrgStructure
+  },
+  'add-emergency':{
+    title:'Add Emergency Contact',submit:'Add Contact',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Full Name *</label><input class="finput" name="name" required placeholder="Jane Smith"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Relationship</label><select class="fselect" name="relationship">${(_masters['relationship-types']||['Spouse','Parent','Sibling','Child','Friend','Colleague','Other']).map(r=>typeof r==='string'?`<option>${r}</option>`:`<option>${r.name}</option>`).join('')}</select></div>
+        <div class="fg"><label class="flabel">Primary Contact?</label><select class="fselect" name="is_primary"><option value="0">No</option><option value="1">Yes</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div>
+        <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane@email.com"></div></div>`,
+    afterSave:()=>{const e=window._curEmp;if(e)showEmpTab('emergency',$('pp-tabs').children[3]);},
+    getEndpoint:()=>`/api/employees/${window._curEmp?.id}/emergency-contacts`
+  },
+  'add-education':{
+    title:'Add Education',submit:'Add',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Institution *</label><input class="finput" name="institution" required placeholder="IIT Hyderabad"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Degree</label><input class="finput" name="degree" placeholder="B.Tech"></div>
+        <div class="fg"><label class="flabel">Field of Study</label><input class="finput" name="field_of_study" placeholder="Computer Science"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Start Year</label><input class="finput" type="number" name="start_year" placeholder="2011"></div>
+        <div class="fg"><label class="flabel">End Year</label><input class="finput" type="number" name="end_year" placeholder="2015"></div></div>
+      <div class="fg"><label class="flabel">Grade / CGPA</label><input class="finput" name="grade" placeholder="8.5 / 10"></div>`,
+    afterSave:()=>{if(window._curEmp)showEmpTab('education',$('pp-tabs').children[4]);},
+    getEndpoint:()=>`/api/employees/${window._curEmp?.id}/education`
+  },
+  'add-experience':{
+    title:'Add Experience',submit:'Add',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Company *</label><input class="finput" name="company" required placeholder="Infosys"></div>
+      <div class="fg"><label class="flabel">Designation</label><input class="finput" name="designation" placeholder="Software Engineer"></div>
+      <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad"></div>
+      <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+        <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date"></div></div>
+      <div class="fg"><label class="flabel">Currently Working Here?</label><select class="fselect" name="is_current"><option value="0">No</option><option value="1">Yes</option></select></div>`,
+    afterSave:()=>{if(window._curEmp)showEmpTab('experience',$('pp-tabs').children[5]);},
+    getEndpoint:()=>`/api/employees/${window._curEmp?.id}/experience`
+  },
+  'upload-emp-doc':{
+    title:'Upload Employee Document',submit:'Save Document',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Document Type *</label>
+        <select class="fselect" name="doc_type"><option>PAN Card</option><option>Aadhaar Card</option><option>Passport</option><option>Offer Letter</option><option>Experience Letter</option><option>Educational Certificate</option><option>Bank Passbook</option><option>Relieving Letter</option><option>Other</option></select></div>
+      <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="PAN Card - John Doe"></div>
+      <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="emp-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'emp')"></div>
+      <div class="fg" id="emp-file-info"></div>`,
+    afterSave:()=>{if(window._curEmp)showEmpTab('docs',$('pp-tabs').children[8]);},
+    getEndpoint:()=>`/api/employees/${window._curEmp?.id}/documents`
+  },
+  'upload-client-doc':{
+    title:'Upload Client Document',submit:'Save Document',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Document Type *</label>
+        <select class="fselect" name="doc_type"><option>NDA</option><option>MSA</option><option>SOW</option><option>PO</option><option>Contract</option><option>Invoice</option><option>Other</option></select></div>
+      <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="NDA - Acme Inc. 2026"></div>
+      <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="cli-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'cli')"></div>`,
+    afterSave:()=>{const c=window._curClient;if(c)showClientTab('docs',$('pp-tabs').children[3],c.id);},
+    getEndpoint:()=>`/api/clients/${window._curClient?.id}/documents`
+  },
+  'upload-vendor-doc':{
+    title:'Upload Vendor Document',submit:'Save Document',method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Document Type *</label>
+        <select class="fselect" name="doc_type"><option>NDA</option><option>MSA</option><option>SLA Agreement</option><option>Contract</option><option>Rate Card</option><option>Other</option></select></div>
+      <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="NDA - LinkedIn Talent 2026"></div>
+      <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="vend-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'vend')"></div>`,
+    afterSave:()=>{if(window._curVendor)showVendorTab('docs',$('pp-tabs').children[3]);},
+    getEndpoint:()=>`/api/vendors/${window._curVendor?.id}/documents`
+  },
   'add-labour':{
     title:'Add Labour Department Certificate',submit:'Add Certificate',endpoint:'/api/organisation/labour-certs',method:'POST',
     fields:()=>`
@@ -1740,8 +2437,22 @@ function openModal(type){
   if(def.afterRender)def.afterRender();
 }
 
-function closeModal(){$('overlay').classList.remove('open');_curModalType=null;}
+function closeModal(){$('overlay').classList.remove('open');_curModalType=null;$('m-submit').style.display='';}
+function closeProfPanel(){$('prof-panel').classList.remove('open');$('prof-overlay').classList.remove('open');}
 function overlayClick(e){if(e.target===$('overlay'))closeModal();}
+
+// File to base64 helper
+window._fileData={};
+function handleFileSelect(input,prefix){
+  const file=input.files[0];if(!file)return;
+  const infoEl=$(prefix+'-file-info')||document.createElement('div');
+  infoEl.textContent=`Selected: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    window._fileData[prefix]={data:e.target.result.split(',')[1],name:file.name,size:(file.size/1024).toFixed(0)+' KB',mime:file.type};
+  };
+  reader.readAsDataURL(file);
+}
 
 function validateInlineGst(el){
   const err=validators.gstin(el.value);
@@ -1771,32 +2482,75 @@ function validateModalField(el){
 }
 
 async function submitModal(){
-  // Handle inline edit-client (no modalDef)
+  // Handle org inline edits
+  if(_curModalType==='org-edit'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
+    ['budget','business_unit_id','cost_centre_id','headcount','state_id','country_id'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
+    const url=$('overlay').dataset.putUrl;
+    try{await apiFetch(url,{method:'PUT',body:JSON.stringify(data)});toast('Updated!','success');closeModal();loadOrgStructure();}catch(e){}
+    return;
+  }
   if(_curModalType==='edit-client'){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
     const id=data._id;delete data._id;
-    ['contract_type_id','payment_terms_id','health_score'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
+    ['contract_type_id','payment_terms_id','health_score','account_manager_id','state_id','country_id','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
     try{await apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Client updated!','success');closeModal();loadClients();}catch(e){}
     return;
   }
+  if(_curModalType==='edit-vendor'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
+    const id=data._id;delete data._id;
+    ['category_id','account_manager_id','state_id','country_id','rating','sla_score'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
+    try{await apiFetch(`/api/vendors/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Vendor updated!','success');closeModal();loadVendors();}catch(e){}
+    return;
+  }
+  if(_curModalType==='edit-employee'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
+    const id=data._id;delete data._id;
+    ['department_id','employment_type_id','reporting_manager_id','manager_id','client_id','office_location_id','salary','bill_rate','billable','billable_amount','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
+    try{await apiFetch(`/api/employees/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Employee updated!','success');closeModal();loadEmployees();}catch(e){}
+    return;
+  }
+  if(_curModalType==='payslip'){closeModal();return;}
   const def=modalDefs[_curModalType];if(!def)return;
   const form=$('mform');if(!form)return;
   if(!form.checkValidity()){form.reportValidity();return;}
   const data={};
-  new FormData(form).forEach((v,k)=>{data[k]=v;});
+  new FormData(form).forEach((v,k)=>{if(k!=='_id')data[k]=v;});
+  // Determine endpoint (supports dynamic getEndpoint)
+  const endpoint = def.getEndpoint ? def.getEndpoint() : def.endpoint;
+  if(!endpoint){toast('No endpoint configured','error');return;}
   // Cast numeric FKs
   ['salary','bill_rate','comp_min','comp_max','amount','tax_amount','budget','years_exp',
    'employee_id','client_id','vendor_id','recruiter_id','application_id','department_id',
    'contract_type_id','engagement_type_id','payment_terms_id','category_id','priority_id',
-   'source_id','format_id','role_id','state_id','is_primary'].forEach(f=>{
+   'source_id','format_id','role_id','state_id','is_primary','start_year','end_year','is_current',
+   'headcount','sla_score','health_score','rating','billable','billable_amount'].forEach(f=>{
     if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;
     else if(data[f]==='')data[f]=null;
   });
+  // Handle file uploads — attach base64 data if present
+  const fileKeys=['emp','cli','vend'];
+  fileKeys.forEach(k=>{
+    if(window._fileData[k]){
+      data.file_data=window._fileData[k].data;
+      data.file_size=window._fileData[k].size;
+      data.mime_type=window._fileData[k].mime;
+      if(!data.doc_name)data.doc_name=window._fileData[k].name;
+      delete window._fileData[k];
+    }
+  });
   try{
-    await apiFetch(def.endpoint,{method:def.method,body:JSON.stringify(data)});
-    toast((def.submit||'Saved').replace('Create','Created').replace('Add','Added').replace('Generate','Generated').replace('Start','Started').replace('Schedule','Scheduled')+'!','success');
+    await apiFetch(endpoint,{method:def.method||'POST',body:JSON.stringify(data)});
+    toast((def.submit||'Saved')+'!','success');
     closeModal();
     if(def.afterSave)def.afterSave();
   }catch(e){}
