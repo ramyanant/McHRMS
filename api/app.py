@@ -1292,16 +1292,32 @@ def lu_departments():
 def health():
     return ok({"status":"ok","app":"McHR&TA","db":DB_PATH})
 
-@app.route('/api/admin/reset-db', methods=['POST'])
+@app.route('/api/admin/reset-db', methods=['GET','POST'])
 def reset_db():
-    secret = request.headers.get('X-Reset-Secret','')
+    secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
     if secret != 'mchrta-reset-2026':
-        return err("Unauthorized", 401)
+        return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+            <h2>McHR&TA — Database Reset</h2>
+            <p>Click the button below to reset the database and restore admin login.</p>
+            <form method="GET">
+              <input type="hidden" name="secret" value="mchrta-reset-2026">
+              <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">
+                Reset Database &amp; Restore Admin Login
+              </button>
+            </form>
+        </body></html>'''
     import os as _os
     if _os.path.exists(DB_PATH):
         _os.remove(DB_PATH)
     _bootstrap_db()
-    return ok(msg="Database reset complete. Login: admin / Admin@123")
+    return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+        <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
+        <p style="font-size:16px">You can now log in with:</p>
+        <p style="font-size:20px;font-weight:bold">Username: admin<br>Password: Admin@123</p>
+        <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">
+          Go to Login Page
+        </a>
+    </body></html>'''
 
 # ═══════════════════════════════════════════════════════
 # RUN
