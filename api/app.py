@@ -61,8 +61,11 @@ def _seed(conn):
     for code, name in all_india_states:
         c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",(in_id,code,name))
     # US states
-    for code, name in [('CA','California'),('NY','New York'),('TX','Texas'),('WA','Washington'),('IL','Illinois'),('FL','Florida')]:
-        c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",(us_id,code,name))
+    us = c.execute("SELECT id FROM master_countries WHERE code='US'").fetchone()
+    us_id = us[0] if us else None
+    if us_id:
+        for code, name in [('CA','California'),('NY','New York'),('TX','Texas'),('WA','Washington'),('IL','Illinois'),('FL','Florida')]:
+            c.execute("INSERT INTO master_states(country_id,code,name) VALUES(?,?,?)",(us_id,code,name))
     for n in ["Full-Time","Contractor (C2C)","Part-Time","Intern"]:
         c.execute("INSERT INTO master_employment_types(name) VALUES(?)",(n,))
     for n in ["Staff Augmentation","Direct Hire","MSA","MSA + SOW","Retained Search"]:
