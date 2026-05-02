@@ -1640,7 +1640,80 @@ def lu_cost_centres():
 
 @app.route('/api/health')
 def health():
-    return ok({"status":"ok","app":"McHR&TA v4","db":DB_PATH})
+    db_status = "disconnected"
+    table_count = 0
+    try:
+        conn = get_pg_conn()
+        conn.autocommit = True
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
+        table_count = cur.fetchone()['c']
+        conn.close()
+        db_status = f"postgresql:{table_count}_tables"
+    except Exception as e:
+        db_status = f"error:{str(e)[:100]}"
+    return ok({"status":"ok","app":"McHR&TA v4","db":db_status,"tables":table_count})
+
+@app.route('/api/admin/schema-debug')
+def schema_debug():
+    """Debug endpoint — shows schema creation status"""
+    try:
+        conn = get_pg_conn()
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # What tables exist?
+        cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename")
+        existing = [r['tablename'] for r in cur.fetchall()]
+
+        # Find schema.sql
+        schema_paths = [
+            os.path.join(BASE_DIR,'..','db','schema.sql'),
+            os.path.join(BASE_DIR,'db','schema.sql'),
+            os.path.join('/app','db','schema.sql'),
+        ]
+        found_schema = None
+        for p in schema_paths:
+            if os.path.exists(p):
+                found_schema = p
+                break
+
+        schema_info = {}
+        if found_schema:
+            with open(found_schema) as f:
+                sql = f.read()
+            stmts = [s.strip() for s in sql.split(';') if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 10]
+            schema_info = {"path": found_schema, "statements": len(stmts), "size": len(sql)}
+            # Try running first CREATE TABLE
+            first_create = next((s for s in stmts if 'CREATE TABLE' in s.upper()), None)
+            if first_create:
+                try:
+                    cur.execute(first_create)
+                    schema_info["test_create"] = "success"
+                except Exception as e:
+                    schema_info["test_create"] = f"FAILED: {str(e)}"
+        else:
+            schema_info = {"error": "schema.sql not found", "searched": schema_paths}
+
+        # List /app directory
+        app_files = []
+        for root, dirs, files in os.walk('/app'):
+            for f in files:
+                if f.endswith('.sql') or f.endswith('.py'):
+                    app_files.append(os.path.join(root, f))
+            if len(app_files) > 20:
+                break
+
+        conn.close()
+        return jsonify({
+            "existing_tables": existing,
+            "table_count": len(existing),
+            "schema": schema_info,
+            "app_files": app_files[:20]
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "trace": traceback.format_exc()})
 
 # ═══════════════════════════════════════════════════
 # BULK EXPORT
