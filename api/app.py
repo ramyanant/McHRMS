@@ -20,12 +20,13 @@ print(f"[startup] db={'PostgreSQL' if DATABASE_URL else 'NO DATABASE_URL SET'}",
 
 from decimal import Decimal
 
+from datetime import date as _date
 class PGJSONEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, (datetime,)):
+        if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
-        if hasattr(obj, 'isoformat'):  # date objects
-            return obj.isoformat()
+        if isinstance(obj, _date):
+            return obj.strftime('%Y-%m-%d')
         if isinstance(obj, Decimal):
             return float(obj)
         return super().default(obj)
