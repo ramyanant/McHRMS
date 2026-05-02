@@ -20,6 +20,13 @@ print(f"[startup] db={'PostgreSQL' if DATABASE_URL else 'NO DATABASE_URL SET'}",
 
 app = Flask(__name__, static_folder=STATIC)
 app.config['JSON_SORT_KEYS'] = False
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    print(f"Unhandled error: {e}", flush=True)
+    traceback.print_exc()
+    return jsonify({"success": False, "message": str(e), "trace": traceback.format_exc()[-500:]}), 500
 SESSION_HOURS = 12
 
 # ── Bootstrap DB ─────────────────────────────────────────────────────────
@@ -450,7 +457,9 @@ def masters(table):
             return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(country,)))
         india = row1("SELECT id FROM master_countries WHERE code='IN'")
         if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(india[0],)))
-    has_sort = any(r[1]=='sort_order' for r in rows(f'PRAGMA table_info({tbl})'))
+    _cur2 = _cur()
+    _cur2.execute("SELECT column_name FROM information_schema.columns WHERE table_name=%s AND column_name='sort_order'", (tbl,))
+    has_sort = _cur2.fetchone() is not None
     order = 'sort_order,name' if has_sort else 'name'
     return ok(rows(f"SELECT * FROM {tbl} WHERE is_active=1 ORDER BY {order}"))
 
@@ -1447,7 +1456,7 @@ def toggle_task(tid):
     _cur().execute("UPDATE onboarding_tasks SET is_complete=%s,completed_at=%s WHERE id=%s",(complete,datetime.utcnow() if complete else None,tid))
     r=row1("SELECT onboarding_id FROM onboarding_tasks WHERE id=%s",(tid,))
     if r:
-        stats=row1("SELECT COUNT(*),SUM(is_complete) FROM onboarding_tasks WHERE onboarding_id=%s",(r[0],))
+        stats=row1("SELECT COUNT(*) as cnt,COALESCE(SUM(is_complete),0) as total FROM onboarding_tasks WHERE onboarding_id=%s",(r['onboarding_id'],))
         pct=round((stats['total'] or 0)/(stats['cnt'] or 1)*100) if stats else 0
         _cur().execute("UPDATE onboarding SET progress_pct=%s WHERE id=%s",(pct,r['onboarding_id']))
     get_db().commit(); return ok(msg="Updated")
@@ -1515,7 +1524,7 @@ def inv_detail(iid):
 
     if d.get('status')=='Paid':
         r=row1("SELECT invoice_number,amount FROM invoices WHERE id=%s",(iid,))
-        log("invoices",iid,"paid",f"Invoice {r[0]} paid — ₹{r[1]:,.0f}",g.user.get('username','System')); db.commit()
+        if r: log("invoices",iid,"paid",f"Invoice {r['invoice_number']} paid",g.user.get('username','System'))
     return ok(msg="Updated")
 
 # ═══════════════════════════════════════════════════
@@ -1616,8 +1625,8 @@ def dashboard():
     rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
     pending_inv=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
     funnel={}
-    for r in rows("SELECT s.name,COUNT(a.id) FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id ORDER BY s.sort_order"):
-        funnel[r[0]]=r[1]
+    for r in rows("SELECT s.name,COUNT(a.id) as cnt FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id,s.name ORDER BY s.sort_order"):
+        funnel[r['name']]=r['cnt']
     top_rec=rows("""SELECT e.first_name||' '||e.last_name as name,COUNT(a.id) as hires
         FROM applications a JOIN employees e ON e.id=a.recruiter_id
         JOIN master_application_stages s ON s.id=a.stage_id WHERE s.name='Placed'
