@@ -216,6 +216,161 @@ tbody tr:hover td{background:var(--green-lt)}
 .ptab-item{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap}
 .ptab-item:hover{color:var(--charcoal)}.ptab-item.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
 .payslip-modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:24px;max-width:680px;margin:0 auto}
+
+/* ═══════════════════════════════════════
+   RESPONSIVE & TABBED MODAL SYSTEM
+═══════════════════════════════════════ */
+
+/* Mobile hamburger button */
+.mob-toggle{display:none;align-items:center;justify-content:center;width:36px;height:36px;border-radius:var(--r);background:none;border:1px solid var(--bdr);color:var(--txt2);cursor:pointer;flex-shrink:0}
+.mob-toggle:hover{background:var(--s2)}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:990;backdrop-filter:blur(2px)}
+.mob-overlay.open{display:block}
+
+/* Tabbed modal system */
+.mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;background:var(--s2);flex-shrink:0}
+.mtab{padding:10px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.mtab:hover{color:var(--charcoal);background:rgba(0,0,0,.04)}
+.mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
+.mtab-panel{display:none}.mtab-panel.active{display:block}
+.mtab-badge{background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--mono)}
+
+/* Section headers inside forms */
+.fsec{margin:-4px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px}
+.fsec-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--green-lt);flex-shrink:0}
+.fsec-title{font-size:13px;font-weight:700;color:var(--txt)}
+.fsec-sub{font-size:11px;color:var(--txt2);margin-top:1px}
+
+/* Wider modal for tabbed forms */
+.modal-lg{width:780px}
+.modal-xl{width:940px}
+
+/* Form info box */
+.finfo{background:var(--blue-dim);border:1px solid rgba(26,107,181,.2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue);margin-bottom:14px;display:flex;gap:8px;align-items:flex-start}
+
+/* ═══ TABLET (≤1024px) ═══ */
+@media (max-width:1024px){
+  :root{--sw:200px}
+  .k4{grid-template-columns:repeat(2,1fr)}
+  .k3{grid-template-columns:repeat(2,1fr)}
+  .k5{grid-template-columns:repeat(3,1fr)}
+  .g3{grid-template-columns:1fr 1fr}
+  .frow3{grid-template-columns:1fr 1fr}
+  .page{padding:14px}
+  .modal-xl{width:92vw}
+  .modal-lg{width:88vw}
+}
+
+/* ═══ MOBILE (≤768px) ═══ */
+@media (max-width:768px){
+  :root{--sw:228px;--hh:52px}
+  
+  /* Sidebar slides in as drawer */
+  .sidebar{
+    position:fixed;left:0;top:0;bottom:0;z-index:1000;
+    transform:translateX(-100%);transition:transform .25s ease;
+    box-shadow:4px 0 20px rgba(0,0,0,.15)
+  }
+  .sidebar.open{transform:translateX(0)}
+  
+  /* Main takes full width */
+  .app{display:block;height:100dvh}
+  .main{height:100dvh;display:flex;flex-direction:column}
+  
+  /* Show hamburger in topbar */
+  .mob-toggle{display:flex}
+  
+  /* Topbar adjustments */
+  .topbar{padding:0 12px;gap:8px}
+  .tb-title{font-size:13px}
+  .sinp{width:160px;font-size:12px}
+  
+  /* Grid collapses to single column */
+  .k4,.k3,.k5,.kgrid{grid-template-columns:1fr}
+  .k2-mob{grid-template-columns:1fr 1fr}
+  .g2,.g3,.g21{grid-template-columns:1fr}
+  .frow,.frow3{grid-template-columns:1fr}
+  
+  /* Page padding */
+  .page{padding:12px}
+  
+  /* Cards */
+  .card-hd{flex-wrap:wrap;gap:8px}
+  .hero{flex-wrap:wrap}
+  .hero-actions{margin-left:0;width:100%}
+  
+  /* Tables scroll */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{min-width:500px}
+  
+  /* Modals full screen on mobile */
+  .overlay{align-items:flex-end;padding:0}
+  .modal,.modal-lg,.modal-xl{
+    width:100vw;max-width:100vw;
+    border-radius:var(--rl) var(--rl) 0 0;
+    max-height:92dvh;
+    transform:translateY(20px)
+  }
+  .overlay.open .modal,
+  .overlay.open .modal-lg,
+  .overlay.open .modal-xl{transform:translateY(0)}
+  
+  /* Modal tabs scroll */
+  .mtabs{-webkit-overflow-scrolling:touch}
+  .mtab{padding:10px 12px;font-size:11.5px}
+  
+  /* KPI grid 2-col on mobile */
+  .k4{grid-template-columns:1fr 1fr}
+  .kpi-value{font-size:20px}
+  
+  /* Dashboard */
+  .kanban{gap:8px}
+  .kcol{min-width:180px}
+  
+  /* Profile panels become sheets */
+  .panel{width:100%!important;max-width:100%!important}
+  
+  /* Topbar search on mobile */
+  .search-wrap{flex:1}
+  .sinp{width:100%}
+  
+  /* Action buttons stack */
+  .sbar{flex-wrap:wrap}
+  .tact{flex-wrap:wrap}
+  
+  /* Hide non-essential columns on mobile */
+  .mob-hide{display:none!important}
+  
+  /* Bottom nav for mobile */
+  .mob-nav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;
+    background:var(--surface);border-top:1px solid var(--bdr);
+    z-index:500;padding:4px 0 max(4px,env(safe-area-inset-bottom));
+    box-shadow:0 -2px 10px rgba(0,0,0,.08)
+  }
+  .mob-nav-item{
+    flex:1;display:flex;flex-direction:column;align-items:center;
+    padding:6px 4px;cursor:pointer;color:var(--txt3);font-size:9px;
+    font-weight:600;gap:3px;text-transform:uppercase;letter-spacing:.3px;
+    transition:color .12s;border:none;background:none
+  }
+  .mob-nav-item.active{color:var(--green-dk)}
+  .mob-nav-item svg{width:20px;height:20px}
+  
+  /* Add padding for bottom nav */
+  .page{padding-bottom:70px}
+}
+
+/* ═══ SMALL MOBILE (≤400px) ═══ */
+@media (max-width:400px){
+  .k4{grid-template-columns:1fr}
+  .topbar{padding:0 10px}
+  .sinp{display:none}
+  .tb-right .btn span{display:none}
+}
+
+/* Smooth transitions for responsive */
+.sidebar{transition:transform .25s ease, width .2s ease}
 </style>
 </head>
 <body>
@@ -317,6 +472,9 @@ tbody tr:hover td{background:var(--green-lt)}
 
 <main class="main">
   <div class="topbar">
+  <button class="mob-toggle" onclick="toggleSidebar()" aria-label="Menu">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+  </button>
     <div>
       <span style="font-size:15px;font-weight:700;color:var(--txt)" id="tb-title">Dashboard</span>
       <span style="color:var(--txt3);margin:0 4px">·</span>
@@ -733,6 +891,55 @@ const modCfg={
   'users':        {title:'Users & Access',    sub:'System Access Control'},
   'reports':      {title:'Reports',           sub:'Live Analytics'},
 };
+
+function toggleSidebar(){
+  const sb=document.querySelector('.sidebar');
+  const ov=document.getElementById('mob-overlay');
+  const isOpen=sb.classList.toggle('open');
+  if(ov)ov.classList.toggle('open',isOpen);
+}
+
+function mobNavActive(id){
+  document.querySelectorAll('.mob-nav-item').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById(id);if(el)el.classList.add('active');
+}
+
+function switchMTab(panelId,clickedTab){
+  const modal=clickedTab.closest('.modal,.modal-lg,.modal-xl');
+  if(!modal)return;
+  modal.querySelectorAll('.mtab').forEach(t=>t.classList.remove('active'));
+  modal.querySelectorAll('.mtab-panel').forEach(p=>p.classList.remove('active'));
+  clickedTab.classList.add('active');
+  const panel=modal.querySelector('#'+panelId);
+  if(panel)panel.classList.add('active');
+}
+
+function initResponsive(){
+  const isMobile=window.innerWidth<=768;
+  const mobNav=document.getElementById('mob-nav');
+  if(mobNav)mobNav.style.display=isMobile?'flex':'none';
+  // Close sidebar on nav click on mobile
+  document.querySelectorAll('.ni').forEach(ni=>{
+    ni.addEventListener('click',()=>{
+      if(window.innerWidth<=768){
+        document.querySelector('.sidebar').classList.remove('open');
+        const ov=document.getElementById('mob-overlay');
+        if(ov)ov.classList.remove('open');
+      }
+    });
+  });
+}
+
+window.addEventListener('resize',()=>{
+  const isMobile=window.innerWidth<=768;
+  const mobNav=document.getElementById('mob-nav');
+  if(mobNav)mobNav.style.display=isMobile?'flex':'none';
+  if(!isMobile){
+    document.querySelector('.sidebar').classList.remove('open');
+    const ov=document.getElementById('mob-overlay');
+    if(ov)ov.classList.remove('open');
+  }
+});
 
 function nav(id){
   document.querySelectorAll('.mod').forEach(m=>m.classList.remove('active'));
@@ -1370,39 +1577,81 @@ async function editClient(id){
     $('m-title').textContent='Edit Client — '+c.name;
     $('m-body').innerHTML=`<form id="mform">
       <input type="hidden" name="_id" value="${c.id}">
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Company Details</div>
-      <div class="frow"><div class="fg"><label class="flabel">Company Name *</label><input class="finput" name="name" required value="${c.name||''}"></div><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${stOpts2}</select></div>
-        <div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(c.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(c.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${c.rating||0}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
-        <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Billing Currency</label><select class="fselect" name="currency">${curOpts}</select></div>
-        <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${empOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${c.referred_by||''}"></div>
-        <div class="fg"><label class="flabel">Health Score (0–100)</label><input class="finput" type="number" min="0" max="100" name="health_score" value="${c.health_score||80}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Primary Contact</div>
-      <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div>
-        <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${c.primary_contact_designation||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div>
-        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Billing Contact</div>
-      <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="billing_contact_name" value="${c.billing_contact_name||''}"></div>
-        <div class="fg"><label class="flabel">Designation</label><input class="finput" name="billing_contact_designation" value="${c.billing_contact_designation||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" name="billing_contact_email" value="${c.billing_contact_email||''}"></div>
-        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="billing_contact_phone" value="${c.billing_contact_phone||''}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px">Address</div>
-      <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
-      <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${c.address_line2||''}"></div>
-      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div>
-        <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${c.pincode||''}"></div>
-        <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div></div>
-      <div class="divider"></div>
-      <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+      <div class="mtabs">
+        <div class="mtab active" onclick="switchMTab('cli-tab-info',this)">🏢 Company</div>
+        <div class="mtab" onclick="switchMTab('cli-tab-contacts',this)">👤 Contacts</div>
+        <div class="mtab" onclick="switchMTab('cli-tab-billing',this)">📍 Address & Tax</div>
+        <div class="mtab" onclick="switchMTab('cli-tab-settings',this)">⚙️ Settings</div>
+      </div>
+      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+
+      <!-- TAB 1: Company -->
+      <div class="mtab-panel active" id="cli-tab-info">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Client Name *</label><input class="finput" name="name" required value="${c.name||''}"></div>
+          <div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
+          <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency"><option ${c.currency=='INR'?'selected':''}>INR</option><option ${c.currency=='USD'?'selected':''}>USD</option><option ${c.currency=='GBP'?'selected':''}>GBP</option><option ${c.currency=='SGD'?'selected':''}>SGD</option><option ${c.currency=='AED'?'selected':''}>AED</option></select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div>
+          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Health Score (0-100)</label><input class="finput" type="number" name="health_score" min="0" max="100" value="${c.health_score||80}"></div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${c.referred_by||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Contacts -->
+      <div class="mtab-panel" id="cli-tab-contacts">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Primary Contact Name</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${c.primary_contact_designation||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div>
+        </div>
+        <div style="margin:14px 0 8px;border-top:1px solid var(--bdr);padding-top:14px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase">Billing Contact</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Billing Contact Name</label><input class="finput" name="billing_contact_name" value="${c.billing_contact_name||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="billing_contact_designation" value="${c.billing_contact_designation||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Billing Email</label><input class="finput" type="email" name="billing_contact_email" value="${c.billing_contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Billing Phone</label><input class="finput" name="billing_contact_phone" value="${c.billing_contact_phone||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Address & Tax -->
+      <div class="mtab-panel" id="cli-tab-billing">
+        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
+        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${c.address_line2||''}"></div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div>
+          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${c.pincode||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id" id="cli-country">${cntOpts}</select></div>
+          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id" id="cli-state">${stOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Settings -->
+      <div class="mtab-panel" id="cli-tab-settings">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${c.status=='Active'?'selected':''}>Active</option><option ${c.status=='At Risk'?'selected':''}>At Risk</option><option ${c.status=='Inactive'?'selected':''}>Inactive</option></select></div>
+          <div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n==c.rating?'selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div>
+        </div>
+      </div>
+      </div>
     </form>`;
     $('m-submit').textContent='Save Client';
     $('overlay').classList.add('open');
@@ -1490,27 +1739,82 @@ async function editVendor(id){
     $('m-title').textContent='Edit Vendor — '+v.name;
     $('m-body').innerHTML=`<form id="mform">
       <input type="hidden" name="_id" value="${v.id}">
-      <div class="frow"><div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required value="${v.name||''}"></div><div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${catOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Inactive','Watch','Suspended'].map(s=>`<option ${s==v.status?'selected':''}>${s}</option>`).join('')}</select></div>
-        <div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(v.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(v.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${v.rating||0}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${empOpts}</select></div><div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${v.referred_by||''}"></div></div>
-      <div class="divider"></div>
-      <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" value="${v.primary_contact||''}"></div><div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${v.primary_contact_designation||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${v.contact_email||''}"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${v.contact_phone||''}"></div></div>
-      <div class="divider"></div>
-      <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${v.address_line1||''}"></div>
-      <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${v.address_line2||''}"></div>
-      <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${v.city||''}"></div><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${v.pincode||''}"></div><div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${v.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${v.pan||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:10px;text-transform:uppercase">Banking Details</div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${v.bank_account_name||''}"></div><div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${v.bank_name||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${v.bank_branch||''}"></div><div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type">${['Current','Savings'].map(t=>`<option ${t==v.bank_account_type?'selected':''}>${t}</option>`).join('')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${v.bank_account_number||''}"></div><div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${v.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
-      <div class="divider"></div>
-      <div class="frow"><div class="fg"><label class="flabel">Contract End Date</label><input class="finput" type="date" name="contract_end" value="${v.contract_end||''}"></div><div class="fg"><label class="flabel">SLA Score (0–100)</label><input class="finput" type="number" min="0" max="100" name="sla_score" value="${v.sla_score||90}"></div></div>
-      <div class="fg"><label class="flabel">SLA Description</label><textarea class="finput" name="sla_description" style="min-height:70px">${v.sla_description||''}</textarea></div>
+      <div class="mtabs">
+        <div class="mtab active" onclick="switchMTab('vnd-tab-info',this)">🏭 Vendor Info</div>
+        <div class="mtab" onclick="switchMTab('vnd-tab-contacts',this)">👤 Contact</div>
+        <div class="mtab" onclick="switchMTab('vnd-tab-address',this)">📍 Address & Tax</div>
+        <div class="mtab" onclick="switchMTab('vnd-tab-bank',this)">🏦 Bank & SLA</div>
+      </div>
+      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+
+      <!-- TAB 1: Vendor Info -->
+      <div class="mtab-panel active" id="vnd-tab-info">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required value="${v.name||''}"></div>
+          <div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${vcOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${v.status=='Active'?'selected':''}>Active</option><option ${v.status=='Inactive'?'selected':''}>Inactive</option><option ${v.status=='Blacklisted'?'selected':''}>Blacklisted</option></select></div>
+          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n==v.rating?'selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${v.referred_by||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Contact -->
+      <div class="mtab-panel" id="vnd-tab-contacts">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Primary Contact Name</label><input class="finput" name="primary_contact" value="${v.primary_contact||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${v.primary_contact_designation||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${v.contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${v.contact_phone||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Address & Tax -->
+      <div class="mtab-panel" id="vnd-tab-address">
+        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${v.address_line1||''}"></div>
+        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${v.address_line2||''}"></div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${v.city||''}"></div>
+          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${v.pincode||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${cntOpts}</select></div>
+          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${v.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${v.pan||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+      </div>
+
+      <!-- TAB 4: Bank & SLA -->
+      <div class="mtab-panel" id="vnd-tab-bank">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Holder Name</label><input class="finput" name="bank_account_name" value="${v.bank_account_name||''}"></div>
+          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${v.bank_name||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${v.bank_account_number||''}"></div>
+          <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${v.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type"><option ${v.bank_account_type=='Current'?'selected':''}>Current</option><option ${v.bank_account_type=='Savings'?'selected':''}>Savings</option></select></div>
+          <div class="fg"><label class="flabel">SWIFT Code</label><input class="finput" name="bank_swift" value="${v.bank_swift||''}"></div>
+        </div>
+        <div style="margin:14px 0 8px;border-top:1px solid var(--bdr);padding-top:14px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase">Contract & SLA</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Contract End Date</label><input class="finput" type="date" name="contract_end" value="${v.contract_end?v.contract_end.substring(0,10):''}"></div>
+          <div class="fg"><label class="flabel">SLA Score (0-100)</label><input class="finput" type="number" name="sla_score" min="0" max="100" value="${v.sla_score||90}"></div>
+        </div>
+        <div class="fg"><label class="flabel">SLA Description</label><textarea class="ftextarea" name="sla_description" rows="2">${v.sla_description||''}</textarea></div>
+      </div>
+      </div>
     </form>`;
     $('m-submit').textContent='Save Vendor';
     $('overlay').classList.add('open');
@@ -1742,49 +2046,106 @@ async function editEmployee(id){
     const coOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     _curModalType='edit-employee';
     $('m-title').textContent=`Edit — ${e.first_name} ${e.last_name}`;
-    $('m-body').innerHTML=`<form id="mform" style="max-height:65vh;overflow-y:auto;padding-right:4px">
+    $('m-body').innerHTML=`<form id="mform">
       <input type="hidden" name="_id" value="${e.id}">
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Identity</div>
-      <div class="frow frow3"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required value="${e.first_name||''}"></div>
-        <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="${e.middle_name||''}"></div>
-        <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required value="${e.last_name||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" value="${e.emp_id||''}" placeholder="Auto-generated if blank"></div>
-        <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Onboarding','On Leave','Terminated'].map(s=>`<option ${s==e.status?'selected':''}>${s}</option>`).join('')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(e.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(e.rating||0)?'★':'☆'}</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="${e.rating||0}"></div>
-        <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${e.referred_by||''}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Role & Organisation</div>
-      <div class="frow"><div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${e.job_title||''}"></div>
-        <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${etOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${deptOpts}</select></div>
-        <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id">${empOpts}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${e.location||''}"></div>
-        <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${e.start_date||''}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Compensation</div>
-      <div class="frow"><div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" value="${e.salary||0}"></div>
-        <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="${e.bill_rate||0}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="document.getElementById('billable-amt').style.display=this.value=='1'?'block':'none'"><option value="0" ${!e.billable?'selected':''}>No</option><option value="1" ${e.billable?'selected':''}>Yes</option></select></div>
-        <div class="fg" id="billable-amt" style="display:${e.billable?'block':'none'}"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" value="${e.billable_amount||0}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Contact</div>
-      <div class="frow"><div class="fg"><label class="flabel">Official Email</label><input class="finput" type="email" name="email" value="${e.email||''}"></div>
-        <div class="fg"><label class="flabel">Official Phone</label><input class="finput" name="phone" value="${e.phone||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
-        <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Statutory IDs</div>
-      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}" oninput="this.value=this.value.toUpperCase()" placeholder="AAAAA0000A"></div>
-        <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}" maxlength="12" placeholder="12-digit Aadhaar"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Passport Number</label><input class="finput" name="passport_number" value="${e.passport_number||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div>
-      <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}" placeholder="17-digit ESI number"></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Banking</div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${e.bank_account_name||''}"></div>
-        <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${e.bank_name||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${e.bank_account_number||''}"></div>
-        <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" value="${e.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+      <div class="mtabs">
+        <div class="mtab active" onclick="switchMTab('emp-tab-identity',this)">👤 Identity</div>
+        <div class="mtab" onclick="switchMTab('emp-tab-role',this)">🏢 Role & Pay</div>
+        <div class="mtab" onclick="switchMTab('emp-tab-contact',this)">📞 Contact</div>
+        <div class="mtab" onclick="switchMTab('emp-tab-statutory',this)">📋 Statutory</div>
+        <div class="mtab" onclick="switchMTab('emp-tab-bank',this)">🏦 Bank</div>
+      </div>
+
+      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+      <!-- TAB 1: Identity -->
+      <div class="mtab-panel active" id="emp-tab-identity">
+        <div class="frow3">
+          <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required value="${e.first_name||''}"></div>
+          <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="${e.middle_name||''}"></div>
+          <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required value="${e.last_name||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" value="${e.emp_id||''}" placeholder="Auto-generated if blank"></div>
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Onboarding','On Leave','Terminated'].map(s=>`<option ${s==e.status?'selected':''}>${s}</option>`).join('')}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Rating</label>
+            <div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(e.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(e.rating||0)?'★':'☆'}</span>`).join('')}</div>
+            <input type="hidden" name="rating" id="rating-val" value="${e.rating||0}">
+          </div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${e.referred_by||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 2: Role & Pay -->
+      <div class="mtab-panel" id="emp-tab-role">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${e.job_title||''}"></div>
+          <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${etOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${deptOpts}</select></div>
+          <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id">${empOpts}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${e.location||''}"></div>
+          <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${e.start_date?e.start_date.substring(0,10):''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" value="${e.salary||0}"></div>
+          <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="${e.bill_rate||0}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="document.getElementById('billable-amt').style.display=this.value=='1'?'block':'none'"><option value="0" ${!e.billable?'selected':''}>No</option><option value="1" ${e.billable?'selected':''}>Yes</option></select></div>
+          <div class="fg" id="billable-amt" style="display:${e.billable?'block':'none'}"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" value="${e.billable_amount||0}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Contact -->
+      <div class="mtab-panel" id="emp-tab-contact">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Work Email</label><input class="finput" type="email" name="email" value="${e.email||''}"></div>
+          <div class="fg"><label class="flabel">Work Phone</label><input class="finput" name="phone" value="${e.phone||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
+          <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>
+        </div>
+        <div class="finfo">ℹ️ Addresses and emergency contacts can be managed from the employee's full Profile panel after saving.</div>
+      </div>
+
+      <!-- TAB 4: Statutory -->
+      <div class="mtab-panel" id="emp-tab-statutory">
+        <div class="frow">
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}" oninput="this.value=this.value.toUpperCase()" placeholder="AAAAA0000A" maxlength="10"></div>
+          <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}" placeholder="12-digit number" maxlength="12"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Passport Number</label><input class="finput" name="passport_number" value="${e.passport_number||''}" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div>
+          <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Bank -->
+      <div class="mtab-panel" id="emp-tab-bank">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Holder Name</label><input class="finput" name="bank_account_name" value="${e.bank_account_name||''}"></div>
+          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${e.bank_name||''}"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${e.bank_branch||''}"></div>
+          <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type"><option>Savings</option><option>Current</option></select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${e.bank_account_number||''}"></div>
+          <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" value="${e.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+      </div>
+      </div>
     </form>`;
     $('m-submit').style.display='';$('m-submit').textContent='Save Employee';
     $('overlay').classList.add('open');
@@ -2691,7 +3052,7 @@ function openModal(type){
   if(def.afterRender)def.afterRender();
 }
 
-function closeModal(){$('overlay').classList.remove('open');_curModalType=null;$('m-submit').style.display='';}
+function closeModal(){$('overlay').classList.remove('open');_curModalType=null;$('m-submit').style.display='';const mm=document.getElementById('main-modal');if(mm)mm.className='modal';}
 function closeProfPanel(){$('prof-panel').classList.remove('open');$('prof-overlay').classList.remove('open');}
 function overlayClick(e){if(e.target===$('overlay'))closeModal();}
 
@@ -2862,7 +3223,31 @@ async function exportData(entity){
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
-window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();});
+window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();initResponsive();});
 </script>
+
+  <!-- Mobile bottom navigation -->
+  <nav class="mob-nav" id="mob-nav" style="display:none">
+    <button class="mob-nav-item active" id="mn-dashboard" onclick="nav('dashboard');mobNavActive('mn-dashboard')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button class="mob-nav-item" id="mn-employees" onclick="nav('employees');mobNavActive('mn-employees')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg>
+      People
+    </button>
+    <button class="mob-nav-item" id="mn-clients" onclick="nav('clients');mobNavActive('mn-clients')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Clients
+    </button>
+    <button class="mob-nav-item" id="mn-pipeline" onclick="nav('pipeline');mobNavActive('mn-pipeline')">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Pipeline
+    </button>
+    <button class="mob-nav-item" id="mn-menu" onclick="toggleSidebar()">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      More
+    </button>
+  </nav>
 </body>
 </html>
