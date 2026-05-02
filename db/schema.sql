@@ -158,10 +158,8 @@ CREATE TABLE IF NOT EXISTS clients (
     health_score INTEGER DEFAULT 80, is_active INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 
--- Add FK now that clients exists
-ALTER TABLE employees ADD CONSTRAINT fk_emp_client
-    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE SET NULL
-    DEFERRABLE INITIALLY DEFERRED;
+-- Note: client_id FK on employees handled at application level
+-- to avoid circular dependency between employees and clients
 
 CREATE TABLE IF NOT EXISTS client_documents (
     id SERIAL PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
