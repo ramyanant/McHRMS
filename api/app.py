@@ -286,6 +286,14 @@ def row1(q, p=()):
     cur.execute(q, p)
     r = cur.fetchone()
     return dict(r) if r else None
+
+def _scalar(q, p=()):
+    """Return first value of first row — for COUNT, SUM etc"""
+    cur = _cur()
+    cur.execute(q, p)
+    r = cur.fetchone()
+    if r is None: return 0
+    return list(dict(r).values())[0]
 def ok(data=None,msg="ok",status=200): return jsonify({"success":True,"message":msg,"data":data}),status
 def err(msg="Error",status=400):       return jsonify({"success":False,"message":msg}),status
 def hash_pw(p): return hashlib.sha256(p.encode()).hexdigest()
@@ -351,7 +359,7 @@ def login():
     # Get employee info if linked
     emp = None
     if u['employee_id']:
-        emp = row1("SELECT emp_id,reporting_manager_id FROM employees WHERE id=?",(u['employee_id'],))
+        emp = row1("SELECT emp_id,reporting_manager_id FROM employees WHERE id=%s",(u['employee_id'],))
     return ok({"token":token,"user":{"id":u['id'],"username":u['username'],"email":u['email'],
                "full_name":u['full_name'],"role":u['role_name'],
                "employee_id":u['employee_id'],"must_change_pwd":bool(u['must_change_pwd']),
@@ -400,14 +408,14 @@ def users():
     cur=_cur();cur.execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,client_id,vendor_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,1)",
         (d['username'],d['email'],hash_pw(d['password']),d['role_id'],
          d.get('employee_id'),d.get('client_id'),d.get('vendor_id'),d.get('full_name')))
-    get_db().commit(); return ok({"id":cur['id']},"User created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"User created",201)
 
 @app.route('/api/users/<int:uid>', methods=['GET','PUT','DELETE'])
 @require_auth
 def user_detail(uid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT u.*,r.name as role_name FROM users u JOIN master_user_roles r ON r.id=u.role_id WHERE u.id=?",(uid,))
+        r=row1("SELECT u.*,r.name as role_name FROM users u JOIN master_user_roles r ON r.id=u.role_id WHERE u.id=%s",(uid,))
         return ok(r) if r else err("Not found",404)
     if request.method=='DELETE':
         _cur().execute("UPDATE users SET is_active=0 WHERE id=%s",(uid,)); db.commit(); return ok(msg="Deactivated")
@@ -439,9 +447,9 @@ def masters(table):
     country = request.args.get('country_id')
     if table=='states':
         if country:
-            return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(country,)))
+            return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(country,)))
         india = row1("SELECT id FROM master_countries WHERE code='IN'")
-        if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(india[0],)))
+        if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(india[0],)))
     has_sort = any(r[1]=='sort_order' for r in rows(f'PRAGMA table_info({tbl})'))
     order = 'sort_order,name' if has_sort else 'name'
     return ok(rows(f"SELECT * FROM {tbl} WHERE is_active=1 ORDER BY {order}"))
@@ -466,11 +474,11 @@ def organisation():
         org['gst_registrations']=rows("""SELECT g.*,s.name as state_name
             FROM organisation_gst g LEFT JOIN master_states s ON s.id=g.state_id
             WHERE g.organisation_id=%s AND g.is_active=1 ORDER BY g.is_primary DESC""",(org['id'],))
-        org['bank_accounts']=rows("SELECT * FROM organisation_bank_accounts WHERE organisation_id=? AND is_active=1 ORDER BY is_primary DESC",(org['id'],))
+        org['bank_accounts']=rows("SELECT * FROM organisation_bank_accounts WHERE organisation_id=%s AND is_active=1 ORDER BY is_primary DESC",(org['id'],))
         org['labour_certs']=rows("""SELECT lc.*,s.name as state_name
             FROM organisation_labour_certs lc LEFT JOIN master_states s ON s.id=lc.state_id
             WHERE lc.organisation_id=%s AND lc.is_active=1""",(org['id'],))
-        org['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC",(org['id'],))
+        org['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(org['id'],))
         return ok(org)
     d=request.get_json()
     existing=row1("SELECT id FROM organisation LIMIT 1")
@@ -521,7 +529,7 @@ def add_bank():
     if not org: return err("Organisation not set up.")
     _cur().execute("""INSERT INTO organisation_bank_accounts
         (organisation_id,account_name,bank_name,branch,account_number,ifsc_code,swift_code,account_type,currency,is_primary)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (org[0],d['account_name'],d['bank_name'],d.get('branch'),d['account_number'],
          d.get('ifsc_code'),d.get('swift_code'),d.get('account_type','Current'),d.get('currency','INR'),d.get('is_primary',0)))
     get_db().commit(); return ok(msg="Bank added",status=201)
@@ -565,7 +573,7 @@ def org_docs():
     org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     if request.method=='GET':
-        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC",(org[0],)))
+        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(org[0],)))
     d=request.get_json()
     # file_data is base64 encoded file content
     _cur().execute("INSERT INTO organisation_documents(organisation_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s)",
@@ -579,7 +587,7 @@ def org_doc_detail(did):
     if request.method=='DELETE':
         _cur().execute("UPDATE organisation_documents SET is_active=0 WHERE id=%s",(did,)); db.commit(); return ok(msg="Removed")
     # GET returns full file data for download
-    r=row1("SELECT * FROM organisation_documents WHERE id=?",(did,))
+    r=row1("SELECT * FROM organisation_documents WHERE id=%s",(did,))
     return ok(r) if r else err("Not found",404)
 
 # ═══════════════════════════════════════════════════
@@ -589,10 +597,10 @@ def org_doc_detail(did):
 @require_auth
 def org_summary():
     db=get_db()
-    return ok({"departments":row1("SELECT COUNT(*) FROM departments WHERE is_active=1")[0],
-               "offices":row1("SELECT COUNT(*) FROM office_locations WHERE is_active=1")[0],
-               "business_units":row1("SELECT COUNT(*) FROM business_units WHERE is_active=1")[0],
-               "cost_centres":row1("SELECT COUNT(*) FROM cost_centres WHERE is_active=1")[0]})
+    return ok({"departments":_scalar("SELECT COUNT(*) FROM departments WHERE is_active=1"),
+               "offices":_scalar("SELECT COUNT(*) FROM office_locations WHERE is_active=1"),
+               "business_units":_scalar("SELECT COUNT(*) FROM business_units WHERE is_active=1"),
+               "cost_centres":_scalar("SELECT COUNT(*) FROM cost_centres WHERE is_active=1")})
 
 @app.route('/api/departments', methods=['GET','POST'])
 @require_auth
@@ -607,7 +615,7 @@ def departments():
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO departments(name,business_unit_id,cost_centre_id,head_name,budget,cost_center,location) VALUES(%s,%s,%s,%s,%s,%s,%s)",
         (d['name'],d.get('business_unit_id'),d.get('cost_centre_id'),d.get('head_name'),d.get('budget',0),d.get('cost_center'),d.get('location')))
-    get_db().commit(); return ok({"id":cur['id']},"Department created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Department created",201)
 
 @app.route('/api/departments/<int:did>', methods=['PUT','DELETE'])
 @require_auth
@@ -631,7 +639,7 @@ def business_units():
             FROM business_units b WHERE b.is_active=1 ORDER BY b.name"""))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO business_units(name,description,head_name) VALUES(%s,%s,%s)",(d['name'],d.get('description'),d.get('head_name')))
-    get_db().commit(); return ok({"id":cur['id']},"Business unit created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Business unit created",201)
 
 @app.route('/api/business-units/<int:bid>', methods=['PUT','DELETE'])
 @require_auth
@@ -651,7 +659,7 @@ def cost_centres():
         return ok(rows("SELECT cc.*,b.name as business_unit FROM cost_centres cc LEFT JOIN business_units b ON b.id=cc.business_unit_id WHERE cc.is_active=1 ORDER BY cc.code"))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO cost_centres(code,name,business_unit_id,budget) VALUES(%s,%s,%s,%s)",(d['code'],d['name'],d.get('business_unit_id'),d.get('budget',0)))
-    get_db().commit(); return ok({"id":cur['id']},"Cost centre created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Cost centre created",201)
 
 @app.route('/api/cost-centres/<int:cid>', methods=['PUT','DELETE'])
 @require_auth
@@ -672,7 +680,7 @@ def offices():
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO office_locations(name,city,state_id,country_id,address_line1,pincode,type,headcount) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (d['name'],d.get('city'),d.get('state_id'),d.get('country_id'),d.get('address_line1'),d.get('pincode'),d.get('type','Regional'),d.get('headcount',0)))
-    get_db().commit(); return ok({"id":cur['id']},"Location created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Location created",201)
 
 @app.route('/api/offices/<int:oid>', methods=['PUT','DELETE'])
 @require_auth
@@ -714,15 +722,15 @@ def clients():
         billing_contact_name,billing_contact_designation,billing_contact_phone,billing_contact_email,
         address_line1,address_line2,city,state_id,pincode,country_id,
         gstin,pan,account_manager_id,health_score)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
          d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('billing_contact_name'),d.get('billing_contact_designation'),d.get('billing_contact_phone'),d.get('billing_contact_email'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),d.get('health_score',80)))
-    get_db().commit(); log("clients",cur['id'],"created",f"Client '{d['name']}' added",g.user.get('username')); db.commit()
-    return ok({"id":cur['id']},"Client created",201)
+    get_db().commit(); log("clients",cur.fetchone()['id'],"created",f"Client '{d['name']}' added",g.user.get('username')); db.commit()
+    return ok({"id":cur.fetchone()['id']},"Client created",201)
 
 @app.route('/api/clients/<int:cid>', methods=['GET','PUT','DELETE'])
 @require_auth
@@ -739,7 +747,7 @@ def client_detail(cid):
             LEFT JOIN employees e ON e.id=c.account_manager_id
             WHERE c.id=%s""",(cid,))
         if not r: return err("Not found",404)
-        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM client_documents WHERE client_id=? AND is_active=1 ORDER BY uploaded_at DESC",(cid,))
+        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM client_documents WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(cid,))
         return ok(r)
     if request.method=='DELETE':
         _cur().execute("UPDATE clients SET is_active=0 WHERE id=%s",(cid,)); db.commit(); return ok(msg="Removed")
@@ -763,7 +771,7 @@ def client_detail(cid):
 def client_docs(cid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM client_documents WHERE client_id=? AND is_active=1 ORDER BY uploaded_at DESC",(cid,)))
+        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM client_documents WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(cid,)))
     d=request.get_json()
     _cur().execute("INSERT INTO client_documents(client_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s)",
         (cid,d['doc_type'],d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
@@ -775,7 +783,7 @@ def client_doc_detail(did):
     db=get_db()
     if request.method=='DELETE':
         _cur().execute("UPDATE client_documents SET is_active=0 WHERE id=%s",(did,)); db.commit(); return ok(msg="Removed")
-    r=row1("SELECT * FROM client_documents WHERE id=?",(did,))
+    r=row1("SELECT * FROM client_documents WHERE id=%s",(did,))
     return ok(r) if r else err("Not found",404)
 
 # ═══════════════════════════════════════════════════
@@ -801,14 +809,14 @@ def vendors():
         address_line1,address_line2,city,state_id,pincode,country_id,gstin,pan,
         account_manager_id,bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc,bank_swift,bank_account_type,
         contract_end,sla_score,spend_mtd,sla_description)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['name'],d.get('category_id'),d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),d.get('bank_swift'),d.get('bank_account_type','Current'),
          d.get('contract_end'),d.get('sla_score',90),d.get('spend_mtd',0),d.get('sla_description')))
-    get_db().commit(); return ok({"id":cur['id']},"Vendor created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Vendor created",201)
 
 @app.route('/api/vendors/<int:vid>', methods=['GET','PUT','DELETE'])
 @require_auth
@@ -821,7 +829,7 @@ def vendor_detail(vid):
             LEFT JOIN master_states s ON s.id=v.state_id LEFT JOIN master_countries c ON c.id=v.country_id
             LEFT JOIN employees e ON e.id=v.account_manager_id WHERE v.id=%s""",(vid,))
         if not r: return err("Not found",404)
-        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM vendor_documents WHERE vendor_id=? AND is_active=1 ORDER BY uploaded_at DESC",(vid,))
+        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM vendor_documents WHERE vendor_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(vid,))
         return ok(r)
     if request.method=='DELETE':
         _cur().execute("UPDATE vendors SET is_active=0 WHERE id=%s",(vid,)); db.commit(); return ok(msg="Removed")
@@ -844,7 +852,7 @@ def vendor_detail(vid):
 def vendor_docs(vid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM vendor_documents WHERE vendor_id=? AND is_active=1",(vid,)))
+        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM vendor_documents WHERE vendor_id=%s AND is_active=1",(vid,)))
     d=request.get_json()
     _cur().execute("INSERT INTO vendor_documents(vendor_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s)",
         (vid,d['doc_type'],d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
@@ -856,7 +864,7 @@ def vendor_doc_detail(did):
     db=get_db()
     if request.method=='DELETE':
         _cur().execute("UPDATE vendor_documents SET is_active=0 WHERE id=%s",(did,)); db.commit(); return ok(msg="Removed")
-    r=row1("SELECT * FROM vendor_documents WHERE id=?",(did,))
+    r=row1("SELECT * FROM vendor_documents WHERE id=%s",(did,))
     return ok(r) if r else err("Not found",404)
 
 
@@ -881,9 +889,9 @@ def employees():
             LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
             WHERE e.is_active=1"""
         params=[]
-        if status: sql+=" AND e.status=?"; params.append(status)
-        if et: sql+=" AND et.name=?"; params.append(et)
-        if q: sql+=" AND (e.first_name||' '||e.last_name LIKE ? OR e.emp_id LIKE ? OR e.job_title LIKE ?)"; params+=[f'%{q}%']*3
+        if status: sql+=" AND e.status=%s"; params.append(status)
+        if et: sql+=" AND et.name=%s"; params.append(et)
+        if q: sql+=" AND (e.first_name||' '||e.last_name LIKE %s OR e.emp_id LIKE %s OR e.job_title LIKE %s)"; params+=[f'%{q}%']*3
         sql+=" ORDER BY e.last_name,e.first_name"
         return ok(rows(sql,params))
     d=request.get_json()
@@ -891,8 +899,8 @@ def employees():
     emp_id = d.get('emp_id','').strip()
     if not emp_id:
         et_row = row1("SELECT name FROM master_employment_types WHERE id=%s",(d.get('employment_type_id',1),))
-        prefix = "CTR" if et_row and "Contractor" in et_row[0] else "EMP"
-        n = row1(f"SELECT COUNT(*) FROM employees WHERE emp_id LIKE '{prefix}-%'")[0]
+        prefix = "CTR" if et_row and "Contractor" in et_row.get('name','') else "EMP"
+        n = _scalar(f"SELECT COUNT(*) FROM employees WHERE emp_id LIKE '{prefix}-%'")
         emp_id = f"{prefix}-{n+1:04d}"
         while row1("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)):
             n+=1; emp_id=f"{prefix}-{n+1:04d}"
@@ -905,7 +913,7 @@ def employees():
         salary,bill_rate,billable,billable_amount,start_date,status,referred_by,rating,
         pan,aadhaar,passport_number,pf_number,esi_number,
         bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (emp_id,d['first_name'],d.get('middle_name'),d['last_name'],d.get('email'),d.get('phone'),
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
@@ -913,7 +921,7 @@ def employees():
          d.get('start_date'),d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
          d.get('pan'),d.get('aadhaar'),d.get('passport_number'),d.get('pf_number'),d.get('esi_number'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc')))
-    emp_db_id=cur['id']
+    emp_db_id=cur.fetchone()['id']
     # Save addresses
     for atype in ['Current','Permanent']:
         key=atype.lower()
@@ -939,12 +947,12 @@ def employee_detail(eid):
             LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
             WHERE e.id=%s""",(eid,))
         if not r: return err("Not found",404)
-        r['addresses']=rows("SELECT * FROM employee_addresses WHERE employee_id=?",(eid,))
-        r['emergency_contacts']=rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=?",(eid,))
-        r['education']=rows("SELECT * FROM employee_education WHERE employee_id=? ORDER BY sort_order,end_year DESC",(eid,))
-        r['experience']=rows("SELECT * FROM employee_experience WHERE employee_id=? ORDER BY sort_order,start_date DESC",(eid,))
-        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM employee_documents WHERE employee_id=? AND is_active=1",(eid,))
-        r['payslips']=rows("SELECT month,ctc,net_salary,total_earnings,total_deductions FROM payroll_entries WHERE employee_id=? ORDER BY month DESC LIMIT 12",(eid,))
+        r['addresses']=rows("SELECT * FROM employee_addresses WHERE employee_id=%s",(eid,))
+        r['emergency_contacts']=rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=%s",(eid,))
+        r['education']=rows("SELECT * FROM employee_education WHERE employee_id=%s ORDER BY sort_order,end_year DESC",(eid,))
+        r['experience']=rows("SELECT * FROM employee_experience WHERE employee_id=%s ORDER BY sort_order,start_date DESC",(eid,))
+        r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM employee_documents WHERE employee_id=%s AND is_active=1",(eid,))
+        r['payslips']=rows("SELECT month,ctc,net_salary,total_earnings,total_deductions FROM payroll_entries WHERE employee_id=%s ORDER BY month DESC LIMIT 12",(eid,))
         return ok(r)
     if request.method=='DELETE':
         _cur().execute("UPDATE employees SET status='Terminated',is_active=0 WHERE id=%s",(eid,)); db.commit(); return ok(msg="Terminated")
@@ -976,7 +984,7 @@ def employee_detail(eid):
 def emp_addresses(eid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT ea.*,s.name as state_name,c.name as country_name FROM employee_addresses ea LEFT JOIN master_states s ON s.id=ea.state_id LEFT JOIN master_countries c ON c.id=ea.country_id WHERE ea.employee_id=?",(eid,)))
+        return ok(rows("SELECT ea.*,s.name as state_name,c.name as country_name FROM employee_addresses ea LEFT JOIN master_states s ON s.id=ea.state_id LEFT JOIN master_countries c ON c.id=ea.country_id WHERE ea.employee_id=%s",(eid,)))
     d=request.get_json()
     # Upsert by type
     existing=row1("SELECT id FROM employee_addresses WHERE employee_id=%s AND address_type=%s",(eid,d['address_type']))
@@ -993,11 +1001,11 @@ def emp_addresses(eid):
 def emp_emergency(eid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=?",(eid,)))
+        return ok(rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=%s",(eid,)))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO employee_emergency_contacts(employee_id,name,phone,email,relationship,is_primary) VALUES(%s,%s,%s,%s,%s,%s)",
         (eid,d['name'],d.get('phone'),d.get('email'),d.get('relationship'),d.get('is_primary',0)))
-    get_db().commit(); return ok({"id":cur['id']},"Added",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Added",201)
 
 @app.route('/api/employees/emergency-contacts/<int:cid>', methods=['PUT','DELETE'])
 @require_auth
@@ -1015,11 +1023,11 @@ def emp_emergency_detail(cid):
 def emp_education(eid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT * FROM employee_education WHERE employee_id=? ORDER BY sort_order,end_year DESC",(eid,)))
+        return ok(rows("SELECT * FROM employee_education WHERE employee_id=%s ORDER BY sort_order,end_year DESC",(eid,)))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO employee_education(employee_id,institution,degree,field_of_study,start_year,end_year,grade) VALUES(%s,%s,%s,%s,%s,%s,%s)",
         (eid,d['institution'],d.get('degree'),d.get('field_of_study'),d.get('start_year'),d.get('end_year'),d.get('grade')))
-    get_db().commit(); return ok({"id":cur['id']},"Added",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Added",201)
 
 @app.route('/api/employees/education/<int:eid>', methods=['PUT','DELETE'])
 @require_auth
@@ -1037,11 +1045,11 @@ def edu_detail(eid):
 def emp_experience(eid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT * FROM employee_experience WHERE employee_id=? ORDER BY sort_order,start_date DESC",(eid,)))
+        return ok(rows("SELECT * FROM employee_experience WHERE employee_id=%s ORDER BY sort_order,start_date DESC",(eid,)))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO employee_experience(employee_id,company,designation,location,start_date,end_date,is_current,description) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (eid,d['company'],d.get('designation'),d.get('location'),d.get('start_date'),d.get('end_date'),d.get('is_current',0),d.get('description')))
-    get_db().commit(); return ok({"id":cur['id']},"Added",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Added",201)
 
 @app.route('/api/employees/experience/<int:xid>', methods=['PUT','DELETE'])
 @require_auth
@@ -1059,7 +1067,7 @@ def exp_detail(xid):
 def emp_docs(eid):
     db=get_db()
     if request.method=='GET':
-        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM employee_documents WHERE employee_id=? AND is_active=1",(eid,)))
+        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM employee_documents WHERE employee_id=%s AND is_active=1",(eid,)))
     d=request.get_json()
     _cur().execute("INSERT INTO employee_documents(employee_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s)",
         (eid,d['doc_type'],d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
@@ -1071,7 +1079,7 @@ def emp_doc_detail(did):
     db=get_db()
     if request.method=='DELETE':
         _cur().execute("UPDATE employee_documents SET is_active=0 WHERE id=%s",(did,)); db.commit(); return ok(msg="Removed")
-    r=row1("SELECT * FROM employee_documents WHERE id=?",(did,))
+    r=row1("SELECT * FROM employee_documents WHERE id=%s",(did,))
     return ok(r) if r else err("Not found",404)
 
 # Employee self-service (for Employee role)
@@ -1087,10 +1095,10 @@ def my_profile():
         LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
         WHERE e.id=%s""",(g.user['employee_id'],))
     if r:
-        r['addresses']=rows("SELECT * FROM employee_addresses WHERE employee_id=?",(g.user['employee_id'],))
-        r['emergency_contacts']=rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=?",(g.user['employee_id'],))
-        r['education']=rows("SELECT * FROM employee_education WHERE employee_id=? ORDER BY end_year DESC",(g.user['employee_id'],))
-        r['experience']=rows("SELECT * FROM employee_experience WHERE employee_id=? ORDER BY start_date DESC",(g.user['employee_id'],))
+        r['addresses']=rows("SELECT * FROM employee_addresses WHERE employee_id=%s",(g.user['employee_id'],))
+        r['emergency_contacts']=rows("SELECT * FROM employee_emergency_contacts WHERE employee_id=%s",(g.user['employee_id'],))
+        r['education']=rows("SELECT * FROM employee_education WHERE employee_id=%s ORDER BY end_year DESC",(g.user['employee_id'],))
+        r['experience']=rows("SELECT * FROM employee_experience WHERE employee_id=%s ORDER BY start_date DESC",(g.user['employee_id'],))
     return ok(r)
 
 @app.route('/api/my/timesheets', methods=['GET','POST'])
@@ -1104,17 +1112,17 @@ def my_timesheets():
             LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
             WHERE t.employee_id=%s ORDER BY t.week_ending DESC""",(g.user['employee_id'],)))
     d=request.get_json()
-    st=row1("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")[0]
+    st=_scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
     cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (g.user['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],
          d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
-    get_db().commit(); return ok({"id":cur['id']},"Timesheet submitted",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Timesheet submitted",201)
 
 @app.route('/api/my/payslips')
 @require_auth
 def my_payslips():
     if not g.user.get('employee_id'): return err("No employee profile linked.",403)
-    return ok(rows("SELECT * FROM payroll_entries WHERE employee_id=? ORDER BY month DESC",(g.user['employee_id'],)))
+    return ok(rows("SELECT * FROM payroll_entries WHERE employee_id=%s ORDER BY month DESC",(g.user['employee_id'],)))
 
 # Manager approval queue
 @app.route('/api/my/approval-queue')
@@ -1145,23 +1153,23 @@ def timesheets():
             LEFT JOIN clients c ON c.id=t.client_id
             LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE 1=1"""
         params=[]
-        if status: sql+=" AND s.name=?"; params.append(status)
+        if status: sql+=" AND s.name=%s"; params.append(status)
         sql+=" ORDER BY t.week_ending DESC,t.submitted_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
-    st=row1("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")[0]
+    st=_scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
     cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (d['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
-    get_db().commit(); return ok({"id":cur['id']},"Submitted",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Submitted",201)
 
 @app.route('/api/timesheets/summary')
 @require_auth
 def ts_summary():
     db=get_db()
-    total=row1("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)")[0]
-    billable=row1("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)")[0]
-    pending=row1("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'")[0]
-    ot=row1("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0")[0]
+    total=_scalar("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)")
+    billable=_scalar("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)")
+    pending=_scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'")
+    ot=_scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0")
     return ok({"total_hours":total,"billable_hours":billable,"pending_approval":pending,"ot_alerts":ot,"utilization":round(billable/total*100,1) if total else 0})
 
 @app.route('/api/timesheets/<int:tid>', methods=['GET','PUT'])
@@ -1169,7 +1177,7 @@ def ts_summary():
 def ts_detail(tid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT * FROM timesheets WHERE id=?",(tid,)); return ok(r) if r else err("Not found",404)
+        r=row1("SELECT * FROM timesheets WHERE id=%s",(tid,)); return ok(r) if r else err("Not found",404)
     d=request.get_json()
     new_status=d.get('status','Pending')
     st=row1("SELECT id FROM master_timesheet_statuses WHERE name=%s",(new_status,))
@@ -1193,15 +1201,15 @@ def payroll():
     rt=row1("SELECT id FROM master_payroll_run_types WHERE name=%s",(d.get('run_type','Semi-Monthly FTE'),))
     cur=_cur();cur.execute("INSERT INTO payroll_runs(run_date,period_start,period_end,run_type_id,employee_count,gross_amount,status) VALUES(%s,%s,%s,%s,%s,%s,'Scheduled')",
         (d['run_date'],d.get('period_start'),d.get('period_end'),rt[0] if rt else None,d.get('employee_count',0),d.get('gross_amount',0)))
-    get_db().commit(); return ok({"id":cur['id']},"Scheduled",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Scheduled",201)
 
 @app.route('/api/payroll/summary')
 @require_auth
 def payroll_summary():
     db=get_db()
     et_fte=row1("SELECT id FROM master_employment_types WHERE name='Full-Time'")
-    total_sal=row1("SELECT COALESCE(SUM(salary),0)/12 FROM employees WHERE employment_type_id=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))[0]
-    total_ctr=row1("SELECT COALESCE(SUM(bill_rate),0)*160 FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))[0]
+    total_sal=_scalar("SELECT COALESCE(SUM(salary),0)/12 FROM employees WHERE employment_type_id=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))
+    total_ctr=_scalar("SELECT COALESCE(SUM(bill_rate),0)*160 FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))
     return ok({"base_salaries":round(total_sal),"contractor_payments":round(total_ctr),
                "overtime":84000,"benefits":round(total_sal*0.10),"taxes":round((total_sal+total_ctr)*0.0765),"total":round(total_sal+total_ctr+84000)})
 
@@ -1221,8 +1229,8 @@ def payroll_entries():
         LEFT JOIN departments d ON d.id=e.department_id
         WHERE 1=1"""
     params=[]
-    if month: sql+=" AND pe.month=?"; params.append(month)
-    if et: sql+=" AND et.name LIKE ?"; params.append(f'%{et}%')
+    if month: sql+=" AND pe.month=%s"; params.append(month)
+    if et: sql+=" AND et.name LIKE %s"; params.append(f'%{et}%')
     sql+=" ORDER BY e.last_name,e.first_name"
     data = rows(sql,params)
     # Cumulative summary
@@ -1279,23 +1287,23 @@ def requisitions():
             LEFT JOIN master_priority_levels p ON p.id=r.priority_id
             LEFT JOIN master_contract_types et ON et.id=r.engagement_type_id WHERE 1=1"""
         params=[]
-        if status: sql+=" AND r.status=?"; params.append(status)
-        if pri: sql+=" AND p.name=?"; params.append(pri)
+        if status: sql+=" AND r.status=%s"; params.append(status)
+        if pri: sql+=" AND p.name=%s"; params.append(pri)
         sql+=" ORDER BY p.sort_order,days_open DESC"
         return ok(rows(sql,params))
     d=request.get_json()
     cur=_cur();cur.execute("""INSERT INTO job_requisitions(title,client_id,engagement_type_id,department_id,recruiter_id,priority_id,location,comp_min,comp_max,description,target_start,opened_date)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,CURRENT_DATE)""",
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,CURRENT_DATE) RETURNING id""",
         (d['title'],d['client_id'],d.get('engagement_type_id'),d.get('department_id'),d.get('recruiter_id'),
          d.get('priority_id'),d.get('location'),d.get('comp_min'),d.get('comp_max'),d.get('description'),d.get('target_start')))
-    get_db().commit(); return ok({"id":cur['id']},"Created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Created",201)
 
 @app.route('/api/requisitions/<int:rid>', methods=['GET','PUT','DELETE'])
 @require_auth
 def req_detail(rid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT r.*,c.name as client_name,p.name as priority,et.name as engagement_type FROM job_requisitions r JOIN clients c ON c.id=r.client_id LEFT JOIN master_priority_levels p ON p.id=r.priority_id LEFT JOIN master_contract_types et ON et.id=r.engagement_type_id WHERE r.id=?",(rid,))
+        r=row1("SELECT r.*,c.name as client_name,p.name as priority,et.name as engagement_type FROM job_requisitions r JOIN clients c ON c.id=r.client_id LEFT JOIN master_priority_levels p ON p.id=r.priority_id LEFT JOIN master_contract_types et ON et.id=r.engagement_type_id WHERE r.id=%s",(rid,))
         return ok(r) if r else err("Not found",404)
     if request.method=='DELETE':
         _cur().execute("UPDATE job_requisitions SET status='Closed',is_active=0 WHERE id=%s",(rid,)); db.commit(); return ok(msg="Closed")
@@ -1312,13 +1320,13 @@ def candidates():
         q=request.args.get('q','')
         sql="SELECT c.*,s.name as source FROM candidates c LEFT JOIN master_candidate_sources s ON s.id=c.source_id WHERE c.is_active=1"
         params=[]
-        if q: sql+=" AND (c.first_name||' '||c.last_name LIKE ? OR c.current_title LIKE ?)"; params=[f'%{q}%']*2
+        if q: sql+=" AND (c.first_name||' '||c.last_name LIKE %s OR c.current_title LIKE %s)"; params=[f'%{q}%']*2
         sql+=" ORDER BY c.created_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
     cur=_cur();cur.execute("INSERT INTO candidates(first_name,last_name,email,phone,location,current_title,years_exp,source_id,skills) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (d['first_name'],d['last_name'],d.get('email'),d.get('phone'),d.get('location'),d.get('current_title'),d.get('years_exp',0),d.get('source_id'),d.get('skills','')))
-    get_db().commit(); return ok({"id":cur['id']},"Added",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Added",201)
 
 @app.route('/api/pipeline')
 @require_auth
@@ -1335,7 +1343,7 @@ def pipeline():
         LEFT JOIN master_candidate_sources src ON src.id=c.source_id
         LEFT JOIN employees e ON e.id=a.recruiter_id WHERE 1=1"""
     params=[]
-    if req_id: sql+=" AND a.requisition_id=?"; params.append(req_id)
+    if req_id: sql+=" AND a.requisition_id=%s"; params.append(req_id)
     sql+=" ORDER BY a.updated_at DESC"
     data=rows(sql,params)
     stages=['Applied','Screening','Technical','Offer','Placed','Rejected']
@@ -1349,17 +1357,17 @@ def pipeline():
 @require_auth
 def add_application():
     d=request.get_json()
-    sid=row1("SELECT id FROM master_application_stages WHERE name='Applied'")[0]
+    sid=_scalar("SELECT id FROM master_application_stages WHERE name='Applied'")
     cur=_cur();cur.execute("INSERT INTO applications(candidate_id,requisition_id,stage_id,expected_salary,recruiter_id) VALUES(%s,%s,%s,%s,%s)",
         (d['candidate_id'],d['requisition_id'],sid,d.get('expected_salary'),d.get('recruiter_id')))
-    get_db().commit(); return ok({"id":cur['id']},"Created",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Created",201)
 
 @app.route('/api/applications/<int:aid>', methods=['GET','PUT'])
 @require_auth
 def app_detail(aid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT a.*,c.first_name||' '||c.last_name as candidate_name,s.name as stage,req.title as role FROM applications a JOIN candidates c ON c.id=a.candidate_id LEFT JOIN master_application_stages s ON s.id=a.stage_id JOIN job_requisitions req ON req.id=a.requisition_id WHERE a.id=?",(aid,))
+        r=row1("SELECT a.*,c.first_name||' '||c.last_name as candidate_name,s.name as stage,req.title as role FROM applications a JOIN candidates c ON c.id=a.candidate_id LEFT JOIN master_application_stages s ON s.id=a.stage_id JOIN job_requisitions req ON req.id=a.requisition_id WHERE a.id=%s",(aid,))
         return ok(r) if r else err("Not found",404)
     d=request.get_json()
     if d.get('stage'):
@@ -1380,16 +1388,16 @@ def interviews():
     fmt=row1("SELECT id FROM master_interview_formats WHERE name=%s",(d.get('format','Video'),))
     cur=_cur();cur.execute("INSERT INTO interviews(application_id,round,format_id,interviewer,scheduled_at,location_link,notes) VALUES(%s,%s,%s,%s,%s,%s,%s)",
         (d['application_id'],d['round'],fmt[0] if fmt else None,d.get('interviewer'),d.get('scheduled_at'),d.get('location_link'),d.get('notes')))
-    get_db().commit(); return ok({"id":cur['id']},"Scheduled",201)
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Scheduled",201)
 
 @app.route('/api/interviews/summary')
 @require_auth
 def int_summary():
     db=get_db()
-    return ok({"scheduled_this_week":row1("SELECT COUNT(*) FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')")[0],
-               "awaiting_feedback":row1("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Pending'")[0],
-               "overdue_feedback":row1("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Overdue'")[0],
-               "no_shows":row1("SELECT COUNT(*) FROM interviews WHERE decision='No Show'")[0]})
+    return ok({"scheduled_this_week":_scalar("SELECT COUNT(*) FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')"),
+               "awaiting_feedback":_scalar("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Pending'"),
+               "overdue_feedback":_scalar("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Overdue'"),
+               "no_shows":_scalar("SELECT COUNT(*) FROM interviews WHERE decision='No Show'")})
 
 @app.route('/api/interviews/<int:iid>', methods=['PUT'])
 @require_auth
@@ -1412,7 +1420,7 @@ def onboarding():
     tpl=row1("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard FTE'),))
     cur=_cur();cur.execute("INSERT INTO onboarding(employee_id,template_id,buddy_name,start_date,equipment) VALUES(%s,%s,%s,%s,%s)",
         (d['employee_id'],tpl[0] if tpl else None,d.get('buddy_name'),d.get('start_date'),d.get('equipment')))
-    ob_id=cur['id']
+    ob_id=cur.fetchone()['id']
     for task,cat in [("Offer letter signed","Documents"),("Background check","Compliance"),("Equipment provisioned","IT"),("System access setup","IT"),("Benefits enrollment","HR"),("Day 1 orientation","HR"),("30-day check-in","HR")]:
         _cur().execute("INSERT INTO onboarding_tasks(onboarding_id,task_name,category) VALUES(%s,%s,%s)",(ob_id,task,cat))
     get_db().commit(); return ok({"id":ob_id},"Started",201)
@@ -1422,9 +1430,9 @@ def onboarding():
 def onb_detail(oid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT o.*,t.name as template,e.first_name||' '||e.last_name as employee_name FROM onboarding o JOIN employees e ON e.id=o.employee_id LEFT JOIN master_onboarding_templates t ON t.id=o.template_id WHERE o.id=?",(oid,))
+        r=row1("SELECT o.*,t.name as template,e.first_name||' '||e.last_name as employee_name FROM onboarding o JOIN employees e ON e.id=o.employee_id LEFT JOIN master_onboarding_templates t ON t.id=o.template_id WHERE o.id=%s",(oid,))
         if not r: return err("Not found",404)
-        r['tasks']=rows("SELECT * FROM onboarding_tasks WHERE onboarding_id=? ORDER BY id",(oid,))
+        r['tasks']=rows("SELECT * FROM onboarding_tasks WHERE onboarding_id=%s ORDER BY id",(oid,))
         return ok(r)
     d=request.get_json()
     _cur().execute("UPDATE onboarding SET progress_pct=%s,status=%s,day30_status=%s,day60_status=%s,day90_status=%s WHERE id=%s",
@@ -1460,25 +1468,25 @@ def invoices():
             LEFT JOIN master_invoice_statuses s ON s.id=i.status_id
             LEFT JOIN master_contract_types ct ON ct.id=i.contract_type_id WHERE 1=1"""
         params=[]
-        if status: sql+=" AND s.name=?"; params.append(status)
+        if status: sql+=" AND s.name=%s"; params.append(status)
         sql+=" ORDER BY i.created_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
     last=row1("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1")
     num=int(last[0].split('-')[1])+1 if last else 1001
     inv_num=f"INV-{num}"
-    st=row1("SELECT id FROM master_invoice_statuses WHERE name='Draft'")[0]
+    st=_scalar("SELECT id FROM master_invoice_statuses WHERE name='Draft'")
     cur=_cur();cur.execute("INSERT INTO invoices(invoice_number,client_id,contract_type_id,period_start,period_end,amount,tax_amount,due_date,po_number,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (inv_num,d['client_id'],d.get('contract_type_id'),d.get('period_start'),d.get('period_end'),d.get('amount',0),d.get('tax_amount',0),d.get('due_date'),d.get('po_number'),d.get('notes'),st))
 
-    log("invoices",cur['id'],"created",f"Invoice {inv_num} created",g.user.get('username')); db.commit()
-    return ok({"id":cur['id'],"invoice_number":inv_num},"Created",201)
+    log("invoices",cur.fetchone()['id'],"created",f"Invoice {inv_num} created",g.user.get('username')); db.commit()
+    return ok({"id":cur.fetchone()['id'],"invoice_number":inv_num},"Created",201)
 
 @app.route('/api/invoices/summary')
 @require_auth
 def inv_summary():
     db=get_db()
-    def q(sql): return row1(sql)[0]
+    def q(sql): return _scalar(sql)
     total=q("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
     paid=q("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name='Paid' AND TO_CHAR(i.created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
     outstd=q("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
@@ -1496,7 +1504,7 @@ def inv_summary():
 def inv_detail(iid):
     db=get_db()
     if request.method=='GET':
-        r=row1("SELECT i.*,c.name as client_name,s.name as status FROM invoices i JOIN clients c ON c.id=i.client_id LEFT JOIN master_invoice_statuses s ON s.id=i.status_id WHERE i.id=?",(iid,))
+        r=row1("SELECT i.*,c.name as client_name,s.name as status FROM invoices i JOIN clients c ON c.id=i.client_id LEFT JOIN master_invoice_statuses s ON s.id=i.status_id WHERE i.id=%s",(iid,))
         return ok(r) if r else err("Not found",404)
     d=request.get_json()
     if d.get('status'):
@@ -1524,8 +1532,8 @@ def rpt_financial():
         GROUP BY TO_CHAR(i.created_at, 'YYYY-MM') ORDER BY month DESC LIMIT 6""")
     trend.reverse()
     client_rev=rows("SELECT c.name,COALESCE(SUM(i.amount),0) as revenue FROM clients c LEFT JOIN invoices i ON i.client_id=c.id WHERE c.is_active=1 GROUP BY c.id ORDER BY revenue DESC LIMIT 8")
-    rev_mtd=row1("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")[0]
-    payroll_mtd=row1("SELECT COALESCE(SUM(gross_amount),0) FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')")[0]
+    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
+    payroll_mtd=_scalar("SELECT COALESCE(SUM(gross_amount),0) FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')")
     return ok({"trend":trend,"client_revenue":client_rev,"revenue_mtd":rev_mtd,"payroll_mtd":payroll_mtd,"gross_margin":round((rev_mtd-payroll_mtd)/rev_mtd*100,1) if rev_mtd else 0})
 
 @app.route('/api/reports/recruiter')
@@ -1603,10 +1611,10 @@ def rpt_workforce():
 @require_auth
 def dashboard():
     db=get_db()
-    emp_count=row1("SELECT COUNT(*) FROM employees WHERE status IN ('Active','Onboarding')")[0]
-    open_reqs=row1("SELECT COUNT(*) FROM job_requisitions WHERE status='Active'")[0]
-    rev_mtd=row1("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")[0]
-    pending_inv=row1("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")[0]
+    emp_count=_scalar("SELECT COUNT(*) FROM employees WHERE status IN ('Active','Onboarding')")
+    open_reqs=_scalar("SELECT COUNT(*) FROM job_requisitions WHERE status='Active'")
+    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
+    pending_inv=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
     funnel={}
     for r in rows("SELECT s.name,COUNT(a.id) FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id ORDER BY s.sort_order"):
         funnel[r[0]]=r[1]
@@ -1654,17 +1662,17 @@ def search():
     if len(q)<2: return ok([])
     like=f'%{q}%'
     results=[]
-    results+=rows("SELECT id,'employee' as type,first_name||' '||last_name as label,job_title as sub FROM employees WHERE (first_name||' '||last_name LIKE ? OR emp_id LIKE ?) AND status='Active' LIMIT 4",(like,like))
-    results+=rows("SELECT id,'client' as type,name as label,industry as sub FROM clients WHERE name LIKE ? AND is_active=1 LIMIT 4",(like,))
-    results+=rows("SELECT id,'candidate' as type,first_name||' '||last_name as label,current_title as sub FROM candidates WHERE first_name||' '||last_name LIKE ? AND is_active=1 LIMIT 4",(like,))
-    results+=rows("SELECT r.id,'requisition' as type,r.title as label,c.name as sub FROM job_requisitions r JOIN clients c ON c.id=r.client_id WHERE r.title LIKE ? AND r.status='Active' LIMIT 4",(like,))
+    results+=rows("SELECT id,'employee' as type,first_name||' '||last_name as label,job_title as sub FROM employees WHERE (first_name||' '||last_name LIKE %s OR emp_id LIKE %s) AND status='Active' LIMIT 4",(like,like))
+    results+=rows("SELECT id,'client' as type,name as label,industry as sub FROM clients WHERE name LIKE %s AND is_active=1 LIMIT 4",(like,))
+    results+=rows("SELECT id,'candidate' as type,first_name||' '||last_name as label,current_title as sub FROM candidates WHERE first_name||' '||last_name LIKE %s AND is_active=1 LIMIT 4",(like,))
+    results+=rows("SELECT r.id,'requisition' as type,r.title as label,c.name as sub FROM job_requisitions r JOIN clients c ON c.id=r.client_id WHERE r.title LIKE %s AND r.status='Active' LIMIT 4",(like,))
     return ok(results)
 
 @app.route('/api/activity')
 @require_auth
 def activity():
     limit=request.args.get('limit',20)
-    return ok(rows("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?",(limit,)))
+    return ok(rows("SELECT * FROM activity_log ORDER BY created_at DESC LIMIT %s",(limit,)))
 
 @app.route('/api/lookup/employees')
 @require_auth
