@@ -1850,29 +1850,37 @@ def reset_db():
         conn = get_pg_conn()
         conn.autocommit = True
         cur = conn.cursor()
-        # Get all tables and drop them
+        # Drop all tables
         cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
         tables = [r['tablename'] for r in cur.fetchall()]
         if tables:
             cur.execute("DROP TABLE IF EXISTS " + ",".join(tables) + " CASCADE")
-        # Re-run schema + seed
+            print(f"Dropped {len(tables)} tables", flush=True)
+        # Run schema
         schema_paths = [
             os.path.join(BASE_DIR,'..','db','schema.sql'),
             os.path.join(BASE_DIR,'db','schema.sql'),
             os.path.join('/app','db','schema.sql'),
         ]
         schema_path = next((p for p in schema_paths if os.path.exists(p)), None)
-        if schema_path:
-            import re as _re
-            with open(schema_path) as f:
-                schema_sql = f.read()
-            stmts = [s.strip() for s in schema_sql.split(';') if s.strip() and not s.strip().startswith('--')]
-            for stmt in stmts:
-                try: cur.execute(stmt)
-                except Exception as e:
-                    if 'already exists' not in str(e).lower():
-                        print(f"Schema: {e}", flush=True)
-                    conn.autocommit = True
+        if not schema_path:
+            raise RuntimeError("schema.sql not found")
+        print(f"Loading schema from {schema_path}", flush=True)
+        with open(schema_path) as f:
+            schema_sql = f.read()
+        # Execute each statement individually
+        stmts = [s.strip() for s in schema_sql.split(';') if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 5]
+        errors = []
+        for stmt in stmts:
+            try:
+                cur.execute(stmt)
+            except Exception as e:
+                errors.append(str(e)[:100])
+                conn.autocommit = True  # reset after error
+        if errors:
+            print(f"Schema warnings ({len(errors)}): {errors[:3]}", flush=True)
+        print(f"Schema applied ({len(stmts)} statements)", flush=True)
+        # Now seed
         _seed_pg(cur)
         conn.close()
         return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
