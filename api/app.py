@@ -1874,29 +1874,20 @@ def export_all():
 # ═══════════════════════════════════════════════════
 # RESET (remove after stabilisation)
 # ═══════════════════════════════════════════════════
-@app.route('/api/admin/reset-db', methods=['GET','POST'])
-def reset_db():
-    import traceback as _tb
-    secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
-    if secret != 'mchrta-reset-2026':
-        return """<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
-            <h2>McHR&TA - Database Reset</h2>
-            <form method="GET"><input type="hidden" name="secret" value="mchrta-reset-2026">
-            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">Reset Database</button></form>
-        </body></html>"""
+import threading
+_reset_status = {"running": False, "done": False, "error": None, "log": []}
+
+def _do_reset():
+    global _reset_status
+    _reset_status = {"running": True, "done": False, "error": None, "log": []}
+    log = _reset_status["log"]
     try:
-        if 'db' in g:
-            try: g.db.close()
-            except: pass
-            g.pop('db', None)
         conn = get_pg_conn()
         conn.autocommit = True
         cur = conn.cursor()
-        # Drop and recreate in one shot
         cur.execute("DROP SCHEMA public CASCADE; CREATE SCHEMA public;")
-        # Create all tables in one transaction
-        cur.execute("""
-CREATE TABLE master_countries (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, is_active INTEGER DEFAULT 1);
+        log.append("Dropped and recreated schema")
+        cur.execute("""CREATE TABLE master_countries (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_states (id SERIAL PRIMARY KEY, country_id INTEGER NOT NULL REFERENCES master_countries(id), code TEXT NOT NULL, name TEXT NOT NULL, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_employment_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_contract_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
@@ -1912,7 +1903,7 @@ CREATE TABLE master_timesheet_statuses (id SERIAL PRIMARY KEY, name TEXT UNIQUE 
 CREATE TABLE master_payroll_run_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_user_roles (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_relationship_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
-CREATE TABLE organisation (id SERIAL PRIMARY KEY, legal_name TEXT NOT NULL, trade_name TEXT, logo_url TEXT, reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT, reg_state_id INTEGER REFERENCES master_states(id), reg_pincode TEXT, reg_country_id INTEGER REFERENCES master_countries(id), biz_address_line1 TEXT, biz_address_line2 TEXT, biz_city TEXT, biz_state_id INTEGER REFERENCES master_states(id), biz_pincode TEXT, biz_country_id INTEGER REFERENCES master_countries(id), email TEXT, phone TEXT, website TEXT, poc_name TEXT, poc_email TEXT, poc_phone TEXT, pan TEXT, cin TEXT, tan TEXT, msme_number TEXT, iec_code TEXT, profession_tax_number TEXT, pf_number TEXT, esi_number TEXT, incorporation_date DATE, financial_year_start TEXT DEFAULT '04-01', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE organisation (id SERIAL PRIMARY KEY, legal_name TEXT NOT NULL, trade_name TEXT, reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT, reg_state_id INTEGER REFERENCES master_states(id), reg_pincode TEXT, reg_country_id INTEGER REFERENCES master_countries(id), biz_address_line1 TEXT, biz_address_line2 TEXT, biz_city TEXT, biz_state_id INTEGER REFERENCES master_states(id), biz_pincode TEXT, biz_country_id INTEGER REFERENCES master_countries(id), email TEXT, phone TEXT, website TEXT, poc_name TEXT, poc_email TEXT, poc_phone TEXT, pan TEXT, cin TEXT, tan TEXT, msme_number TEXT, iec_code TEXT, profession_tax_number TEXT, pf_number TEXT, esi_number TEXT, incorporation_date DATE, financial_year_start TEXT DEFAULT '04-01', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_gst (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), gstin TEXT NOT NULL, state_id INTEGER REFERENCES master_states(id), trade_name TEXT, registration_date DATE, is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_bank_accounts (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), account_name TEXT NOT NULL, bank_name TEXT NOT NULL, branch TEXT, account_number TEXT NOT NULL, ifsc_code TEXT, swift_code TEXT, account_type TEXT DEFAULT 'Current', currency TEXT DEFAULT 'INR', is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_labour_certs (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), cert_number TEXT NOT NULL, issuing_authority TEXT, state_id INTEGER REFERENCES master_states(id), valid_from DATE, valid_until DATE, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
@@ -1944,24 +1935,58 @@ CREATE TABLE onboarding (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REF
 CREATE TABLE onboarding_tasks (id SERIAL PRIMARY KEY, onboarding_id INTEGER NOT NULL REFERENCES onboarding(id), task_name TEXT NOT NULL, category TEXT DEFAULT 'General', is_complete INTEGER DEFAULT 0, due_date DATE, completed_at TIMESTAMP);
 CREATE TABLE invoices (id SERIAL PRIMARY KEY, invoice_number TEXT UNIQUE NOT NULL, client_id INTEGER NOT NULL REFERENCES clients(id), contract_type_id INTEGER REFERENCES master_contract_types(id), period_start DATE, period_end DATE, amount NUMERIC NOT NULL DEFAULT 0, tax_amount NUMERIC DEFAULT 0, total_amount NUMERIC GENERATED ALWAYS AS (amount + tax_amount) STORED, due_date DATE, paid_date DATE, payment_ref TEXT, notes TEXT, po_number TEXT, status_id INTEGER REFERENCES master_invoice_statuses(id), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE invoice_line_items (id SERIAL PRIMARY KEY, invoice_id INTEGER NOT NULL REFERENCES invoices(id), employee_id INTEGER REFERENCES employees(id), description TEXT, hours NUMERIC DEFAULT 0, rate NUMERIC DEFAULT 0, amount NUMERIC GENERATED ALWAYS AS (hours * rate) STORED);
-CREATE TABLE activity_log (id SERIAL PRIMARY KEY, entity_type TEXT NOT NULL, entity_id INTEGER, action TEXT NOT NULL, description TEXT, user_id INTEGER REFERENCES users(id), user_name TEXT DEFAULT 'System', created_at TIMESTAMP DEFAULT NOW());
-""")
-        cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
-        table_count = cur.fetchone()['c']
-        if table_count < 10:
-            raise RuntimeError(f"Only {table_count} tables created")
+CREATE TABLE activity_log (id SERIAL PRIMARY KEY, entity_type TEXT NOT NULL, entity_id INTEGER, action TEXT NOT NULL, description TEXT, user_id INTEGER REFERENCES users(id), user_name TEXT DEFAULT 'System', created_at TIMESTAMP DEFAULT NOW())""")
+        log.append("All tables created")
         _seed_pg(cur)
         conn.close()
+        log.append("Seed complete")
+        _reset_status["done"] = True
+        _reset_status["running"] = False
+    except Exception as e:
+        import traceback
+        _reset_status["error"] = str(e)
+        _reset_status["trace"] = traceback.format_exc()
+        _reset_status["running"] = False
+
+@app.route('/api/admin/reset-db', methods=['GET','POST'])
+def reset_db():
+    secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
+    if secret != 'mchrta-reset-2026':
         return """<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
-            <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
+            <h2>McHR&TA - Database Reset</h2>
+            <form method="GET"><input type="hidden" name="secret" value="mchrta-reset-2026">
+            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">Reset Database</button></form>
+        </body></html>"""
+    if not _reset_status["running"]:
+        t = threading.Thread(target=_do_reset, daemon=True)
+        t.start()
+    return """<html><head><meta http-equiv="refresh" content="3;url=/api/admin/reset-status"></head>
+        <body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+        <h2>Reset started...</h2>
+        <p>Initialising database. You will be redirected in 3 seconds.</p>
+        <p><a href="/api/admin/reset-status">Check status</a></p>
+        </body></html>"""
+
+@app.route('/api/admin/reset-status')
+def reset_status():
+    s = _reset_status
+    if s["done"]:
+        return """<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+            <h2 style="color:#2d8f3e">&#10003; Database Ready!</h2>
             <p style="background:#e8f5eb;border:1px solid #2d8f3e;border-radius:8px;padding:16px;font-size:18px;font-weight:bold">
-              Username: admin<br>Password: Admin@123
-            </p>
+              Username: admin<br>Password: Admin@123</p>
             <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">Go to Login</a>
         </body></html>"""
-    except Exception as e:
+    if s["error"]:
         return f"""<html><body style="font-family:sans-serif;padding:40px">
             <h2 style="color:red">Reset Failed</h2>
-            <p><strong>{str(e)}</strong></p>
-            <pre style="font-size:11px">{_tb.format_exc()}</pre>
+            <p><strong>{s["error"]}</strong></p>
+            <pre style="font-size:11px">{s.get("trace","")}</pre>
+            <p>Log: {" | ".join(s.get("log",[]))}</p>
         </body></html>"""
+    return """<html><head><meta http-equiv="refresh" content="2;url=/api/admin/reset-status"></head>
+        <body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+        <h2>Working...</h2><p>Database initialisation in progress. Page refreshes automatically.</p>
+        </body></html>"""
+
+
