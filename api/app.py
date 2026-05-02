@@ -261,7 +261,7 @@ _bootstrap_db()
 def get_db():
     if 'db' not in g:
         conn = get_pg_conn()
-        conn.autocommit = False
+        conn.autocommit = True
         g.db = conn
     return g.db
 
@@ -350,7 +350,7 @@ def login():
     _cur().execute("INSERT INTO user_sessions(user_id,token,ip_address,user_agent,expires_at) VALUES(%s,%s,%s,%s,%s) RETURNING id",
                (u['id'],token,request.remote_addr,request.headers.get('User-Agent',''),exp))
     _cur().execute("UPDATE users SET last_login=NOW() WHERE id=%s",(u['id'],))
-    get_db().commit()
+
     # Get employee info if linked
     emp = None
     if u['employee_id']:
@@ -923,7 +923,7 @@ def employees():
         if d.get(f'{key}_address_line1') or d.get(f'{key}_city'):
             _cur().execute("INSERT INTO employee_addresses(employee_id,address_type,address_line1,address_line2,city,state_id,pincode,country_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
                 (emp_db_id,atype,d.get(f'{key}_address_line1'),d.get(f'{key}_address_line2'),d.get(f'{key}_city'),d.get(f'{key}_state_id'),d.get(f'{key}_pincode'),d.get(f'{key}_country_id')))
-    get_db().commit()
+
     log("employees",emp_db_id,"hired",f"{d['first_name']} {d['last_name']} ({emp_id}) added",g.user.get('username','System')); db.commit()
     return ok({"id":emp_db_id,"emp_id":emp_id},"Employee created",201)
 
@@ -1179,7 +1179,7 @@ def ts_detail(tid):
     if not st: return err("Invalid status")
     _cur().execute("UPDATE timesheets SET status_id=%s,notes=%s WHERE id=%s",(st[0],d.get('notes'),tid))
     if new_status=='Approved': _cur().execute("UPDATE timesheets SET approved_at=NOW() WHERE id=%s",(tid,))
-    get_db().commit()
+
     log("timesheets",tid,new_status.lower(),f"Timesheet #{tid} {new_status}",g.user.get('username')); db.commit()
     return ok(msg=f"Timesheet {new_status}")
 
@@ -1473,7 +1473,7 @@ def invoices():
     st=_cur().execute("SELECT id FROM master_invoice_statuses WHERE name='Draft'").fetchone()[0]
     cur=_cur();cur.execute("INSERT INTO invoices(invoice_number,client_id,contract_type_id,period_start,period_end,amount,tax_amount,due_date,po_number,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (inv_num,d['client_id'],d.get('contract_type_id'),d.get('period_start'),d.get('period_end'),d.get('amount',0),d.get('tax_amount',0),d.get('due_date'),d.get('po_number'),d.get('notes'),st))
-    get_db().commit()
+
     log("invoices",cur['id'],"created",f"Invoice {inv_num} created",g.user.get('username')); db.commit()
     return ok({"id":cur['id'],"invoice_number":inv_num},"Created",201)
 
@@ -1507,7 +1507,7 @@ def inv_detail(iid):
         if st: _cur().execute("UPDATE invoices SET status_id=%s,updated_at=NOW() WHERE id=%s",(st[0],iid))
     if d.get('paid_date'): _cur().execute("UPDATE invoices SET paid_date=%s,payment_ref=%s WHERE id=%s",(d['paid_date'],d.get('payment_ref'),iid))
     if d.get('notes'): _cur().execute("UPDATE invoices SET notes=%s WHERE id=%s",(d['notes'],iid))
-    get_db().commit()
+
     if d.get('status')=='Paid':
         r=_cur().execute("SELECT invoice_number,amount FROM invoices WHERE id=%s",(iid,)).fetchone()
         log("invoices",iid,"paid",f"Invoice {r[0]} paid — ₹{r[1]:,.0f}",g.user.get('username','System')); db.commit()
