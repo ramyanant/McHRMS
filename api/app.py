@@ -2049,7 +2049,6 @@ def reset_status():
 import csv, io as _io_bulk
 
 @app.route('/api/bulk/template/<entity>')
-@require_auth
 def bulk_template(entity):
     """Download CSV template for bulk upload"""
     templates = {
