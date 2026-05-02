@@ -32,44 +32,18 @@ def get_pg_conn():
     return psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
 
 def _bootstrap_db():
-    print("Bootstrapping PostgreSQL...", flush=True)
+    print("Checking PostgreSQL connection...", flush=True)
     try:
         conn = get_pg_conn()
         conn.autocommit = True
         cur = conn.cursor()
-        cur.execute("SELECT to_regclass('public.master_countries')")
-        exists = cur.fetchone()['to_regclass'] is not None
-        if exists:
-            cur.execute("SELECT COUNT(*) as c FROM master_countries")
-            seeded = cur.fetchone()['c'] > 0
-        else:
-            seeded = False
-        if not seeded:
-            schema_paths = [
-                os.path.join(BASE_DIR,'..','db','schema.sql'),
-                os.path.join(BASE_DIR,'db','schema.sql'),
-                os.path.join('/app','db','schema.sql'),
-            ]
-            schema_path = next((p for p in schema_paths if os.path.exists(p)), None)
-            if schema_path:
-                with open(schema_path) as f:
-                    schema_sql = f.read()
-                import re as _re
-                stmts = [s.strip() for s in schema_sql.split(';') if s.strip() and not s.strip().startswith('--')]
-                for stmt in stmts:
-                    try:
-                        cur.execute(stmt)
-                    except Exception as e:
-                        if 'already exists' not in str(e).lower():
-                            print(f"Schema: {e}", flush=True)
-                        conn.autocommit = True
-            _seed_pg(cur)
+        cur.execute("SELECT 1 as ok")
+        cur.fetchone()
         conn.close()
-        print("PostgreSQL ready", flush=True)
+        print("PostgreSQL connected OK. Use /api/admin/reset-db to initialise schema.", flush=True)
     except Exception as e:
-        import traceback
-        print(f"DB bootstrap error: {e}", flush=True)
-        traceback.print_exc()
+        print(f"PostgreSQL connection error: {e}", flush=True)
+
 
 def _seed_pg(cur):
     cur.execute("SELECT COUNT(*) as c FROM master_countries")
@@ -1994,3 +1968,5 @@ def reset_db():
             <p style="background:#f0f0f0;padding:12px;font-size:11px">{log_html}</p>
             <pre style="font-size:11px">{_tb.format_exc()}</pre>
         </body></html>"""
+
+
