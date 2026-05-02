@@ -18,8 +18,21 @@ DATABASE_URL = os.environ.get('DATABASE_URL', '')
 print(f"[startup] static={STATIC}", flush=True)
 print(f"[startup] db={'PostgreSQL' if DATABASE_URL else 'NO DATABASE_URL SET'}", flush=True)
 
+from decimal import Decimal
+
+class PGJSONEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime,)):
+            return obj.strftime('%Y-%m-%d %H:%M:%S')
+        if hasattr(obj, 'isoformat'):  # date objects
+            return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
 app = Flask(__name__, static_folder=STATIC)
 app.config['JSON_SORT_KEYS'] = False
+app.json_encoder = PGJSONEncoder
 
 @app.errorhandler(Exception)
 def handle_exception(e):
@@ -412,7 +425,7 @@ def users():
             FROM users u JOIN master_user_roles r ON r.id=u.role_id
             LEFT JOIN employees e ON e.id=u.employee_id ORDER BY u.created_at DESC"""))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,client_id,vendor_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,1)",
+    cur=_cur();cur.execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,client_id,vendor_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,1) RETURNING id",
         (d['username'],d['email'],hash_pw(d['password']),d['role_id'],
          d.get('employee_id'),d.get('client_id'),d.get('vendor_id'),d.get('full_name')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"User created",201)
@@ -497,7 +510,8 @@ def organisation():
             'poc_name','poc_email','poc_phone','pan','cin','tan','msme_number',
             'iec_code','profession_tax_number','pf_number','esi_number',
             'incorporation_date','financial_year_start']
-    vals=[d.get(f) for f in fields]
+    _date_fields = {'reg_state_id','reg_country_id','biz_state_id','biz_country_id'}
+    vals=[d.get(f) or None if f in {'incorporation_date','reg_state_id','reg_country_id','biz_state_id','biz_country_id'} else d.get(f) for f in fields]
     if existing:
         _cur().execute("UPDATE organisation SET "+",".join(f+"=%s" for f in fields)+",updated_at=NOW() WHERE id=%s",vals+[existing['id']])
         org_id=existing['id']
@@ -622,7 +636,7 @@ def departments():
             LEFT JOIN cost_centres cc ON cc.id=d.cost_centre_id
             WHERE d.is_active=1 ORDER BY d.name"""))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO departments(name,business_unit_id,cost_centre_id,head_name,budget,cost_center,location) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+    cur=_cur();cur.execute("INSERT INTO departments(name,business_unit_id,cost_centre_id,head_name,budget,cost_center,location) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (d['name'],d.get('business_unit_id'),d.get('cost_centre_id'),d.get('head_name'),d.get('budget',0),d.get('cost_center'),d.get('location')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Department created",201)
 
@@ -647,7 +661,7 @@ def business_units():
             (SELECT COUNT(*) FROM employees e JOIN departments d ON d.id=e.department_id WHERE d.business_unit_id=b.id AND e.status='Active') as headcount
             FROM business_units b WHERE b.is_active=1 ORDER BY b.name"""))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO business_units(name,description,head_name) VALUES(%s,%s,%s)",(d['name'],d.get('description'),d.get('head_name')))
+    cur=_cur();cur.execute("INSERT INTO business_units(name,description,head_name) VALUES(%s,%s,%s) RETURNING id",(d['name'],d.get('description'),d.get('head_name')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Business unit created",201)
 
 @app.route('/api/business-units/<int:bid>', methods=['PUT','DELETE'])
@@ -667,7 +681,7 @@ def cost_centres():
     if request.method=='GET':
         return ok(rows("SELECT cc.*,b.name as business_unit FROM cost_centres cc LEFT JOIN business_units b ON b.id=cc.business_unit_id WHERE cc.is_active=1 ORDER BY cc.code"))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO cost_centres(code,name,business_unit_id,budget) VALUES(%s,%s,%s,%s)",(d['code'],d['name'],d.get('business_unit_id'),d.get('budget',0)))
+    cur=_cur();cur.execute("INSERT INTO cost_centres(code,name,business_unit_id,budget) VALUES(%s,%s,%s,%s) RETURNING id",(d['code'],d['name'],d.get('business_unit_id'),d.get('budget',0)))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Cost centre created",201)
 
 @app.route('/api/cost-centres/<int:cid>', methods=['PUT','DELETE'])
@@ -687,7 +701,7 @@ def offices():
     if request.method=='GET':
         return ok(rows("SELECT o.*,s.name as state_name,c.name as country_name FROM office_locations o LEFT JOIN master_states s ON s.id=o.state_id LEFT JOIN master_countries c ON c.id=o.country_id WHERE o.is_active=1 ORDER BY o.name"))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO office_locations(name,city,state_id,country_id,address_line1,pincode,type,headcount) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+    cur=_cur();cur.execute("INSERT INTO office_locations(name,city,state_id,country_id,address_line1,pincode,type,headcount) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (d['name'],d.get('city'),d.get('state_id'),d.get('country_id'),d.get('address_line1'),d.get('pincode'),d.get('type','Regional'),d.get('headcount',0)))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Location created",201)
 
@@ -738,8 +752,9 @@ def clients():
          d.get('billing_contact_name'),d.get('billing_contact_designation'),d.get('billing_contact_phone'),d.get('billing_contact_email'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),d.get('health_score',80)))
-    get_db().commit(); log("clients",cur.fetchone()['id'],"created",f"Client '{d['name']}' added",g.user.get('username')); db.commit()
-    return ok({"id":cur.fetchone()['id']},"Client created",201)
+    cli_id = cur.fetchone()['id']
+    log("clients",cli_id,"created",f"Client '{d['name']}' added",g.user.get('username'))
+    return ok({"id":cli_id},"Client created",201)
 
 @app.route('/api/clients/<int:cid>', methods=['GET','PUT','DELETE'])
 @require_auth
@@ -824,7 +839,7 @@ def vendors():
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),d.get('bank_swift'),d.get('bank_account_type','Current'),
-         d.get('contract_end'),d.get('sla_score',90),d.get('spend_mtd',0),d.get('sla_description')))
+         d.get('contract_end') or None,d.get('sla_score',90),d.get('spend_mtd',0),d.get('sla_description')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Vendor created",201)
 
 @app.route('/api/vendors/<int:vid>', methods=['GET','PUT','DELETE'])
@@ -853,7 +868,7 @@ def vendor_detail(vid):
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),d.get('bank_swift'),d.get('bank_account_type','Current'),
-         d.get('contract_end'),d.get('sla_score',90),d.get('sla_description'),vid))
+         d.get('contract_end') or None,d.get('sla_score',90),d.get('sla_description'),vid))
     get_db().commit(); return ok(msg="Updated")
 
 @app.route('/api/vendors/<int:vid>/documents', methods=['GET','POST'])
@@ -927,7 +942,7 @@ def employees():
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
-         d.get('start_date'),d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
+         d.get('start_date') or None,d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
          d.get('pan'),d.get('aadhaar'),d.get('passport_number'),d.get('pf_number'),d.get('esi_number'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc')))
     emp_db_id=cur.fetchone()['id']
@@ -971,7 +986,7 @@ def employee_detail(eid):
     if new_emp_id:
         conflict=row1("SELECT id FROM employees WHERE emp_id=%s AND id!=%s",(new_emp_id,eid))
         if conflict: return err(f"Employee code '{new_emp_id}' is already used by another employee.")
-    _cur().execute("""UPDATE employees SET emp_id=COALESCE(NULLIF(%s,\"\"),emp_id),
+    _cur().execute("""UPDATE employees SET emp_id=COALESCE(NULLIF(%s,''),emp_id),
         first_name=%s,middle_name=%s,last_name=%s,email=%s,phone=%s,
         personal_email=%s,personal_phone=%s,job_title=%s,department_id=%s,employment_type_id=%s,
         location=%s,office_location_id=%s,manager_id=%s,reporting_manager_id=%s,client_id=%s,
@@ -982,7 +997,7 @@ def employee_detail(eid):
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
-         d.get('start_date'),d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
+         d.get('start_date') or None,d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
          d.get('pan'),d.get('aadhaar'),d.get('passport_number'),d.get('pf_number'),d.get('esi_number'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),eid))
     get_db().commit(); return ok(msg="Updated")
@@ -1489,8 +1504,9 @@ def invoices():
     cur=_cur();cur.execute("INSERT INTO invoices(invoice_number,client_id,contract_type_id,period_start,period_end,amount,tax_amount,due_date,po_number,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (inv_num,d['client_id'],d.get('contract_type_id'),d.get('period_start'),d.get('period_end'),d.get('amount',0),d.get('tax_amount',0),d.get('due_date'),d.get('po_number'),d.get('notes'),st))
 
-    log("invoices",cur.fetchone()['id'],"created",f"Invoice {inv_num} created",g.user.get('username')); db.commit()
-    return ok({"id":cur.fetchone()['id'],"invoice_number":inv_num},"Created",201)
+    inv_id = cur.fetchone()['id']
+    log("invoices",inv_id,"created",f"Invoice {inv_num} created",g.user.get('username'))
+    return ok({"id":inv_id,"invoice_number":inv_num},"Created",201)
 
 @app.route('/api/invoices/summary')
 @require_auth
@@ -1606,13 +1622,13 @@ def rpt_workforce():
         FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.status IN ('Active','Onboarding')
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
         WHERE d.is_active=1 GROUP BY d.id,d.name ORDER BY headcount DESC""")
-    totals=_cur().execute("""SELECT COUNT(*) as total,
+    totals=row1("""SELECT COUNT(*) as total,
         SUM(CASE WHEN et.name='Full-Time' THEN 1 ELSE 0 END) as fte,
         SUM(CASE WHEN et.name LIKE 'Contractor%' THEN 1 ELSE 0 END) as contractors,
         SUM(CASE WHEN e.status='Onboarding' THEN 1 ELSE 0 END) as onboarding
         FROM employees e LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
-        WHERE e.status IN ('Active','Onboarding')""").fetchone()
-    return ok({"by_department":by_dept,"totals":dict(totals)})
+        WHERE e.status IN ('Active','Onboarding')""")
+    return ok({"by_department":by_dept,"totals":totals or {}})
 
 # ═══════════════════════════════════════════════════
 # DASHBOARD
@@ -1932,7 +1948,7 @@ def export_entity(entity):
 
     from flask import Response
     from datetime import datetime
-    filename = f"{cfg['filename']}_{datetime.now().TO_CHAR('%Y%m%d_%H%M')}.csv"
+    filename = f"{cfg['filename']}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
     return Response(
         output.getvalue(),
         mimetype='text/csv',
@@ -1961,7 +1977,7 @@ def export_all():
     zip_buf.seek(0)
     from flask import Response
     from datetime import datetime
-    filename = f"mchrta_export_{datetime.now().TO_CHAR('%Y%m%d_%H%M')}.zip"
+    filename = f"mchrta_export_{datetime.now().strftime('%Y%m%d_%H%M')}.zip"
     return Response(
         zip_buf.read(),
         mimetype='application/zip',
