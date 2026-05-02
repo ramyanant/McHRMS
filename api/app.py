@@ -1683,15 +1683,9 @@ def schema_debug():
             with open(found_schema) as f:
                 sql = f.read()
             stmts = [s.strip() for s in sql.split(';') if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 10]
-            schema_info = {"path": found_schema, "statements": len(stmts), "size": len(sql)}
-            # Try running first CREATE TABLE
-            first_create = next((s for s in stmts if 'CREATE TABLE' in s.upper()), None)
-            if first_create:
-                try:
-                    cur.execute(first_create)
-                    schema_info["test_create"] = "success"
-                except Exception as e:
-                    schema_info["test_create"] = f"FAILED: {str(e)}"
+            schema_info = {"path": found_schema, "statements": len(stmts), "size": len(sql),
+                          "first_stmt": stmts[0][:100] if stmts else "none",
+                          "note": "Use /api/admin/reset-db to apply schema"}
         else:
             schema_info = {"error": "schema.sql not found", "searched": schema_paths}
 
@@ -1943,42 +1937,31 @@ def reset_db():
             os.path.join('/app','db','schema.sql'),
         ]
         schema_path = next((p for p in schema_paths if os.path.exists(p)), None)
-        if not schema_path:
-            raise RuntimeError("schema.sql not found in any expected path")
-
-        # Run entire schema as one SQL string — no statement splitting
+        # Execute schema using psycopg2 with autocommit per statement
         with open(schema_path) as f:
             schema_sql = f.read()
 
-        try:
-            conn2 = get_pg_conn()
-            conn2.autocommit = True
-            cur2 = conn2.cursor()
-            # Use psycopg2's execute with the full SQL — PostgreSQL can handle multiple statements
-            # Split only on lines that start a new statement to preserve multi-line statements
-            import re as _re
-            # Split carefully — only split on semicolons followed by newline+CREATE/ALTER/INSERT/DROP
-            parts = schema_sql.split(';')
-            ok = 0
-            errs = []
-            for part in parts:
-                part = part.strip()
-                if not part or part.startswith('--') or len(part) < 5:
-                    continue
+        ok = 0
+        errs = []
+        # Split and execute each statement individually with its own connection state
+        raw_stmts = schema_sql.split(';')
+        for raw in raw_stmts:
+            stmt = raw.strip()
+            if not stmt or stmt.startswith('--') or len(stmt) < 10:
+                continue
+            try:
+                cur.execute(stmt)
+                ok += 1
+            except Exception as e:
+                errs.append(f"{stmt[:60]}: {str(e)[:80]}")
+                # After error, need fresh cursor
                 try:
-                    cur2.execute(part)
-                    ok += 1
-                except Exception as e:
-                    errs.append(f"{part[:50]}: {str(e)[:60]}")
-            conn2.close()
-            print(f"Schema: {ok} OK, {len(errs)} errors", flush=True)
-            for err in errs[:10]:
-                print(f"  ERR: {err}", flush=True)
-        except Exception as e:
-            print(f"Schema error: {e}", flush=True)
-            try: conn2.close()
-            except: pass
-
+                    cur = conn.cursor()
+                except:
+                    pass
+        print(f"Schema: {ok} OK, {len(errs)} errors", flush=True)
+        for e in errs[:10]:
+            print(f"  ERR: {e}", flush=True)
         # Step 3: Verify tables were created
         cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
         table_count = cur.fetchone()['c']
