@@ -1905,26 +1905,28 @@ def reset_db():
     import traceback as _tb
     secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
     if secret != 'mchrta-reset-2026':
-        return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
-            <h2>McHR&TA — Database Reset</h2>
+        return """<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+            <h2>McHR&TA - Database Reset</h2>
             <form method="GET"><input type="hidden" name="secret" value="mchrta-reset-2026">
-            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">Reset Database &amp; Restore Admin Login</button></form>
-        </body></html>'''
-    log_lines = []
+            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">Reset Database</button></form>
+        </body></html>"""
+    log = []
     try:
         if 'db' in g:
             try: g.db.close()
             except: pass
             g.pop('db', None)
 
-        # CONNECTION 1: Drop all tables
-        c1 = get_pg_conn(); c1.autocommit = True; cur1 = c1.cursor()
-        cur1.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
-        tables = [r['tablename'] for r in cur1.fetchall()]
+        conn = get_pg_conn()
+        conn.autocommit = True
+        cur = conn.cursor()
+
+        # Drop all tables
+        cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
+        tables = [r['tablename'] for r in cur.fetchall()]
         if tables:
-            cur1.execute("DROP TABLE IF EXISTS " + ",".join(tables) + " CASCADE")
-            log_lines.append(f"Dropped {len(tables)} tables")
-        c1.close()
+            cur.execute("DROP TABLE IF EXISTS " + ",".join(tables) + " CASCADE")
+        log.append(f"Dropped {len(tables)} tables")
 
         # Find schema.sql
         schema_paths = [
@@ -1935,57 +1937,60 @@ def reset_db():
         schema_path = next((p for p in schema_paths if os.path.exists(p)), None)
         if not schema_path:
             raise RuntimeError("schema.sql not found")
+
         with open(schema_path) as f:
             schema_sql = f.read()
+
         stmts = [s.strip() for s in schema_sql.split(';')
                  if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 10]
-        log_lines.append(f"Found {len(stmts)} statements in schema.sql")
+        log.append(f"Running {len(stmts)} statements")
 
-        # CONNECTION 2: Create tables — fresh connection, autocommit, one stmt at a time
-        ok = 0; errs = []
-        for stmt in stmts:
-            c2 = get_pg_conn(); c2.autocommit = True; cur2 = c2.cursor()
+        # Use SAVEPOINT to isolate each statement failure
+        ok = 0
+        errs = []
+        for i, stmt in enumerate(stmts):
             try:
-                cur2.execute(stmt)
+                cur.execute(f"SAVEPOINT sp{i}")
+                cur.execute(stmt)
+                cur.execute(f"RELEASE SAVEPOINT sp{i}")
                 ok += 1
             except Exception as e:
+                cur.execute(f"ROLLBACK TO SAVEPOINT sp{i}")
                 errs.append(f"{stmt[:50]}: {str(e)[:60]}")
-            finally:
-                c2.close()
-        log_lines.append(f"Schema: {ok} OK, {len(errs)} errors")
-        if errs:
-            log_lines.append(f"Errors: {errs[:5]}")
 
-        # CONNECTION 3: Verify
-        c3 = get_pg_conn(); c3.autocommit = True; cur3 = c3.cursor()
-        cur3.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
-        table_count = cur3.fetchone()['c']
-        c3.close()
-        log_lines.append(f"Tables in DB: {table_count}")
+        log.append(f"Schema: {ok} OK, {len(errs)} errors")
+        if errs:
+            for e in errs[:5]:
+                log.append(f"  ERR: {e}")
+
+        # Verify
+        cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
+        table_count = cur.fetchone()['c']
+        log.append(f"Tables created: {table_count}")
 
         if table_count < 10:
-            raise RuntimeError(f"Only {table_count} tables created. Errors: {errs[:3]}")
+            conn.close()
+            raise RuntimeError(f"Only {table_count} tables. Errors: {errs[:3]}")
 
-        # CONNECTION 4: Seed
-        c4 = get_pg_conn(); c4.autocommit = True; cur4 = c4.cursor()
-        _seed_pg(cur4)
-        c4.close()
-        log_lines.append("Seed complete")
+        # Seed
+        _seed_pg(cur)
+        conn.close()
+        log.append("Seed complete")
 
-        return f'''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
+        log_html = "<br>".join(log)
+        return f"""<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
             <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
-            <pre style="background:#e8f5eb;padding:12px;border-radius:6px;font-size:12px">{"chr(10)".join(log_lines)}</pre>
+            <p style="background:#e8f5eb;padding:12px;border-radius:6px;font-size:12px">{log_html}</p>
             <p style="background:#e8f5eb;border:1px solid #2d8f3e;border-radius:8px;padding:16px;font-size:18px;font-weight:bold">
               Username: admin<br>Password: Admin@123
             </p>
-            <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">Go to Login &rarr;</a>
-        </body></html>'''
+            <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">Go to Login</a>
+        </body></html>"""
     except Exception as e:
-        return f'''<html><body style="font-family:sans-serif;padding:40px">
+        log_html = "<br>".join(log)
+        return f"""<html><body style="font-family:sans-serif;padding:40px">
             <h2 style="color:red">Reset Failed</h2>
             <p><strong>{str(e)}</strong></p>
-            <pre style="background:#f4f5f7;padding:12px;font-size:11px">{_tb.format_exc()}</pre>
-            <pre style="background:#f0f0f0;padding:12px;font-size:11px">Log: {"chr(10)".join(log_lines)}</pre>
-        </body></html>'''
-
-
+            <p style="background:#f0f0f0;padding:12px;font-size:11px">{log_html}</p>
+            <pre style="font-size:11px">{_tb.format_exc()}</pre>
+        </body></html>"""
