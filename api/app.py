@@ -640,10 +640,13 @@ def departments():
         (d['name'],d.get('business_unit_id'),d.get('cost_centre_id'),d.get('head_name'),d.get('budget',0),d.get('cost_center'),d.get('location')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Department created",201)
 
-@app.route('/api/departments/<int:did>', methods=['PUT','DELETE'])
+@app.route('/api/departments/<int:did>', methods=['GET','PUT','DELETE'])
 @require_auth
 def dept_detail(did):
     db=get_db()
+    if request.method=='GET':
+        r=row1("""SELECT d.*,b.name as business_unit FROM departments d LEFT JOIN business_units b ON b.id=d.business_unit_id WHERE d.id=%s""",(did,))
+        return ok(r) if r else err('Not found',404)
     if request.method=='DELETE':
         _cur().execute("UPDATE departments SET is_active=0 WHERE id=%s",(did,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
@@ -664,10 +667,13 @@ def business_units():
     cur=_cur();cur.execute("INSERT INTO business_units(name,description,head_name) VALUES(%s,%s,%s) RETURNING id",(d['name'],d.get('description'),d.get('head_name')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Business unit created",201)
 
-@app.route('/api/business-units/<int:bid>', methods=['PUT','DELETE'])
+@app.route('/api/business-units/<int:bid>', methods=['GET','PUT','DELETE'])
 @require_auth
 def bu_detail(bid):
     db=get_db()
+    if request.method=='GET':
+        r=row1('SELECT * FROM business_units WHERE id=%s',(bid,))
+        return ok(r) if r else err('Not found',404)
     if request.method=='DELETE':
         _cur().execute("UPDATE business_units SET is_active=0 WHERE id=%s",(bid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
@@ -684,10 +690,13 @@ def cost_centres():
     cur=_cur();cur.execute("INSERT INTO cost_centres(code,name,business_unit_id,budget) VALUES(%s,%s,%s,%s) RETURNING id",(d['code'],d['name'],d.get('business_unit_id'),d.get('budget',0)))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Cost centre created",201)
 
-@app.route('/api/cost-centres/<int:cid>', methods=['PUT','DELETE'])
+@app.route('/api/cost-centres/<int:cid>', methods=['GET','PUT','DELETE'])
 @require_auth
 def cc_detail(cid):
     db=get_db()
+    if request.method=='GET':
+        r=row1('SELECT * FROM cost_centres WHERE id=%s',(cid,))
+        return ok(r) if r else err('Not found',404)
     if request.method=='DELETE':
         _cur().execute("UPDATE cost_centres SET is_active=0 WHERE id=%s",(cid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
@@ -705,10 +714,13 @@ def offices():
         (d['name'],d.get('city'),d.get('state_id'),d.get('country_id'),d.get('address_line1'),d.get('pincode'),d.get('type','Regional'),d.get('headcount',0)))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Location created",201)
 
-@app.route('/api/offices/<int:oid>', methods=['PUT','DELETE'])
+@app.route('/api/offices/<int:oid>', methods=['GET','PUT','DELETE'])
 @require_auth
 def office_detail(oid):
     db=get_db()
+    if request.method=='GET':
+        r=row1('SELECT o.*,s.name as state_name,c.name as country_name FROM office_locations o LEFT JOIN master_states s ON s.id=o.state_id LEFT JOIN master_countries c ON c.id=o.country_id WHERE o.id=%s',(oid,))
+        return ok(r) if r else err('Not found',404)
     if request.method=='DELETE':
         _cur().execute("UPDATE office_locations SET is_active=0 WHERE id=%s",(oid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
@@ -1235,8 +1247,9 @@ def payroll_summary():
     et_id = et_fte['id'] if et_fte else 0
     total_sal=_scalar("SELECT COALESCE(SUM(salary),0)/12 as v FROM employees WHERE employment_type_id=%s AND status='Active'",(et_id,))
     total_ctr=_scalar("SELECT COALESCE(SUM(bill_rate),0)*160 as v FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_id,))
-    return ok({"base_salaries":round(total_sal),"contractor_payments":round(total_ctr),
-               "overtime":84000,"benefits":round(total_sal*0.10),"taxes":round((total_sal+total_ctr)*0.0765),"total":round(total_sal+total_ctr+84000)})
+    ts = float(total_sal or 0); tc = float(total_ctr or 0)
+    return ok({"base_salaries":round(ts),"contractor_payments":round(tc),
+               "overtime":84000,"benefits":round(ts*0.10),"taxes":round((ts+tc)*0.0765),"total":round(ts+tc+84000)})
 
 @app.route('/api/payroll/entries')
 @require_auth
@@ -2027,6 +2040,179 @@ def reset_status():
         <body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
         <h2>Working...</h2><p>Database initialisation in progress. Page refreshes automatically.</p>
         </body></html>"""
+
+
+# ═══════════════════════════════════════════════════
+# BULK UPLOAD
+# ═══════════════════════════════════════════════════
+import csv, io as _io_bulk
+
+@app.route('/api/bulk/template/<entity>')
+@require_auth
+def bulk_template(entity):
+    """Download CSV template for bulk upload"""
+    templates = {
+        'employees': ['first_name*','last_name*','email','phone','job_title','department_name',
+                      'employment_type','salary','bill_rate','start_date(YYYY-MM-DD)','status','referred_by','location'],
+        'candidates': ['first_name*','last_name*','email','phone','location','current_title',
+                       'years_exp','source','skills'],
+        'clients':    ['name*','industry','contract_type','currency','payment_terms_days',
+                       'primary_contact','contact_email','contact_phone','city','gstin','pan','status'],
+        'vendors':    ['name*','category','primary_contact','contact_email','contact_phone',
+                       'city','gstin','pan','sla_score','status'],
+        'timesheets': ['employee_code*','client_name','project','week_ending(YYYY-MM-DD)*',
+                       'regular_hours*','overtime_hours','bill_rate','notes'],
+    }
+    if entity not in templates:
+        return err(f"Unknown entity: {entity}", 404)
+    output = _io_bulk.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(templates[entity])
+    writer.writerow([f"Sample {h.split('(')[0].replace('*','')}" for h in templates[entity]])
+    from flask import Response
+    return Response(output.getvalue(), mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename={entity}_template.csv'})
+
+@app.route('/api/bulk/upload/<entity>', methods=['POST'])
+@require_auth
+def bulk_upload(entity):
+    """Process bulk CSV upload"""
+    data = request.get_json()
+    if not data or 'rows' not in data:
+        return err("No data provided")
+    rows_data = data['rows']
+    if not rows_data:
+        return err("Empty data")
+
+    results = {'created': 0, 'skipped': 0, 'errors': []}
+
+    if entity == 'employees':
+        # Get lookup data
+        depts = {d['name'].lower(): d['id'] for d in rows("SELECT id,name FROM departments WHERE is_active=1")}
+        emp_types = {e['name'].lower(): e['id'] for e in rows("SELECT id,name FROM master_employment_types")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                fn = (row.get('first_name') or '').strip()
+                ln = (row.get('last_name') or '').strip()
+                if not fn or not ln:
+                    results['errors'].append(f"Row {i}: first_name and last_name required")
+                    results['skipped'] += 1
+                    continue
+                dept_id = depts.get((row.get('department_name') or '').lower())
+                et_id = emp_types.get((row.get('employment_type') or 'full-time').lower())
+                # Auto emp_id
+                n = _scalar("SELECT COUNT(*) as c FROM employees WHERE emp_id LIKE 'EMP-%'")
+                emp_id = f"EMP-{int(n)+1:04d}"
+                _cur().execute("""INSERT INTO employees(emp_id,first_name,last_name,email,phone,
+                    job_title,department_id,employment_type_id,salary,bill_rate,
+                    start_date,status,referred_by,location)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (emp_id, fn, ln,
+                     row.get('email') or None, row.get('phone') or None,
+                     row.get('job_title') or None, dept_id, et_id,
+                     float(row.get('salary') or 0), float(row.get('bill_rate') or 0),
+                     row.get('start_date(YYYY-MM-DD)') or row.get('start_date') or None,
+                     row.get('status') or 'Active',
+                     row.get('referred_by') or None, row.get('location') or None))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i} ({row.get('first_name','')} {row.get('last_name','')}): {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'candidates':
+        sources = {s['name'].lower(): s['id'] for s in rows("SELECT id,name FROM master_candidate_sources")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                fn = (row.get('first_name') or '').strip()
+                ln = (row.get('last_name') or '').strip()
+                if not fn or not ln:
+                    results['errors'].append(f"Row {i}: first_name and last_name required")
+                    results['skipped'] += 1
+                    continue
+                src_id = sources.get((row.get('source') or '').lower())
+                _cur().execute("""INSERT INTO candidates(first_name,last_name,email,phone,
+                    location,current_title,years_exp,source_id,skills)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (fn, ln, row.get('email') or None, row.get('phone') or None,
+                     row.get('location') or None, row.get('current_title') or None,
+                     int(row.get('years_exp') or 0), src_id, row.get('skills') or None))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'clients':
+        ct_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM master_contract_types")}
+        pt_map = {str(p['days']): p['id'] for p in rows("SELECT id,days FROM master_payment_terms")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                name = (row.get('name') or '').strip()
+                if not name:
+                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
+                ct_id = ct_map.get((row.get('contract_type') or '').lower())
+                pt_id = pt_map.get(str(row.get('payment_terms_days') or '30'))
+                _cur().execute("""INSERT INTO clients(name,industry,contract_type_id,currency,
+                    payment_terms_id,primary_contact,contact_email,contact_phone,city,gstin,pan,status)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (name, row.get('industry') or None, ct_id,
+                     row.get('currency') or 'INR', pt_id,
+                     row.get('primary_contact') or None, row.get('contact_email') or None,
+                     row.get('contact_phone') or None, row.get('city') or None,
+                     row.get('gstin') or None, row.get('pan') or None,
+                     row.get('status') or 'Active'))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'vendors':
+        vc_map = {v['name'].lower(): v['id'] for v in rows("SELECT id,name FROM master_vendor_categories")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                name = (row.get('name') or '').strip()
+                if not name:
+                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
+                vc_id = vc_map.get((row.get('category') or '').lower())
+                _cur().execute("""INSERT INTO vendors(name,category_id,primary_contact,contact_email,
+                    contact_phone,city,gstin,pan,sla_score,status)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (name, vc_id, row.get('primary_contact') or None,
+                     row.get('contact_email') or None, row.get('contact_phone') or None,
+                     row.get('city') or None, row.get('gstin') or None, row.get('pan') or None,
+                     int(row.get('sla_score') or 90), row.get('status') or 'Active'))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'timesheets':
+        emp_map = {e['emp_id']: e['id'] for e in rows("SELECT id,emp_id FROM employees WHERE is_active=1")}
+        cli_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM clients WHERE is_active=1")}
+        st_id = _scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
+        for i, row in enumerate(rows_data, 1):
+            try:
+                emp_code = (row.get('employee_code') or '').strip()
+                if not emp_code or emp_code not in emp_map:
+                    results['errors'].append(f"Row {i}: employee_code '{emp_code}' not found"); results['skipped'] += 1; continue
+                we = row.get('week_ending(YYYY-MM-DD)') or row.get('week_ending')
+                if not we:
+                    results['errors'].append(f"Row {i}: week_ending required"); results['skipped'] += 1; continue
+                cli_id = cli_map.get((row.get('client_name') or '').lower())
+                _cur().execute("""INSERT INTO timesheets(employee_id,client_id,project,week_ending,
+                    regular_hours,overtime_hours,bill_rate,notes,status_id)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (emp_map[emp_code], cli_id, row.get('project') or None, we,
+                     float(row.get('regular_hours') or 0), float(row.get('overtime_hours') or 0),
+                     float(row.get('bill_rate') or 0), row.get('notes') or None, st_id))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+    else:
+        return err(f"Bulk upload not supported for: {entity}", 400)
+
+    msg = f"Uploaded: {results['created']} created, {results['skipped']} skipped"
+    return ok(results, msg, 201 if results['created'] > 0 else 200)
 
 # ═══════════════════════════════════════════════════
 # RUN
