@@ -1836,27 +1836,34 @@ def export_all():
 @app.route('/api/admin/reset-db', methods=['GET','POST'])
 def reset_db():
     import traceback as _tb
-    secret=request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
-    if secret!='mchrta-reset-2026':
+    secret = request.args.get('secret','') or request.headers.get('X-Reset-Secret','')
+    if secret != 'mchrta-reset-2026':
         return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
             <h2>McHR&TA — Database Reset</h2>
             <p>Click below to re-seed the PostgreSQL database.</p>
             <form method="GET"><input type="hidden" name="secret" value="mchrta-reset-2026">
-            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">Re-seed Database & Restore Admin Login</button></form>
+            <button type="submit" style="background:#2d8f3e;color:#fff;padding:12px 24px;border:none;border-radius:6px;font-size:16px;cursor:pointer">
+              Reset Database &amp; Restore Admin Login
+            </button></form>
         </body></html>'''
     try:
-        if 'db' in g: g.db.close(); g.pop('db',None)
-        # Drop all tables and re-seed
+        if 'db' in g:
+            try: g.db.close()
+            except: pass
+            g.pop('db', None)
+
         conn = get_pg_conn()
         conn.autocommit = True
         cur = conn.cursor()
-        # Drop all tables
+
+        # Step 1: Drop everything
         cur.execute("SELECT tablename FROM pg_tables WHERE schemaname='public'")
         tables = [r['tablename'] for r in cur.fetchall()]
         if tables:
             cur.execute("DROP TABLE IF EXISTS " + ",".join(tables) + " CASCADE")
-            print(f"Dropped {len(tables)} tables", flush=True)
-        # Run schema
+            print(f"Dropped: {tables}", flush=True)
+
+        # Step 2: Load and run schema — each statement in its own transaction
         schema_paths = [
             os.path.join(BASE_DIR,'..','db','schema.sql'),
             os.path.join(BASE_DIR,'db','schema.sql'),
@@ -1864,33 +1871,61 @@ def reset_db():
         ]
         schema_path = next((p for p in schema_paths if os.path.exists(p)), None)
         if not schema_path:
-            raise RuntimeError("schema.sql not found")
-        print(f"Loading schema from {schema_path}", flush=True)
+            raise RuntimeError("schema.sql not found in any expected path")
+
         with open(schema_path) as f:
             schema_sql = f.read()
-        # Execute each statement individually
-        stmts = [s.strip() for s in schema_sql.split(';') if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 5]
-        errors = []
+
+        # Split on semicolons and run each statement
+        stmts = []
+        for s in schema_sql.split(';'):
+            s = s.strip()
+            if s and not s.startswith('--') and len(s) > 10:
+                stmts.append(s)
+
+        ok_count = 0
+        err_count = 0
         for stmt in stmts:
             try:
                 cur.execute(stmt)
+                ok_count += 1
             except Exception as e:
-                errors.append(str(e)[:100])
-                conn.autocommit = True  # reset after error
-        if errors:
-            print(f"Schema warnings ({len(errors)}): {errors[:3]}", flush=True)
-        print(f"Schema applied ({len(stmts)} statements)", flush=True)
-        # Now seed
+                err_msg = str(e).lower()
+                if 'already exists' not in err_msg:
+                    err_count += 1
+                    print(f"Schema err: {e}", flush=True)
+
+        print(f"Schema: {ok_count} OK, {err_count} errors", flush=True)
+
+        # Step 3: Verify tables were created
+        cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
+        table_count = cur.fetchone()['c']
+        print(f"Tables created: {table_count}", flush=True)
+
+        if table_count < 10:
+            raise RuntimeError(f"Schema creation failed — only {table_count} tables created, expected 30+")
+
+        # Step 4: Seed data
         _seed_pg(cur)
+
         conn.close()
         return '''<html><body style="font-family:sans-serif;padding:40px;background:#f4f5f7">
-            <h2 style="color:#2d8f3e">&#10003; Database Re-seeded!</h2>
+            <h2 style="color:#2d8f3e">&#10003; Database Reset Complete!</h2>
             <p style="font-size:16px">Login with:</p>
-            <p style="background:#e8f5eb;border:1px solid #2d8f3e;border-radius:8px;padding:16px;font-size:18px;font-weight:bold">Username: admin<br>Password: Admin@123</p>
-            <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">Go to Login &rarr;</a>
+            <p style="background:#e8f5eb;border:1px solid #2d8f3e;border-radius:8px;padding:16px;font-size:18px;font-weight:bold">
+              Username: admin<br>Password: Admin@123
+            </p>
+            <a href="/" style="display:inline-block;margin-top:20px;background:#2d8f3e;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:16px">
+              Go to Login &rarr;
+            </a>
         </body></html>'''
     except Exception as e:
-        return f'<html><body style="font-family:sans-serif;padding:40px"><h2 style="color:red">Reset Failed</h2><p>{str(e)}</p><pre>{_tb.format_exc()}</pre></body></html>'
+        return f'''<html><body style="font-family:sans-serif;padding:40px">
+            <h2 style="color:red">Reset Failed</h2>
+            <p><strong>{str(e)}</strong></p>
+            <pre style="background:#f4f5f7;padding:12px;font-size:11px;overflow-x:auto">{_tb.format_exc()}</pre>
+        </body></html>'''
+
 
 # ═══════════════════════════════════════════════════
 # RUN
