@@ -198,6 +198,7 @@ tbody tr:hover td{background:var(--green-lt)}
 .empty-icon{font-size:40px;margin-bottom:12px;opacity:.4}
 .empty-title{font-size:14px;font-weight:600;color:var(--txt);margin-bottom:6px}
 .empty-sub{font-size:12px;color:var(--txt2)}
+#export-menu.open{display:block!important}
 .stars{color:#f5a623;font-size:13px;letter-spacing:1px}
 .rating-input{display:flex;gap:4px}
 .rating-input span{font-size:20px;cursor:pointer;color:var(--bdr2);transition:color .12s}
@@ -503,7 +504,23 @@ tbody tr:hover td{background:var(--green-lt)}
 
 <!-- REPORTS -->
 <div id="mod-reports" class="mod">
-  <div class="hero"><div class="hero-icon" style="background:var(--charcoal-dim)">📊</div><div><div class="hero-title">Reports &amp; Analytics</div><div class="hero-desc">All data queried live from the SQLite database — real numbers, real time.</div></div></div>
+  <div class="hero"><div class="hero-icon" style="background:var(--charcoal-dim)">📊</div>
+    <div><div class="hero-title">Reports &amp; Analytics</div><div class="hero-desc">All data queried live from the SQLite database — real numbers, real time.</div></div>
+    <div class="hero-actions">
+      <div style="position:relative">
+        <button class="btn btn-ghost btn-sm" onclick="$('export-menu').classList.toggle('open')" style="gap:6px">
+          ⬇ Export Data <span style="font-size:10px">▾</span>
+        </button>
+        <div id="export-menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--bdr2);border-radius:var(--rl);min-width:200px;z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.12)">
+          <div style="padding:6px 0">
+            <div style="padding:5px 14px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px">Export as CSV</div>
+            ${['employees','clients','vendors','timesheets','payroll','invoices','candidates'].map(e=>`<div onclick="exportData('${e}')" style="padding:9px 14px;font-size:12.5px;cursor:pointer;color:var(--txt2);border-top:1px solid var(--bdr)" onmouseover="this.style.background='var(--green-lt)'" onmouseout="this.style.background=''">📄 ${e.charAt(0).toUpperCase()+e.slice(1)}</div>`).join('')}
+            <div onclick="exportData('all')" style="padding:9px 14px;font-size:12.5px;cursor:pointer;color:var(--green-dk);font-weight:600;border-top:2px solid var(--bdr)" onmouseover="this.style.background='var(--green-lt)'" onmouseout="this.style.background=''">📦 Export All (ZIP)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div class="tabs">
     <div class="tab active" onclick="showRpt('financial',this)">Financial</div>
     <div class="tab" onclick="showRpt('recruiter',this)">Recruiter Performance</div>
@@ -2814,10 +2831,33 @@ async function submitModal(){
 // KEYBOARD
 // ═══════════════════════════════════════════════════
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape')closeModal();
+  if(e.key==='Escape'){closeModal();$('export-menu')?.classList.remove('open');}
   if((e.metaKey||e.ctrlKey)&&e.key==='k'){e.preventDefault();$('gsearch').focus();}
   if(e.key==='Enter'&&document.querySelector('.lscreen')?.style.display!=='none'&&e.target.classList.contains('finput'))doLogin();
 });
+// Close export menu on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#export-menu')&&!e.target.closest('[onclick*="export-menu"]')){
+    $('export-menu')?.classList.remove('open');
+  }
+});
+
+async function exportData(entity){
+  $('export-menu').classList.remove('open');
+  toast(`Preparing ${entity} export…`,'info');
+  try{
+    const resp=await fetch(`/api/export/${entity}`,{headers:{'X-Auth-Token':_auth?.token}});
+    if(!resp.ok){const d=await resp.json();toast(d.message||'Export failed','error');return;}
+    const blob=await resp.blob();
+    const cd=resp.headers.get('Content-Disposition')||'';
+    const fname=cd.match(/filename=([^;]+)/)?.[1]||`${entity}_export.csv`;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=fname;a.click();
+    URL.revokeObjectURL(url);
+    toast(`${entity} exported successfully!`,'success');
+  }catch(e){toast('Export failed — '+e.message,'error');}
+}
 
 // ═══════════════════════════════════════════════════
 // INIT
