@@ -606,10 +606,10 @@ def org_doc_detail(did):
 @require_auth
 def org_summary():
     db=get_db()
-    return ok({"departments":_scalar("SELECT COUNT(*) FROM departments WHERE is_active=1"),
-               "offices":_scalar("SELECT COUNT(*) FROM office_locations WHERE is_active=1"),
-               "business_units":_scalar("SELECT COUNT(*) FROM business_units WHERE is_active=1"),
-               "cost_centres":_scalar("SELECT COUNT(*) FROM cost_centres WHERE is_active=1")})
+    return ok({"departments":_scalar("SELECT COUNT(*) as c FROM departments WHERE is_active=1"),
+               "offices":_scalar("SELECT COUNT(*) as c FROM office_locations WHERE is_active=1"),
+               "business_units":_scalar("SELECT COUNT(*) as c FROM business_units WHERE is_active=1"),
+               "cost_centres":_scalar("SELECT COUNT(*) as c FROM cost_centres WHERE is_active=1")})
 
 @app.route('/api/departments', methods=['GET','POST'])
 @require_auth
@@ -909,7 +909,7 @@ def employees():
     if not emp_id:
         et_row = row1("SELECT name FROM master_employment_types WHERE id=%s",(d.get('employment_type_id',1),))
         prefix = "CTR" if et_row and "Contractor" in et_row.get('name','') else "EMP"
-        n = _scalar(f"SELECT COUNT(*) FROM employees WHERE emp_id LIKE '{prefix}-%'")
+        n = _scalar(f"SELECT COUNT(*) as c FROM employees WHERE emp_id LIKE '{prefix}-%'")
         emp_id = f"{prefix}-{n+1:04d}"
         while row1("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)):
             n+=1; emp_id=f"{prefix}-{n+1:04d}"
@@ -1175,10 +1175,10 @@ def timesheets():
 @require_auth
 def ts_summary():
     db=get_db()
-    total=_scalar("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)")
-    billable=_scalar("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)")
-    pending=_scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'")
-    ot=_scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0")
+    total=_scalar("SELECT COALESCE(SUM(total_hours),0) as v FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)")
+    billable=_scalar("SELECT COALESCE(SUM(total_hours),0) as v FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)")
+    pending=_scalar("SELECT COUNT(*) as c FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'")
+    ot=_scalar("SELECT COUNT(*) as c FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0")
     return ok({"total_hours":total,"billable_hours":billable,"pending_approval":pending,"ot_alerts":ot,"utilization":round(billable/total*100,1) if total else 0})
 
 @app.route('/api/timesheets/<int:tid>', methods=['GET','PUT'])
@@ -1403,10 +1403,10 @@ def interviews():
 @require_auth
 def int_summary():
     db=get_db()
-    return ok({"scheduled_this_week":_scalar("SELECT COUNT(*) FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')"),
-               "awaiting_feedback":_scalar("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Pending'"),
-               "overdue_feedback":_scalar("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Overdue'"),
-               "no_shows":_scalar("SELECT COUNT(*) FROM interviews WHERE decision='No Show'")})
+    return ok({"scheduled_this_week":_scalar("SELECT COUNT(*) as c FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')"),
+               "awaiting_feedback":_scalar("SELECT COUNT(*) as c FROM interviews WHERE scorecard_status='Pending'"),
+               "overdue_feedback":_scalar("SELECT COUNT(*) as c FROM interviews WHERE scorecard_status='Overdue'"),
+               "no_shows":_scalar("SELECT COUNT(*) as c FROM interviews WHERE decision='No Show'")})
 
 @app.route('/api/interviews/<int:iid>', methods=['PUT'])
 @require_auth
@@ -1538,11 +1538,11 @@ def rpt_financial():
         COALESCE(SUM(i.amount),0) as revenue,
         COALESCE(SUM(CASE WHEN s.name='Paid' THEN i.amount ELSE 0 END),0) as collected
         FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id
-        GROUP BY TO_CHAR(i.created_at, 'YYYY-MM') ORDER BY month DESC LIMIT 6""")
+        GROUP BY TO_CHAR(i.created_at, 'YYYY-MM'),TO_CHAR(i.created_at, 'Mon') ORDER BY month DESC LIMIT 6""")
     trend.reverse()
-    client_rev=rows("SELECT c.name,COALESCE(SUM(i.amount),0) as revenue FROM clients c LEFT JOIN invoices i ON i.client_id=c.id WHERE c.is_active=1 GROUP BY c.id ORDER BY revenue DESC LIMIT 8")
-    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
-    payroll_mtd=_scalar("SELECT COALESCE(SUM(gross_amount),0) FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')")
+    client_rev=rows("SELECT c.name,COALESCE(SUM(i.amount),0) as revenue FROM clients c LEFT JOIN invoices i ON i.client_id=c.id WHERE c.is_active=1 GROUP BY c.id,c.name ORDER BY revenue DESC LIMIT 8")
+    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) as v FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
+    payroll_mtd=_scalar("SELECT COALESCE(SUM(gross_amount),0) as v FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')")
     return ok({"trend":trend,"client_revenue":client_rev,"revenue_mtd":rev_mtd,"payroll_mtd":payroll_mtd,"gross_margin":round((rev_mtd-payroll_mtd)/rev_mtd*100,1) if rev_mtd else 0})
 
 @app.route('/api/reports/recruiter')
@@ -1555,7 +1555,7 @@ def rpt_recruiter():
         FROM employees e JOIN applications a ON a.recruiter_id=e.id
         JOIN master_application_stages s ON s.id=a.stage_id
         JOIN job_requisitions r ON r.id=a.requisition_id
-        GROUP BY e.id ORDER BY hires DESC"""))
+        GROUP BY e.id,e.first_name,e.last_name ORDER BY hires DESC"""))
 
 @app.route('/api/reports/applicants')
 @require_auth
@@ -1566,13 +1566,13 @@ def rpt_applicants():
         SUM(CASE WHEN s.name IN ('Offer','Placed') THEN 1 ELSE 0 END) as offered,
         SUM(CASE WHEN s.name='Placed' THEN 1 ELSE 0 END) as hired
         FROM applications a LEFT JOIN employees e ON e.id=a.recruiter_id
-        JOIN master_application_stages s ON s.id=a.stage_id GROUP BY a.recruiter_id ORDER BY hired DESC""")
+        JOIN master_application_stages s ON s.id=a.stage_id GROUP BY a.recruiter_id,e.first_name,e.last_name ORDER BY hired DESC""")
     by_src=rows("""SELECT cs.name as source,COUNT(*) as total,
         SUM(CASE WHEN s.name='Placed' THEN 1 ELSE 0 END) as hired,
         ROUND(SUM(CASE WHEN s.name='Placed' THEN 1.0 ELSE 0 END)/COUNT(*)*100,1) as hire_rate
         FROM applications a JOIN candidates c ON c.id=a.candidate_id
         LEFT JOIN master_candidate_sources cs ON cs.id=c.source_id
-        JOIN master_application_stages s ON s.id=a.stage_id GROUP BY c.source_id ORDER BY hire_rate DESC""")
+        JOIN master_application_stages s ON s.id=a.stage_id GROUP BY c.source_id,cs.name ORDER BY hire_rate DESC""")
     return ok({"by_recruiter":by_rec,"by_source":by_src})
 
 @app.route('/api/reports/clients')
@@ -1604,7 +1604,7 @@ def rpt_workforce():
         SUM(CASE WHEN et.name LIKE 'Contractor%' THEN 1 ELSE 0 END) as contractors
         FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.status IN ('Active','Onboarding')
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
-        WHERE d.is_active=1 GROUP BY d.id ORDER BY headcount DESC""")
+        WHERE d.is_active=1 GROUP BY d.id,d.name ORDER BY headcount DESC""")
     totals=_cur().execute("""SELECT COUNT(*) as total,
         SUM(CASE WHEN et.name='Full-Time' THEN 1 ELSE 0 END) as fte,
         SUM(CASE WHEN et.name LIKE 'Contractor%' THEN 1 ELSE 0 END) as contractors,
@@ -1620,20 +1620,20 @@ def rpt_workforce():
 @require_auth
 def dashboard():
     db=get_db()
-    emp_count=_scalar("SELECT COUNT(*) FROM employees WHERE status IN ('Active','Onboarding')")
-    open_reqs=_scalar("SELECT COUNT(*) FROM job_requisitions WHERE status='Active'")
-    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
-    pending_inv=_scalar("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
+    emp_count=_scalar("SELECT COUNT(*) as c FROM employees WHERE status IN ('Active','Onboarding')")
+    open_reqs=_scalar("SELECT COUNT(*) as c FROM job_requisitions WHERE status='Active'")
+    rev_mtd=_scalar("SELECT COALESCE(SUM(amount),0) as v FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
+    pending_inv=_scalar("SELECT COALESCE(SUM(amount),0) as v FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
     funnel={}
     for r in rows("SELECT s.name,COUNT(a.id) as cnt FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id,s.name ORDER BY s.sort_order"):
         funnel[r['name']]=r['cnt']
     top_rec=rows("""SELECT e.first_name||' '||e.last_name as name,COUNT(a.id) as hires
         FROM applications a JOIN employees e ON e.id=a.recruiter_id
         JOIN master_application_stages s ON s.id=a.stage_id WHERE s.name='Placed'
-        GROUP BY a.recruiter_id ORDER BY hires DESC LIMIT 5""")
+        GROUP BY a.recruiter_id,e.first_name,e.last_name ORDER BY hires DESC LIMIT 5""")
     client_rev=rows("""SELECT c.name,COALESCE(SUM(i.amount),0) as revenue
         FROM clients c LEFT JOIN invoices i ON i.client_id=c.id AND TO_CHAR(i.created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')
-        WHERE c.is_active=1 GROUP BY c.id ORDER BY revenue DESC LIMIT 6""")
+        WHERE c.is_active=1 GROUP BY c.id,c.name ORDER BY revenue DESC LIMIT 6""")
     urgent=rows("""SELECT r.id,r.title,c.name as client,p.name as priority,
         (CURRENT_DATE - r.opened_date::date) as days_open
         FROM job_requisitions r JOIN clients c ON c.id=r.client_id
@@ -1644,7 +1644,7 @@ def dashboard():
         COALESCE(SUM(amount),0) as revenue,
         COALESCE(SUM(CASE WHEN s.name='Paid' THEN i.amount ELSE 0 END),0) as collected
         FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id
-        GROUP BY TO_CHAR(i.created_at, 'YYYY-MM') ORDER BY month DESC LIMIT 6""")
+        GROUP BY TO_CHAR(i.created_at, 'YYYY-MM'),TO_CHAR(i.created_at, 'Mon') ORDER BY month DESC LIMIT 6""")
     trend.reverse()
     return ok({"kpis":{"active_employees":emp_count,"open_requisitions":open_reqs,"revenue_mtd":rev_mtd,"pending_invoices":pending_inv},
                "funnel":funnel,"top_recruiters":top_rec,"client_revenue":client_rev,
@@ -1662,7 +1662,7 @@ def sourcing_stats():
         FROM candidates c LEFT JOIN master_candidate_sources cs ON cs.id=c.source_id
         LEFT JOIN applications a ON a.candidate_id=c.id
         LEFT JOIN master_application_stages s ON s.id=a.stage_id
-        GROUP BY c.source_id ORDER BY total DESC"""))
+        GROUP BY c.source_id,cs.name ORDER BY total DESC"""))
 
 @app.route('/api/search')
 @require_auth
