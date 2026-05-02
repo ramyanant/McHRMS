@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """McHR&TA v4 — Flask REST API"""
-import os, hashlib, secrets, json, base64
+import os, hashlib, secrets, json, base64, threading
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timedelta
@@ -32,15 +32,23 @@ def get_pg_conn():
     return psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
 
 def _bootstrap_db():
-    print("Checking PostgreSQL connection...", flush=True)
+    print("Checking PostgreSQL...", flush=True)
     try:
         conn = get_pg_conn()
         conn.autocommit = True
         cur = conn.cursor()
         cur.execute("SELECT 1 as ok")
         cur.fetchone()
+        # Check if already initialised
+        cur.execute("SELECT to_regclass('public.users')")
+        already = cur.fetchone()['to_regclass'] is not None
         conn.close()
-        print("PostgreSQL connected OK. Use /api/admin/reset-db to initialise schema.", flush=True)
+        if already:
+            print("PostgreSQL ready (already initialised)", flush=True)
+        else:
+            print("PostgreSQL connected. Starting background initialisation...", flush=True)
+            t = threading.Thread(target=_do_reset, daemon=True)
+            t.start()
     except Exception as e:
         print(f"PostgreSQL connection error: {e}", flush=True)
 
@@ -1874,7 +1882,6 @@ def export_all():
 # ═══════════════════════════════════════════════════
 # RESET (remove after stabilisation)
 # ═══════════════════════════════════════════════════
-import threading
 _reset_status = {"running": False, "done": False, "error": None, "log": []}
 
 def _do_reset():
