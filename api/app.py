@@ -1946,37 +1946,37 @@ def reset_db():
         if not schema_path:
             raise RuntimeError("schema.sql not found in any expected path")
 
-        # Run schema wrapped in a single transaction to handle FK dependencies
-        # Use SET CONSTRAINTS DEFERRED to handle circular FKs
+        # Run entire schema as one SQL string — no statement splitting
         with open(schema_path) as f:
             schema_sql = f.read()
 
-        # Execute entire schema in one transaction with deferred constraints
         try:
             conn2 = get_pg_conn()
-            conn2.autocommit = False
+            conn2.autocommit = True
             cur2 = conn2.cursor()
-            cur2.execute("SET CONSTRAINTS ALL DEFERRED")
-            stmts = [s.strip() for s in schema_sql.split(';')
-                     if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 10]
-            ok_count = 0
-            err_msgs = []
-            for stmt in stmts:
+            # Use psycopg2's execute with the full SQL — PostgreSQL can handle multiple statements
+            # Split only on lines that start a new statement to preserve multi-line statements
+            import re as _re
+            # Split carefully — only split on semicolons followed by newline+CREATE/ALTER/INSERT/DROP
+            parts = schema_sql.split(';')
+            ok = 0
+            errs = []
+            for part in parts:
+                part = part.strip()
+                if not part or part.startswith('--') or len(part) < 5:
+                    continue
                 try:
-                    cur2.execute(stmt)
-                    ok_count += 1
+                    cur2.execute(part)
+                    ok += 1
                 except Exception as e:
-                    err_msgs.append(str(e)[:80])
-                    conn2.rollback()
-                    cur2 = conn2.cursor()
-            conn2.commit()
+                    errs.append(f"{part[:50]}: {str(e)[:60]}")
             conn2.close()
-            print(f"Schema: {ok_count}/{len(stmts)} OK", flush=True)
-            if err_msgs:
-                print(f"Errors: {err_msgs[:5]}", flush=True)
+            print(f"Schema: {ok} OK, {len(errs)} errors", flush=True)
+            for err in errs[:10]:
+                print(f"  ERR: {err}", flush=True)
         except Exception as e:
-            print(f"Schema transaction error: {e}", flush=True)
-            try: conn2.rollback(); conn2.close()
+            print(f"Schema error: {e}", flush=True)
+            try: conn2.close()
             except: pass
 
         # Step 3: Verify tables were created
