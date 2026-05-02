@@ -1965,5 +1965,3 @@ CREATE TABLE activity_log (id SERIAL PRIMARY KEY, entity_type TEXT NOT NULL, ent
             <p><strong>{str(e)}</strong></p>
             <pre style="font-size:11px">{_tb.format_exc()}</pre>
         </body></html>"""
-
-
