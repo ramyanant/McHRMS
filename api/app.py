@@ -394,7 +394,7 @@ def change_pw():
     db=get_db()
     if not d.get('skip_old'):
         old=row1("SELECT password_hash FROM users WHERE id=%s",(g.user['id'],))
-        if not old or old[0]!=hash_pw(d.get('old_password','')):
+        if not old or old.get('password_hash')!=hash_pw(d.get('old_password','')):
             return err("Current password incorrect.")
     _cur().execute("UPDATE users SET password_hash=%s,must_change_pwd=0 WHERE id=%s",(hash_pw(d['new_password']),g.user['id']))
     get_db().commit(); return ok(msg="Password updated")
@@ -456,7 +456,7 @@ def masters(table):
         if country:
             return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(country,)))
         india = row1("SELECT id FROM master_countries WHERE code='IN'")
-        if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(india[0],)))
+        if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=%s AND is_active=1 ORDER BY name",(india['id'],)))
     _cur2 = _cur()
     _cur2.execute("SELECT column_name FROM information_schema.columns WHERE table_name=%s AND column_name='sort_order'", (tbl,))
     has_sort = _cur2.fetchone() is not None
@@ -499,11 +499,11 @@ def organisation():
             'incorporation_date','financial_year_start']
     vals=[d.get(f) for f in fields]
     if existing:
-        _cur().execute("UPDATE organisation SET "+",".join(f+"=%s" for f in fields)+",updated_at=NOW() WHERE id=%s",vals+[existing[0]])
-        org_id=existing[0]
+        _cur().execute("UPDATE organisation SET "+",".join(f+"=%s" for f in fields)+",updated_at=NOW() WHERE id=%s",vals+[existing['id']])
+        org_id=existing['id']
     else:
         cur_org=_cur()
-        cur_org.execute("INSERT INTO organisation("+",".join(fields)+") VALUES("+",".join(["%s"]*len(fields))+")",vals)
+        cur_org.execute("INSERT INTO organisation("+",".join(fields)+") VALUES("+",".join(["%s"]*len(fields))+") RETURNING id",vals)
         row=cur_org.fetchone()
         org_id=row['id'] if row else None
     get_db().commit(); log("organisation",org_id,"updated","Organisation profile updated",g.user.get('username','System')); db.commit()
@@ -516,7 +516,7 @@ def add_gst():
     org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("INSERT INTO organisation_gst(organisation_id,gstin,state_id,trade_name,registration_date,is_primary) VALUES(%s,%s,%s,%s,%s,%s)",
-        (org[0],d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date'),d.get('is_primary',0)))
+        (org['id'],d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date'),d.get('is_primary',0)))
     get_db().commit(); return ok(msg="GST added",status=201)
 
 @app.route('/api/organisation/gst/<int:gid>', methods=['PUT','DELETE'])
@@ -539,7 +539,7 @@ def add_bank():
     _cur().execute("""INSERT INTO organisation_bank_accounts
         (organisation_id,account_name,bank_name,branch,account_number,ifsc_code,swift_code,account_type,currency,is_primary)
         VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (org[0],d['account_name'],d['bank_name'],d.get('branch'),d['account_number'],
+        (org['id'],d['account_name'],d['bank_name'],d.get('branch'),d['account_number'],
          d.get('ifsc_code'),d.get('swift_code'),d.get('account_type','Current'),d.get('currency','INR'),d.get('is_primary',0)))
     get_db().commit(); return ok(msg="Bank added",status=201)
 
@@ -561,7 +561,7 @@ def add_labour_cert():
     org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("INSERT INTO organisation_labour_certs(organisation_id,cert_number,issuing_authority,state_id,valid_from,valid_until) VALUES(%s,%s,%s,%s,%s,%s)",
-        (org[0],d['cert_number'],d.get('issuing_authority'),d.get('state_id'),d.get('valid_from'),d.get('valid_until')))
+        (org['id'],d['cert_number'],d.get('issuing_authority'),d.get('state_id'),d.get('valid_from'),d.get('valid_until')))
     get_db().commit(); return ok(msg="Labour cert added",status=201)
 
 @app.route('/api/organisation/labour-certs/<int:lid>', methods=['PUT','DELETE'])
@@ -582,11 +582,11 @@ def org_docs():
     org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     if request.method=='GET':
-        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(org[0],)))
+        return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(org['id'],)))
     d=request.get_json()
     # file_data is base64 encoded file content
     _cur().execute("INSERT INTO organisation_documents(organisation_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s)",
-        (org[0],d['doc_type'],d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
+        (org['id'],d['doc_type'],d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
     get_db().commit(); return ok(msg="Document saved",status=201)
 
 @app.route('/api/organisation/documents/<int:did>', methods=['GET','DELETE'])
@@ -999,7 +999,7 @@ def emp_addresses(eid):
     existing=row1("SELECT id FROM employee_addresses WHERE employee_id=%s AND address_type=%s",(eid,d['address_type']))
     if existing:
         _cur().execute("UPDATE employee_addresses SET address_line1=%s,address_line2=%s,city=%s,state_id=%s,pincode=%s,country_id=%s WHERE id=%s",
-            (d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),existing[0]))
+            (d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),existing['id']))
     else:
         _cur().execute("INSERT INTO employee_addresses(employee_id,address_type,address_line1,address_line2,city,state_id,pincode,country_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
             (eid,d['address_type'],d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id')))
@@ -1191,7 +1191,7 @@ def ts_detail(tid):
     new_status=d.get('status','Pending')
     st=row1("SELECT id FROM master_timesheet_statuses WHERE name=%s",(new_status,))
     if not st: return err("Invalid status")
-    _cur().execute("UPDATE timesheets SET status_id=%s,notes=%s WHERE id=%s",(st[0],d.get('notes'),tid))
+    _cur().execute("UPDATE timesheets SET status_id=%s,notes=%s WHERE id=%s",(st['id'],d.get('notes'),tid))
     if new_status=='Approved': _cur().execute("UPDATE timesheets SET approved_at=NOW() WHERE id=%s",(tid,))
 
     log("timesheets",tid,new_status.lower(),f"Timesheet #{tid} {new_status}",g.user.get('username')); db.commit()
@@ -1209,7 +1209,7 @@ def payroll():
     d=request.get_json()
     rt=row1("SELECT id FROM master_payroll_run_types WHERE name=%s",(d.get('run_type','Semi-Monthly FTE'),))
     cur=_cur();cur.execute("INSERT INTO payroll_runs(run_date,period_start,period_end,run_type_id,employee_count,gross_amount,status) VALUES(%s,%s,%s,%s,%s,%s,'Scheduled')",
-        (d['run_date'],d.get('period_start'),d.get('period_end'),rt[0] if rt else None,d.get('employee_count',0),d.get('gross_amount',0)))
+        (d['run_date'],d.get('period_start'),d.get('period_end'),rt['id'] if rt else None,d.get('employee_count',0),d.get('gross_amount',0)))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Scheduled",201)
 
 @app.route('/api/payroll/summary')
@@ -1217,8 +1217,9 @@ def payroll():
 def payroll_summary():
     db=get_db()
     et_fte=row1("SELECT id FROM master_employment_types WHERE name='Full-Time'")
-    total_sal=_scalar("SELECT COALESCE(SUM(salary),0)/12 FROM employees WHERE employment_type_id=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))
-    total_ctr=_scalar("SELECT COALESCE(SUM(bill_rate),0)*160 FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))
+    et_id = et_fte['id'] if et_fte else 0
+    total_sal=_scalar("SELECT COALESCE(SUM(salary),0)/12 as v FROM employees WHERE employment_type_id=%s AND status='Active'",(et_id,))
+    total_ctr=_scalar("SELECT COALESCE(SUM(bill_rate),0)*160 as v FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_id,))
     return ok({"base_salaries":round(total_sal),"contractor_payments":round(total_ctr),
                "overtime":84000,"benefits":round(total_sal*0.10),"taxes":round((total_sal+total_ctr)*0.0765),"total":round(total_sal+total_ctr+84000)})
 
@@ -1381,7 +1382,7 @@ def app_detail(aid):
     d=request.get_json()
     if d.get('stage'):
         st=row1("SELECT id FROM master_application_stages WHERE name=%s",(d['stage'],))
-        if st: _cur().execute("UPDATE applications SET stage_id=%s,updated_at=NOW() WHERE id=%s",(st[0],aid))
+        if st: _cur().execute("UPDATE applications SET stage_id=%s,updated_at=NOW() WHERE id=%s",(st['id'],aid))
     get_db().commit(); return ok(msg="Updated")
 
 @app.route('/api/interviews', methods=['GET','POST'])
@@ -1396,7 +1397,7 @@ def interviews():
     d=request.get_json()
     fmt=row1("SELECT id FROM master_interview_formats WHERE name=%s",(d.get('format','Video'),))
     cur=_cur();cur.execute("INSERT INTO interviews(application_id,round,format_id,interviewer,scheduled_at,location_link,notes) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-        (d['application_id'],d['round'],fmt[0] if fmt else None,d.get('interviewer'),d.get('scheduled_at'),d.get('location_link'),d.get('notes')))
+        (d['application_id'],d['round'],fmt['id'] if fmt else None,d.get('interviewer'),d.get('scheduled_at'),d.get('location_link'),d.get('notes')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Scheduled",201)
 
 @app.route('/api/interviews/summary')
@@ -1428,7 +1429,7 @@ def onboarding():
     d=request.get_json()
     tpl=row1("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard FTE'),))
     cur=_cur();cur.execute("INSERT INTO onboarding(employee_id,template_id,buddy_name,start_date,equipment) VALUES(%s,%s,%s,%s,%s)",
-        (d['employee_id'],tpl[0] if tpl else None,d.get('buddy_name'),d.get('start_date'),d.get('equipment')))
+        (d['employee_id'],tpl['id'] if tpl else None,d.get('buddy_name'),d.get('start_date'),d.get('equipment')))
     ob_id=cur.fetchone()['id']
     for task,cat in [("Offer letter signed","Documents"),("Background check","Compliance"),("Equipment provisioned","IT"),("System access setup","IT"),("Benefits enrollment","HR"),("Day 1 orientation","HR"),("30-day check-in","HR")]:
         _cur().execute("INSERT INTO onboarding_tasks(onboarding_id,task_name,category) VALUES(%s,%s,%s)",(ob_id,task,cat))
@@ -1482,7 +1483,7 @@ def invoices():
         return ok(rows(sql,params))
     d=request.get_json()
     last=row1("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1")
-    num=int(last[0].split('-')[1])+1 if last else 1001
+    num=int(last['invoice_number'].split('-')[1])+1 if last else 1001
     inv_num=f"INV-{num}"
     st=_scalar("SELECT id FROM master_invoice_statuses WHERE name='Draft'")
     cur=_cur();cur.execute("INSERT INTO invoices(invoice_number,client_id,contract_type_id,period_start,period_end,amount,tax_amount,due_date,po_number,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
@@ -1518,7 +1519,7 @@ def inv_detail(iid):
     d=request.get_json()
     if d.get('status'):
         st=row1("SELECT id FROM master_invoice_statuses WHERE name=%s",(d['status'],))
-        if st: _cur().execute("UPDATE invoices SET status_id=%s,updated_at=NOW() WHERE id=%s",(st[0],iid))
+        if st: _cur().execute("UPDATE invoices SET status_id=%s,updated_at=NOW() WHERE id=%s",(st['id'],iid))
     if d.get('paid_date'): _cur().execute("UPDATE invoices SET paid_date=%s,payment_ref=%s WHERE id=%s",(d['paid_date'],d.get('payment_ref'),iid))
     if d.get('notes'): _cur().execute("UPDATE invoices SET notes=%s WHERE id=%s",(d['notes'],iid))
 
