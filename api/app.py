@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""McHR&TA v4 —  Flask REST API"""
+"""McHR&TA v4 — Flask REST API"""
 import os, hashlib, secrets, json, base64
 import psycopg2
 import psycopg2.extras
@@ -1946,29 +1946,38 @@ def reset_db():
         if not schema_path:
             raise RuntimeError("schema.sql not found in any expected path")
 
+        # Run schema wrapped in a single transaction to handle FK dependencies
+        # Use SET CONSTRAINTS DEFERRED to handle circular FKs
         with open(schema_path) as f:
             schema_sql = f.read()
 
-        # Split on semicolons and run each statement
-        stmts = []
-        for s in schema_sql.split(';'):
-            s = s.strip()
-            if s and not s.startswith('--') and len(s) > 10:
-                stmts.append(s)
-
-        ok_count = 0
-        err_count = 0
-        for stmt in stmts:
-            try:
-                cur.execute(stmt)
-                ok_count += 1
-            except Exception as e:
-                err_msg = str(e).lower()
-                if 'already exists' not in err_msg:
-                    err_count += 1
-                    print(f"Schema err: {e}", flush=True)
-
-        print(f"Schema: {ok_count} OK, {err_count} errors", flush=True)
+        # Execute entire schema in one transaction with deferred constraints
+        try:
+            conn2 = get_pg_conn()
+            conn2.autocommit = False
+            cur2 = conn2.cursor()
+            cur2.execute("SET CONSTRAINTS ALL DEFERRED")
+            stmts = [s.strip() for s in schema_sql.split(';')
+                     if s.strip() and not s.strip().startswith('--') and len(s.strip()) > 10]
+            ok_count = 0
+            err_msgs = []
+            for stmt in stmts:
+                try:
+                    cur2.execute(stmt)
+                    ok_count += 1
+                except Exception as e:
+                    err_msgs.append(str(e)[:80])
+                    conn2.rollback()
+                    cur2 = conn2.cursor()
+            conn2.commit()
+            conn2.close()
+            print(f"Schema: {ok_count}/{len(stmts)} OK", flush=True)
+            if err_msgs:
+                print(f"Errors: {err_msgs[:5]}", flush=True)
+        except Exception as e:
+            print(f"Schema transaction error: {e}", flush=True)
+            try: conn2.rollback(); conn2.close()
+            except: pass
 
         # Step 3: Verify tables were created
         cur.execute("SELECT COUNT(*) as c FROM pg_tables WHERE schemaname='public'")
@@ -1976,7 +1985,7 @@ def reset_db():
         print(f"Tables created: {table_count}", flush=True)
 
         if table_count < 10:
-            raise RuntimeError(f"Schema creation failed — only {table_count} tables created, expected 30+")
+            raise RuntimeError(f"Schema creation failed — only {table_count} tables created. Check schema.sql FK dependencies.")
 
         # Step 4: Seed data
         _seed_pg(cur)
