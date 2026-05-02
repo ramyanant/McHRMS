@@ -3470,10 +3470,20 @@ function selectBulkEntity(entity) {
   $('bulk-upload-panel').scrollIntoView({behavior:'smooth', block:'nearest'});
 }
 
-function downloadBulkTemplate() {
-  const a = document.createElement('a');
-  a.href = `/api/bulk/template/${_curBulkEntity}`;
-  a.click();
+async function downloadBulkTemplate() {
+  try {
+    const resp = await fetch(`/api/bulk/template/${_curBulkEntity}`, {
+      headers: _auth ? {'X-Auth-Token': _auth.token} : {}
+    });
+    if (!resp.ok) { toast('Download failed', 'error'); return; }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${_curBulkEntity}_template.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch(e) { toast('Download failed: ' + e.message, 'error'); }
 }
 
 function handleBulkFileUpload(input) {
