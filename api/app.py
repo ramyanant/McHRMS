@@ -1997,4 +1997,11 @@ def reset_status():
         <h2>Working...</h2><p>Database initialisation in progress. Page refreshes automatically.</p>
         </body></html>"""
 
-
+# ═══════════════════════════════════════════════════
+# RUN
+# ═══════════════════════════════════════════════════
+if __name__ == '__main__':
+    import sys
+    port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
+    print(f"McHR&TA v4 starting on port {port}", flush=True)
+    app.run(debug=False, port=port, host='0.0.0.0')
