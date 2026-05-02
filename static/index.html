@@ -454,7 +454,11 @@ tbody tr:hover td{background:var(--green-lt)}
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Users &amp; Access
     </div>
     <div class="ngl">Analytics</div>
-    <div class="ni" data-mod="reports" onclick="nav('reports')">
+    <div class="ni" data-mod="bulk-upload" onclick="nav('bulk-upload')">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Bulk Upload
+      </div>
+      <div class="ni" data-mod="reports" onclick="nav('reports')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Reports
     </div>
   </nav>
@@ -687,7 +691,115 @@ tbody tr:hover td{background:var(--green-lt)}
     <div class="tab" onclick="showRpt('vendors',this)">Vendor SLAs</div>
     <div class="tab" onclick="showRpt('workforce',this)">Workforce</div>
   </div>
-  <div id="rpt-content">Loading…</div>
+  <div id="rpt-content">Loading…
+
+<!-- ═══ BULK UPLOAD ═══ -->
+<div class="mod" id="mod-bulk-upload">
+  <div class="hero" style="--hbg:var(--purple-dim)">
+    <div class="hero-icon" style="background:var(--purple-dim)">📤</div>
+    <div>
+      <div class="hero-title">Bulk Upload</div>
+      <div class="hero-desc">Import employees, candidates, clients, vendors, and timesheets from CSV files</div>
+    </div>
+  </div>
+
+  <div class="kgrid k4" style="margin-bottom:20px">
+    <div class="kpi" style="--kc:var(--green);cursor:pointer" onclick="selectBulkEntity('employees')">
+      <div class="kpi-label">👥 Employees</div>
+      <div class="kpi-value" style="font-size:16px">Import</div>
+      <div class="kpi-delta">Add multiple employees at once</div>
+    </div>
+    <div class="kpi" style="--kc:var(--blue);cursor:pointer" onclick="selectBulkEntity('candidates')">
+      <div class="kpi-label">🎯 Candidates</div>
+      <div class="kpi-value" style="font-size:16px">Import</div>
+      <div class="kpi-delta">Bulk add talent pipeline</div>
+    </div>
+    <div class="kpi" style="--kc:var(--amber);cursor:pointer" onclick="selectBulkEntity('clients')">
+      <div class="kpi-label">🏢 Clients</div>
+      <div class="kpi-value" style="font-size:16px">Import</div>
+      <div class="kpi-delta">Add multiple client accounts</div>
+    </div>
+    <div class="kpi" style="--kc:var(--teal);cursor:pointer" onclick="selectBulkEntity('vendors')">
+      <div class="kpi-label">🏭 Vendors</div>
+      <div class="kpi-value" style="font-size:16px">Import</div>
+      <div class="kpi-delta">Add sub-vendors and suppliers</div>
+    </div>
+  </div>
+
+  <div class="card" id="bulk-upload-panel" style="display:none">
+    <div class="card-hd">
+      <div>
+        <div class="card-title" id="bulk-panel-title">Import Employees</div>
+        <div class="card-sub">Upload a CSV file or paste data below</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="downloadBulkTemplate()">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Template
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('bulk-file-input').click()">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Upload CSV File
+        </button>
+        <input type="file" id="bulk-file-input" accept=".csv" style="display:none" onchange="handleBulkFileUpload(this)">
+      </div>
+    </div>
+    <div class="card-body">
+
+      <!-- Step indicator -->
+      <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden">
+        <div id="bulk-step-1" style="flex:1;padding:10px 16px;background:var(--green);color:#fff;font-size:12px;font-weight:600;text-align:center">1. Paste / Upload Data</div>
+        <div id="bulk-step-2" style="flex:1;padding:10px 16px;background:var(--s3);color:var(--txt2);font-size:12px;font-weight:600;text-align:center">2. Preview & Validate</div>
+        <div id="bulk-step-3" style="flex:1;padding:10px 16px;background:var(--s3);color:var(--txt2);font-size:12px;font-weight:600;text-align:center">3. Import Results</div>
+      </div>
+
+      <!-- Step 1: Data input -->
+      <div id="bulk-step-1-panel">
+        <div style="margin-bottom:12px;font-size:12px;color:var(--txt2)">
+          Paste CSV data below (first row must be headers). Or use the <strong>Upload CSV File</strong> button above.
+        </div>
+        <div id="bulk-required-fields" style="background:var(--blue-dim);border:1px solid rgba(26,107,181,.2);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--blue)">
+          Loading required fields...
+        </div>
+        <textarea id="bulk-csv-input" class="ftextarea" rows="10" placeholder="Paste CSV data here, or upload a file above...
+Example:
+first_name,last_name,email,job_title
+John,Smith,john@example.com,Software Engineer
+Jane,Doe,jane@example.com,HR Manager"></textarea>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px">
+          <button class="btn btn-primary" onclick="parseBulkCsv()">
+            Preview Data →
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 2: Preview -->
+      <div id="bulk-step-2-panel" style="display:none">
+        <div id="bulk-preview-summary" style="margin-bottom:12px"></div>
+        <div id="bulk-preview-errors" style="margin-bottom:12px"></div>
+        <div class="tbl-wrap" style="max-height:350px;overflow-y:auto">
+          <table id="bulk-preview-table"><thead><tr id="bulk-preview-headers"></tr></thead><tbody id="bulk-preview-body"></tbody></table>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:14px">
+          <button class="btn btn-ghost" onclick="bulkStep(1)">← Back</button>
+          <button class="btn btn-primary" id="bulk-import-btn" onclick="executeBulkImport()">
+            Import <span id="bulk-count">0</span> Records →
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Results -->
+      <div id="bulk-step-3-panel" style="display:none">
+        <div id="bulk-results"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:14px">
+          <button class="btn btn-ghost" onclick="bulkStep(1);$('bulk-csv-input').value=''">Import More</button>
+          <button class="btn btn-primary" onclick="nav(_curBulkEntity==='employees'?'employees':_curBulkEntity==='clients'?'clients':_curBulkEntity)">View Records →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
 </div>
 
   </div><!-- /page -->
@@ -958,7 +1070,7 @@ function nav(id){
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
-    'users':loadUsers,'reports':()=>loadReport('financial'),
+    'users':loadUsers,'reports':()=>loadReport('financial'),'bulk-upload':loadBulkUpload,
   };
   if(loaders[id])loaders[id]();
 }
@@ -3218,6 +3330,186 @@ async function exportData(entity){
     URL.revokeObjectURL(url);
     toast(`${entity} exported successfully!`,'success');
   }catch(e){toast('Export failed — '+e.message,'error');}
+}
+
+
+// ═══════════════════════════════════════════════════
+// BULK UPLOAD
+// ═══════════════════════════════════════════════════
+let _curBulkEntity = 'employees';
+let _bulkParsedData = [];
+
+const bulkEntityInfo = {
+  employees:  { title: 'Import Employees',  required: ['first_name', 'last_name'], hint: 'Required: first_name, last_name. Optional: email, phone, job_title, department_name, employment_type, salary, bill_rate, start_date, status, location' },
+  candidates: { title: 'Import Candidates', required: ['first_name', 'last_name'], hint: 'Required: first_name, last_name. Optional: email, phone, location, current_title, years_exp, source, skills' },
+  clients:    { title: 'Import Clients',    required: ['name'], hint: 'Required: name. Optional: industry, contract_type, currency, payment_terms_days, primary_contact, contact_email, contact_phone, city, gstin, pan, status' },
+  vendors:    { title: 'Import Vendors',    required: ['name'], hint: 'Required: name. Optional: category, primary_contact, contact_email, contact_phone, city, gstin, pan, sla_score, status' },
+  timesheets: { title: 'Import Timesheets', required: ['employee_code', 'week_ending'], hint: 'Required: employee_code (e.g. EMP-0001), week_ending (YYYY-MM-DD). Optional: client_name, project, regular_hours, overtime_hours, bill_rate, notes' },
+};
+
+function loadBulkUpload() {
+  // Nothing to load initially
+}
+
+function selectBulkEntity(entity) {
+  _curBulkEntity = entity;
+  _bulkParsedData = [];
+  const info = bulkEntityInfo[entity];
+  setHtml('bulk-panel-title', info.title);
+  setHtml('bulk-required-fields', `<strong>ℹ️ Column Guide:</strong> ${info.hint}`);
+  $('bulk-csv-input').value = '';
+  $('bulk-upload-panel').style.display = '';
+  bulkStep(1);
+  $('bulk-upload-panel').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function downloadBulkTemplate() {
+  const a = document.createElement('a');
+  a.href = `/api/bulk/template/${_curBulkEntity}`;
+  a.click();
+}
+
+function handleBulkFileUpload(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    $('bulk-csv-input').value = e.target.result;
+    toast('File loaded — click Preview to continue', 'success');
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function parseBulkCsv() {
+  const raw = ($('bulk-csv-input').value || '').trim();
+  if (!raw) { toast('Please paste CSV data or upload a file', 'error'); return; }
+
+  const lines = raw.split('\n').filter(l => l.trim());
+  if (lines.length < 2) { toast('Need at least a header row and one data row', 'error'); return; }
+
+  // Parse CSV properly (handle quoted fields)
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      if (line[i] === '"') {
+        inQuotes = !inQuotes;
+      } else if (line[i] === ',' && !inQuotes) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += line[i];
+      }
+    }
+    result.push(current.trim());
+    return result;
+  }
+
+  const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().replace(/\s+/g,'_'));
+  const dataRows = [];
+  const parseErrors = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const vals = parseCSVLine(lines[i]);
+    const row = {};
+    headers.forEach((h, idx) => { row[h] = vals[idx] || ''; });
+    dataRows.push(row);
+  }
+
+  _bulkParsedData = dataRows;
+  const info = bulkEntityInfo[_curBulkEntity];
+
+  // Validate required fields
+  const missing = [];
+  info.required.forEach(req => {
+    const key = Object.keys(dataRows[0] || {}).find(k => k.includes(req.split('(')[0]));
+    if (!key) missing.push(req);
+  });
+
+  // Build preview
+  const previewHeaders = headers.slice(0, 8); // show first 8 cols
+  setHtml('bulk-preview-headers', previewHeaders.map(h => `<th>${h}</th>`).join('') + '<th>Status</th>');
+
+  const bodyHtml = dataRows.slice(0, 50).map((row, i) => {
+    const isEmpty = info.required.every(r => !row[Object.keys(row).find(k => k.includes(r.split('(')[0])) || r]);
+    const status = isEmpty ? '<span class="pill p-red">Missing required</span>' : '<span class="pill p-green">Ready</span>';
+    const cells = previewHeaders.map(h => `<td>${(row[h] || '').substring(0, 30)}</td>`).join('');
+    return `<tr>${cells}<td>${status}</td></tr>`;
+  }).join('');
+
+  setHtml('bulk-preview-body', bodyHtml);
+  const readyCount = dataRows.filter(r => {
+    return info.required.every(req => {
+      const key = Object.keys(r).find(k => k.includes(req.split('(')[0]));
+      return key && r[key];
+    });
+  }).length;
+
+  setHtml('bulk-preview-summary', `<div class="finfo">📊 Found <strong>${dataRows.length}</strong> rows — <strong>${readyCount}</strong> ready to import${dataRows.length - readyCount > 0 ? `, <strong>${dataRows.length - readyCount}</strong> will be skipped (missing required fields)` : ''}</div>`);
+  setHtml('bulk-count', readyCount);
+
+  if (missing.length) {
+    setHtml('bulk-preview-errors', `<div style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--amber)">⚠️ Columns not found in your CSV: <strong>${missing.join(', ')}</strong>. Please check your headers match the template.</div>`);
+  } else {
+    setHtml('bulk-preview-errors', '');
+  }
+
+  bulkStep(2);
+}
+
+async function executeBulkImport() {
+  if (!_bulkParsedData.length) return;
+  const btn = $('bulk-import-btn');
+  btn.disabled = true; btn.textContent = 'Importing...';
+  try {
+    const result = await apiFetch(`/api/bulk/upload/${_curBulkEntity}`, {
+      method: 'POST',
+      body: JSON.stringify({rows: _bulkParsedData})
+    });
+    const hasErrors = result.errors && result.errors.length > 0;
+    const errHtml = hasErrors ? `
+      <div style="margin-top:14px;background:var(--amber-dim);border:1px solid var(--amber);border-radius:var(--r);padding:12px">
+        <div style="font-weight:600;color:var(--amber);margin-bottom:8px">⚠️ ${result.skipped} rows skipped:</div>
+        <ul style="font-size:11.5px;color:var(--txt2);padding-left:16px">
+          ${result.errors.slice(0, 10).map(e => `<li>${e}</li>`).join('')}
+          ${result.errors.length > 10 ? `<li>...and ${result.errors.length - 10} more</li>` : ''}
+        </ul>
+      </div>` : '';
+
+    setHtml('bulk-results', `
+      <div style="text-align:center;padding:24px">
+        <div style="font-size:48px;margin-bottom:12px">${result.created > 0 ? '✅' : '⚠️'}</div>
+        <div style="font-size:20px;font-weight:700;color:var(--txt);margin-bottom:6px">Import Complete!</div>
+        <div style="font-size:14px;color:var(--txt2);margin-bottom:16px">${result.created} records created successfully${result.skipped ? `, ${result.skipped} skipped` : ''}</div>
+        <div style="display:inline-flex;gap:16px;background:var(--s2);border-radius:var(--rl);padding:16px 24px">
+          <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:var(--green)">${result.created}</div><div style="font-size:11px;color:var(--txt2)">Created</div></div>
+          <div style="text-align:center"><div style="font-size:28px;font-weight:700;color:var(--amber)">${result.skipped}</div><div style="font-size:11px;color:var(--txt2)">Skipped</div></div>
+        </div>
+      </div>
+      ${errHtml}
+    `);
+    bulkStep(3);
+    toast(`${result.created} records imported!`, result.created > 0 ? 'success' : 'info');
+  } catch(e) {
+    toast('Import failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Import Records →';
+  }
+}
+
+function bulkStep(step) {
+  [1,2,3].forEach(s => {
+    const panel = $(`bulk-step-${s}-panel`);
+    const indicator = $(`bulk-step-${s}`);
+    if (panel) panel.style.display = s === step ? '' : 'none';
+    if (indicator) {
+      indicator.style.background = s === step ? 'var(--green)' : s < step ? 'var(--green-lt)' : 'var(--s3)';
+      indicator.style.color = s === step ? '#fff' : s < step ? 'var(--green-dk)' : 'var(--txt2)';
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════════
