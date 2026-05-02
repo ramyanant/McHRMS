@@ -296,12 +296,10 @@ def log(etype,eid,action,desc,uname="System"):
 def get_user():
     token = request.headers.get('X-Auth-Token') or request.cookies.get('auth_token')
     if not token: return None
-    db = get_db()
-    _cur().execute("DELETE FROM user_sessions WHERE expires_at < NOW()"); get_db().commit()
-    sess = _cur().execute("""SELECT u.*,r.name as role_name FROM user_sessions s
+    _cur().execute("DELETE FROM user_sessions WHERE expires_at < NOW()")
+    return row1("""SELECT u.*,r.name as role_name FROM user_sessions s
         JOIN users u ON u.id=s.user_id JOIN master_user_roles r ON r.id=u.role_id
-        WHERE s.token=%s AND s.expires_at>NOW() AND u.is_active=1""",(token,)).fetchone()
-    return dict(sess) if sess else None
+        WHERE s.token=%s AND s.expires_at>NOW() AND u.is_active=1""", (token,))
 
 def require_auth(f):
     from functools import wraps
@@ -338,16 +336,15 @@ def login():
     d=request.get_json()
     if not d or not d.get('username') or not d.get('password'):
         return err("Username and password required.")
-    db=get_db()
-    u=_cur().execute("""SELECT u.*,r.name as role_name FROM users u
+    u=row1("""SELECT u.*,r.name as role_name FROM users u
         JOIN master_user_roles r ON r.id=u.role_id
         WHERE (u.username=%s OR u.email=%s) AND u.is_active=1""",
-        (d['username'],d['username'])).fetchone()
+        (d['username'],d['username']))
     if not u or u['password_hash']!=hash_pw(d['password']):
         return err("Invalid username or password.",401)
     token=secrets.token_urlsafe(32)
     exp=(datetime.utcnow()+timedelta(hours=SESSION_HOURS))
-    _cur().execute("INSERT INTO user_sessions(user_id,token,ip_address,user_agent,expires_at) VALUES(%s,%s,%s,%s,%s) RETURNING id",
+    _cur().execute("INSERT INTO user_sessions(user_id,token,ip_address,user_agent,expires_at) VALUES(%s,%s,%s,%s,%s)",
                (u['id'],token,request.remote_addr,request.headers.get('User-Agent',''),exp))
     _cur().execute("UPDATE users SET last_login=NOW() WHERE id=%s",(u['id'],))
 
@@ -381,7 +378,7 @@ def change_pw():
     if not d.get('new_password'): return err("New password required.")
     db=get_db()
     if not d.get('skip_old'):
-        old=_cur().execute("SELECT password_hash FROM users WHERE id=%s",(g.user['id'],)).fetchone()
+        old=row1("SELECT password_hash FROM users WHERE id=%s",(g.user['id'],))
         if not old or old[0]!=hash_pw(d.get('old_password','')):
             return err("Current password incorrect.")
     _cur().execute("UPDATE users SET password_hash=%s,must_change_pwd=0 WHERE id=%s",(hash_pw(d['new_password']),g.user['id']))
@@ -443,9 +440,9 @@ def masters(table):
     if table=='states':
         if country:
             return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(country,)))
-        india = _cur().execute("SELECT id FROM master_countries WHERE code='IN'").fetchone()
+        india = row1("SELECT id FROM master_countries WHERE code='IN'")
         if india: return ok(rows(f"SELECT * FROM {tbl} WHERE country_id=? AND is_active=1 ORDER BY name",(india[0],)))
-    has_sort = any(r[1]=='sort_order' for r in _cur().execute(f'PRAGMA table_info({tbl})').fetchall())
+    has_sort = any(r[1]=='sort_order' for r in rows(f'PRAGMA table_info({tbl})'))
     order = 'sort_order,name' if has_sort else 'name'
     return ok(rows(f"SELECT * FROM {tbl} WHERE is_active=1 ORDER BY {order}"))
 
@@ -476,7 +473,7 @@ def organisation():
         org['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC",(org['id'],))
         return ok(org)
     d=request.get_json()
-    existing=_cur().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    existing=row1("SELECT id FROM organisation LIMIT 1")
     fields=['legal_name','trade_name','email','phone','website',
             'reg_address_line1','reg_address_line2','reg_city','reg_state_id','reg_pincode','reg_country_id',
             'biz_address_line1','biz_address_line2','biz_city','biz_state_id','biz_pincode','biz_country_id',
@@ -499,7 +496,7 @@ def organisation():
 @require_auth
 def add_gst():
     d=request.get_json()
-    org=_cur().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("INSERT INTO organisation_gst(organisation_id,gstin,state_id,trade_name,registration_date,is_primary) VALUES(%s,%s,%s,%s,%s,%s)",
         (org[0],d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date'),d.get('is_primary',0)))
@@ -520,7 +517,7 @@ def gst_detail(gid):
 @require_auth
 def add_bank():
     d=request.get_json()
-    org=_cur().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("""INSERT INTO organisation_bank_accounts
         (organisation_id,account_name,bank_name,branch,account_number,ifsc_code,swift_code,account_type,currency,is_primary)
@@ -544,7 +541,7 @@ def bank_detail(bid):
 @require_auth
 def add_labour_cert():
     d=request.get_json()
-    org=_cur().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("INSERT INTO organisation_labour_certs(organisation_id,cert_number,issuing_authority,state_id,valid_from,valid_until) VALUES(%s,%s,%s,%s,%s,%s)",
         (org[0],d['cert_number'],d.get('issuing_authority'),d.get('state_id'),d.get('valid_from'),d.get('valid_until')))
@@ -565,7 +562,7 @@ def labour_cert_detail(lid):
 @require_auth
 def org_docs():
     db=get_db()
-    org=_cur().execute("SELECT id FROM organisation LIMIT 1").fetchone()
+    org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     if request.method=='GET':
         return ok(rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM organisation_documents WHERE organisation_id=? AND is_active=1 ORDER BY uploaded_at DESC",(org[0],)))
@@ -592,10 +589,10 @@ def org_doc_detail(did):
 @require_auth
 def org_summary():
     db=get_db()
-    return ok({"departments":_cur().execute("SELECT COUNT(*) FROM departments WHERE is_active=1").fetchone()[0],
-               "offices":_cur().execute("SELECT COUNT(*) FROM office_locations WHERE is_active=1").fetchone()[0],
-               "business_units":_cur().execute("SELECT COUNT(*) FROM business_units WHERE is_active=1").fetchone()[0],
-               "cost_centres":_cur().execute("SELECT COUNT(*) FROM cost_centres WHERE is_active=1").fetchone()[0]})
+    return ok({"departments":row1("SELECT COUNT(*) FROM departments WHERE is_active=1")[0],
+               "offices":row1("SELECT COUNT(*) FROM office_locations WHERE is_active=1")[0],
+               "business_units":row1("SELECT COUNT(*) FROM business_units WHERE is_active=1")[0],
+               "cost_centres":row1("SELECT COUNT(*) FROM cost_centres WHERE is_active=1")[0]})
 
 @app.route('/api/departments', methods=['GET','POST'])
 @require_auth
@@ -893,14 +890,14 @@ def employees():
     # Auto-generate emp_id if not provided or check uniqueness
     emp_id = d.get('emp_id','').strip()
     if not emp_id:
-        et_row = _cur().execute("SELECT name FROM master_employment_types WHERE id=%s",(d.get('employment_type_id',1),)).fetchone()
+        et_row = row1("SELECT name FROM master_employment_types WHERE id=%s",(d.get('employment_type_id',1),))
         prefix = "CTR" if et_row and "Contractor" in et_row[0] else "EMP"
-        n = _cur().execute(f"SELECT COUNT(*) FROM employees WHERE emp_id LIKE '{prefix}-%'").fetchone()[0]
+        n = row1(f"SELECT COUNT(*) FROM employees WHERE emp_id LIKE '{prefix}-%'")[0]
         emp_id = f"{prefix}-{n+1:04d}"
-        while _cur().execute("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)).fetchone():
+        while row1("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)):
             n+=1; emp_id=f"{prefix}-{n+1:04d}"
     else:
-        if _cur().execute("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)).fetchone():
+        if row1("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)):
             return err(f"Employee code '{emp_id}' already exists. Please use a different code.")
     cur=_cur();cur.execute("""INSERT INTO employees(emp_id,first_name,middle_name,last_name,email,phone,
         personal_email,personal_phone,job_title,department_id,employment_type_id,
@@ -955,7 +952,7 @@ def employee_detail(eid):
     # Check emp_id uniqueness on update
     new_emp_id=d.get('emp_id','').strip()
     if new_emp_id:
-        conflict=_cur().execute("SELECT id FROM employees WHERE emp_id=%s AND id!=%s",(new_emp_id,eid)).fetchone()
+        conflict=row1("SELECT id FROM employees WHERE emp_id=%s AND id!=%s",(new_emp_id,eid))
         if conflict: return err(f"Employee code '{new_emp_id}' is already used by another employee.")
     _cur().execute("""UPDATE employees SET emp_id=COALESCE(NULLIF(%s,\"\"),emp_id),
         first_name=%s,middle_name=%s,last_name=%s,email=%s,phone=%s,
@@ -982,7 +979,7 @@ def emp_addresses(eid):
         return ok(rows("SELECT ea.*,s.name as state_name,c.name as country_name FROM employee_addresses ea LEFT JOIN master_states s ON s.id=ea.state_id LEFT JOIN master_countries c ON c.id=ea.country_id WHERE ea.employee_id=?",(eid,)))
     d=request.get_json()
     # Upsert by type
-    existing=_cur().execute("SELECT id FROM employee_addresses WHERE employee_id=%s AND address_type=%s",(eid,d['address_type'])).fetchone()
+    existing=row1("SELECT id FROM employee_addresses WHERE employee_id=%s AND address_type=%s",(eid,d['address_type']))
     if existing:
         _cur().execute("UPDATE employee_addresses SET address_line1=%s,address_line2=%s,city=%s,state_id=%s,pincode=%s,country_id=%s WHERE id=%s",
             (d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),existing[0]))
@@ -1107,7 +1104,7 @@ def my_timesheets():
             LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
             WHERE t.employee_id=%s ORDER BY t.week_ending DESC""",(g.user['employee_id'],)))
     d=request.get_json()
-    st=_cur().execute("SELECT id FROM master_timesheet_statuses WHERE name='Pending'").fetchone()[0]
+    st=row1("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")[0]
     cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (g.user['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],
          d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
@@ -1152,7 +1149,7 @@ def timesheets():
         sql+=" ORDER BY t.week_ending DESC,t.submitted_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
-    st=_cur().execute("SELECT id FROM master_timesheet_statuses WHERE name='Pending'").fetchone()[0]
+    st=row1("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")[0]
     cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (d['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
     get_db().commit(); return ok({"id":cur['id']},"Submitted",201)
@@ -1161,10 +1158,10 @@ def timesheets():
 @require_auth
 def ts_summary():
     db=get_db()
-    total=_cur().execute("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)").fetchone()[0]
-    billable=_cur().execute("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)").fetchone()[0]
-    pending=_cur().execute("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'").fetchone()[0]
-    ot=_cur().execute("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0").fetchone()[0]
+    total=row1("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE week_ending=(SELECT MAX(week_ending) FROM timesheets)")[0]
+    billable=row1("SELECT COALESCE(SUM(total_hours),0) FROM timesheets WHERE bill_rate>0 AND week_ending=(SELECT MAX(week_ending) FROM timesheets)")[0]
+    pending=row1("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'")[0]
+    ot=row1("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending' AND t.overtime_hours>0")[0]
     return ok({"total_hours":total,"billable_hours":billable,"pending_approval":pending,"ot_alerts":ot,"utilization":round(billable/total*100,1) if total else 0})
 
 @app.route('/api/timesheets/<int:tid>', methods=['GET','PUT'])
@@ -1175,7 +1172,7 @@ def ts_detail(tid):
         r=row1("SELECT * FROM timesheets WHERE id=?",(tid,)); return ok(r) if r else err("Not found",404)
     d=request.get_json()
     new_status=d.get('status','Pending')
-    st=_cur().execute("SELECT id FROM master_timesheet_statuses WHERE name=%s",(new_status,)).fetchone()
+    st=row1("SELECT id FROM master_timesheet_statuses WHERE name=%s",(new_status,))
     if not st: return err("Invalid status")
     _cur().execute("UPDATE timesheets SET status_id=%s,notes=%s WHERE id=%s",(st[0],d.get('notes'),tid))
     if new_status=='Approved': _cur().execute("UPDATE timesheets SET approved_at=NOW() WHERE id=%s",(tid,))
@@ -1193,7 +1190,7 @@ def payroll():
     if request.method=='GET':
         return ok(rows("SELECT p.*,rt.name as run_type FROM payroll_runs p LEFT JOIN master_payroll_run_types rt ON rt.id=p.run_type_id ORDER BY p.run_date DESC"))
     d=request.get_json()
-    rt=_cur().execute("SELECT id FROM master_payroll_run_types WHERE name=%s",(d.get('run_type','Semi-Monthly FTE'),)).fetchone()
+    rt=row1("SELECT id FROM master_payroll_run_types WHERE name=%s",(d.get('run_type','Semi-Monthly FTE'),))
     cur=_cur();cur.execute("INSERT INTO payroll_runs(run_date,period_start,period_end,run_type_id,employee_count,gross_amount,status) VALUES(%s,%s,%s,%s,%s,%s,'Scheduled')",
         (d['run_date'],d.get('period_start'),d.get('period_end'),rt[0] if rt else None,d.get('employee_count',0),d.get('gross_amount',0)))
     get_db().commit(); return ok({"id":cur['id']},"Scheduled",201)
@@ -1202,9 +1199,9 @@ def payroll():
 @require_auth
 def payroll_summary():
     db=get_db()
-    et_fte=_cur().execute("SELECT id FROM master_employment_types WHERE name='Full-Time'").fetchone()
-    total_sal=_cur().execute("SELECT COALESCE(SUM(salary),0)/12 FROM employees WHERE employment_type_id=%s AND status='Active'",(et_fte[0],) if et_fte else (0,)).fetchone()[0]
-    total_ctr=_cur().execute("SELECT COALESCE(SUM(bill_rate),0)*160 FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_fte[0],) if et_fte else (0,)).fetchone()[0]
+    et_fte=row1("SELECT id FROM master_employment_types WHERE name='Full-Time'")
+    total_sal=row1("SELECT COALESCE(SUM(salary),0)/12 FROM employees WHERE employment_type_id=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))[0]
+    total_ctr=row1("SELECT COALESCE(SUM(bill_rate),0)*160 FROM employees WHERE employment_type_id!=%s AND status='Active'",(et_fte[0],) if et_fte else (0,))[0]
     return ok({"base_salaries":round(total_sal),"contractor_payments":round(total_ctr),
                "overtime":84000,"benefits":round(total_sal*0.10),"taxes":round((total_sal+total_ctr)*0.0765),"total":round(total_sal+total_ctr+84000)})
 
@@ -1352,7 +1349,7 @@ def pipeline():
 @require_auth
 def add_application():
     d=request.get_json()
-    sid=_cur().execute("SELECT id FROM master_application_stages WHERE name='Applied'").fetchone()[0]
+    sid=row1("SELECT id FROM master_application_stages WHERE name='Applied'")[0]
     cur=_cur();cur.execute("INSERT INTO applications(candidate_id,requisition_id,stage_id,expected_salary,recruiter_id) VALUES(%s,%s,%s,%s,%s)",
         (d['candidate_id'],d['requisition_id'],sid,d.get('expected_salary'),d.get('recruiter_id')))
     get_db().commit(); return ok({"id":cur['id']},"Created",201)
@@ -1366,7 +1363,7 @@ def app_detail(aid):
         return ok(r) if r else err("Not found",404)
     d=request.get_json()
     if d.get('stage'):
-        st=_cur().execute("SELECT id FROM master_application_stages WHERE name=%s",(d['stage'],)).fetchone()
+        st=row1("SELECT id FROM master_application_stages WHERE name=%s",(d['stage'],))
         if st: _cur().execute("UPDATE applications SET stage_id=%s,updated_at=NOW() WHERE id=%s",(st[0],aid))
     get_db().commit(); return ok(msg="Updated")
 
@@ -1380,7 +1377,7 @@ def interviews():
             JOIN job_requisitions r ON r.id=a.requisition_id JOIN clients cl ON cl.id=r.client_id
             LEFT JOIN master_interview_formats f ON f.id=i.format_id ORDER BY i.scheduled_at"""))
     d=request.get_json()
-    fmt=_cur().execute("SELECT id FROM master_interview_formats WHERE name=%s",(d.get('format','Video'),)).fetchone()
+    fmt=row1("SELECT id FROM master_interview_formats WHERE name=%s",(d.get('format','Video'),))
     cur=_cur();cur.execute("INSERT INTO interviews(application_id,round,format_id,interviewer,scheduled_at,location_link,notes) VALUES(%s,%s,%s,%s,%s,%s,%s)",
         (d['application_id'],d['round'],fmt[0] if fmt else None,d.get('interviewer'),d.get('scheduled_at'),d.get('location_link'),d.get('notes')))
     get_db().commit(); return ok({"id":cur['id']},"Scheduled",201)
@@ -1389,10 +1386,10 @@ def interviews():
 @require_auth
 def int_summary():
     db=get_db()
-    return ok({"scheduled_this_week":_cur().execute("SELECT COUNT(*) FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')").fetchone()[0],
-               "awaiting_feedback":_cur().execute("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Pending'").fetchone()[0],
-               "overdue_feedback":_cur().execute("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Overdue'").fetchone()[0],
-               "no_shows":_cur().execute("SELECT COUNT(*) FROM interviews WHERE decision='No Show'").fetchone()[0]})
+    return ok({"scheduled_this_week":row1("SELECT COUNT(*) FROM interviews WHERE scheduled_at::date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '7 days')")[0],
+               "awaiting_feedback":row1("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Pending'")[0],
+               "overdue_feedback":row1("SELECT COUNT(*) FROM interviews WHERE scorecard_status='Overdue'")[0],
+               "no_shows":row1("SELECT COUNT(*) FROM interviews WHERE decision='No Show'")[0]})
 
 @app.route('/api/interviews/<int:iid>', methods=['PUT'])
 @require_auth
@@ -1412,7 +1409,7 @@ def onboarding():
             LEFT JOIN master_onboarding_templates t ON t.id=o.template_id
             LEFT JOIN clients c ON c.id=e.client_id WHERE o.status!='Completed' ORDER BY o.start_date"""))
     d=request.get_json()
-    tpl=_cur().execute("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard FTE'),)).fetchone()
+    tpl=row1("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard FTE'),))
     cur=_cur();cur.execute("INSERT INTO onboarding(employee_id,template_id,buddy_name,start_date,equipment) VALUES(%s,%s,%s,%s,%s)",
         (d['employee_id'],tpl[0] if tpl else None,d.get('buddy_name'),d.get('start_date'),d.get('equipment')))
     ob_id=cur['id']
@@ -1440,9 +1437,9 @@ def toggle_task(tid):
     db=get_db()
     complete=1 if request.get_json().get('is_complete') else 0
     _cur().execute("UPDATE onboarding_tasks SET is_complete=%s,completed_at=%s WHERE id=%s",(complete,datetime.utcnow() if complete else None,tid))
-    r=_cur().execute("SELECT onboarding_id FROM onboarding_tasks WHERE id=%s",(tid,)).fetchone()
+    r=row1("SELECT onboarding_id FROM onboarding_tasks WHERE id=%s",(tid,))
     if r:
-        stats=_cur().execute("SELECT COUNT(*),SUM(is_complete) FROM onboarding_tasks WHERE onboarding_id=%s",(r[0],)).fetchone()
+        stats=row1("SELECT COUNT(*),SUM(is_complete) FROM onboarding_tasks WHERE onboarding_id=%s",(r[0],))
         pct=round((stats['total'] or 0)/(stats['cnt'] or 1)*100) if stats else 0
         _cur().execute("UPDATE onboarding SET progress_pct=%s WHERE id=%s",(pct,r['onboarding_id']))
     get_db().commit(); return ok(msg="Updated")
@@ -1467,10 +1464,10 @@ def invoices():
         sql+=" ORDER BY i.created_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
-    last=_cur().execute("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1").fetchone()
+    last=row1("SELECT invoice_number FROM invoices ORDER BY id DESC LIMIT 1")
     num=int(last[0].split('-')[1])+1 if last else 1001
     inv_num=f"INV-{num}"
-    st=_cur().execute("SELECT id FROM master_invoice_statuses WHERE name='Draft'").fetchone()[0]
+    st=row1("SELECT id FROM master_invoice_statuses WHERE name='Draft'")[0]
     cur=_cur();cur.execute("INSERT INTO invoices(invoice_number,client_id,contract_type_id,period_start,period_end,amount,tax_amount,due_date,po_number,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (inv_num,d['client_id'],d.get('contract_type_id'),d.get('period_start'),d.get('period_end'),d.get('amount',0),d.get('tax_amount',0),d.get('due_date'),d.get('po_number'),d.get('notes'),st))
 
@@ -1481,7 +1478,7 @@ def invoices():
 @require_auth
 def inv_summary():
     db=get_db()
-    def q(sql): return _cur().execute(sql).fetchone()[0]
+    def q(sql): return row1(sql)[0]
     total=q("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
     paid=q("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name='Paid' AND TO_CHAR(i.created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")
     outstd=q("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")
@@ -1503,13 +1500,13 @@ def inv_detail(iid):
         return ok(r) if r else err("Not found",404)
     d=request.get_json()
     if d.get('status'):
-        st=_cur().execute("SELECT id FROM master_invoice_statuses WHERE name=%s",(d['status'],)).fetchone()
+        st=row1("SELECT id FROM master_invoice_statuses WHERE name=%s",(d['status'],))
         if st: _cur().execute("UPDATE invoices SET status_id=%s,updated_at=NOW() WHERE id=%s",(st[0],iid))
     if d.get('paid_date'): _cur().execute("UPDATE invoices SET paid_date=%s,payment_ref=%s WHERE id=%s",(d['paid_date'],d.get('payment_ref'),iid))
     if d.get('notes'): _cur().execute("UPDATE invoices SET notes=%s WHERE id=%s",(d['notes'],iid))
 
     if d.get('status')=='Paid':
-        r=_cur().execute("SELECT invoice_number,amount FROM invoices WHERE id=%s",(iid,)).fetchone()
+        r=row1("SELECT invoice_number,amount FROM invoices WHERE id=%s",(iid,))
         log("invoices",iid,"paid",f"Invoice {r[0]} paid — ₹{r[1]:,.0f}",g.user.get('username','System')); db.commit()
     return ok(msg="Updated")
 
@@ -1527,8 +1524,8 @@ def rpt_financial():
         GROUP BY TO_CHAR(i.created_at, 'YYYY-MM') ORDER BY month DESC LIMIT 6""")
     trend.reverse()
     client_rev=rows("SELECT c.name,COALESCE(SUM(i.amount),0) as revenue FROM clients c LEFT JOIN invoices i ON i.client_id=c.id WHERE c.is_active=1 GROUP BY c.id ORDER BY revenue DESC LIMIT 8")
-    rev_mtd=_cur().execute("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')").fetchone()[0]
-    payroll_mtd=_cur().execute("SELECT COALESCE(SUM(gross_amount),0) FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')").fetchone()[0]
+    rev_mtd=row1("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")[0]
+    payroll_mtd=row1("SELECT COALESCE(SUM(gross_amount),0) FROM payroll_runs WHERE status IN ('Processing','Completed') AND TO_CHAR('%Y-%m',run_date)=TO_CHAR(NOW(), 'YYYY-MM')")[0]
     return ok({"trend":trend,"client_revenue":client_rev,"revenue_mtd":rev_mtd,"payroll_mtd":payroll_mtd,"gross_margin":round((rev_mtd-payroll_mtd)/rev_mtd*100,1) if rev_mtd else 0})
 
 @app.route('/api/reports/recruiter')
@@ -1606,12 +1603,12 @@ def rpt_workforce():
 @require_auth
 def dashboard():
     db=get_db()
-    emp_count=_cur().execute("SELECT COUNT(*) FROM employees WHERE status IN ('Active','Onboarding')").fetchone()[0]
-    open_reqs=_cur().execute("SELECT COUNT(*) FROM job_requisitions WHERE status='Active'").fetchone()[0]
-    rev_mtd=_cur().execute("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')").fetchone()[0]
-    pending_inv=_cur().execute("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')").fetchone()[0]
+    emp_count=row1("SELECT COUNT(*) FROM employees WHERE status IN ('Active','Onboarding')")[0]
+    open_reqs=row1("SELECT COUNT(*) FROM job_requisitions WHERE status='Active'")[0]
+    rev_mtd=row1("SELECT COALESCE(SUM(amount),0) FROM invoices WHERE TO_CHAR(created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')")[0]
+    pending_inv=row1("SELECT COALESCE(SUM(amount),0) FROM invoices i JOIN master_invoice_statuses s ON s.id=i.status_id WHERE s.name IN ('Sent','Overdue')")[0]
     funnel={}
-    for r in _cur().execute("SELECT s.name,COUNT(a.id) FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id ORDER BY s.sort_order").fetchall():
+    for r in rows("SELECT s.name,COUNT(a.id) FROM master_application_stages s LEFT JOIN applications a ON a.stage_id=s.id GROUP BY s.id ORDER BY s.sort_order"):
         funnel[r[0]]=r[1]
     top_rec=rows("""SELECT e.first_name||' '||e.last_name as name,COUNT(a.id) as hires
         FROM applications a JOIN employees e ON e.id=a.recruiter_id
