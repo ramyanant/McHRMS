@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""McHR&TA v4 — Flask REST API"""
+"""McHR&TA v4 —  Flask REST API"""
 import os, hashlib, secrets, json, base64
 import psycopg2
 import psycopg2.extras
