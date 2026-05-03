@@ -1299,7 +1299,7 @@ function renderOrgProfile(editMode){
       '<td>'+(doc.file_size||'–')+'</td>'+
       '<td style="font-size:11px">'+fmt.dt(doc.uploaded_at)+'</td>'+
       '<td>'+
-        '<button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+',\''+doc.doc_name.replace(/'/g,'')+'\')">Download</button> '+
+        '<button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+')">Download</button> '+
         '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button>'+
       '</td></tr>';
   });
@@ -1330,7 +1330,7 @@ function renderOrgProfile(editMode){
       '<div class="org-section"><div class="org-section-title">Company Identity</div><div class="org-section-body">' +
         frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name / Brand')) +
         frow(fi('email','Official Email','email'),fi('phone','Phone')) +
-        frow(fi('website','Website','url'),fi('financial_year_start','Financial Year Start (MM-DD)')) +
+        fi('website','Website','url') +
         frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
       '</div></div>' +
       '<div class="org-section"><div class="org-section-title">Point of Contact</div><div class="org-section-body">' +
@@ -1505,13 +1505,14 @@ function editLabourCert(id){
   $('overlay').classList.add('open');
 }
 
-async function downloadOrgDoc(id, name){
+async function downloadOrgDoc(id){
   try{
     const doc=await apiFetch(`/api/organisation/documents/${id}`);
     if(!doc||!doc.file_data){toast('No file data available','error');return;}
     const a=document.createElement('a');
     a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
-    a.download=name;a.click();
+    const fname=(window._orgDocs||[]).find(d=>d.id==id)?.doc_name||'document';
+    a.download=fname;a.click();
   }catch(e){toast('Download failed','error');}
 }
 
