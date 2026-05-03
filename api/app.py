@@ -512,7 +512,7 @@ def organisation():
             'iec_code','profession_tax_number','pf_number','esi_number',
             'incorporation_date','financial_year_start']
     _date_fields = {'reg_state_id','reg_country_id','biz_state_id','biz_country_id'}
-    vals=[d.get(f) or None if f in {'incorporation_date','reg_state_id','reg_country_id','biz_state_id','biz_country_id'} else d.get(f) for f in fields]
+    vals=[d.get(f) or None if f in {'incorporation_date','reg_state_id','reg_country_id','biz_state_id','biz_country_id'} else (d.get(f) or None if d.get(f)=='' else d.get(f)) for f in fields]
     if existing:
         _cur().execute("UPDATE organisation SET "+",".join(f+"=%s" for f in fields)+",updated_at=NOW() WHERE id=%s",vals+[existing['id']])
         org_id=existing['id']
