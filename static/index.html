@@ -2051,7 +2051,7 @@ async function loadEmployees(q=''){
         <td><span class="stars" style="font-size:11px">${'★'.repeat(e.rating||0)}${'☆'.repeat(5-(e.rating||0))}</span></td>
         <td>${pill(e.status)}</td>
         <td><div class="tact">
-          <button class="btn btn-ghost btn-xs" onclick="openEmployeeProfile(${e.id})">Profile</button>
+          <button class="btn btn-ghost btn-xs" onclick="openEmployeeProfile(Number(${e.id}))">Profile</button>
           <button class="btn btn-ghost btn-xs" onclick="editEmployee(${e.id})">Edit</button>
           ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="termEmp(${e.id},'${(e.first_name+' '+e.last_name).replace(/'/g,"\\'")}')">Term.</button>`:''}
         </div></td>
@@ -2108,7 +2108,8 @@ function showEmpTab(tab,el){
       ['Official Email',e.email],['Official Phone',e.phone],
       ['Personal Email',e.personal_email],['Personal Phone',e.personal_phone],
     ].map(([l,v])=>field(l,v)).join('')}</div>`,
-    addresses:`<div id="emp-addr-content">Loading…</div>`,
+    addresses:`<div id="emp-addr-content">Loading…</div>
+      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-address')">+ Add Address</button></div>`,
     emergency:`<div id="emp-emg-content">Loading…</div>
       <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-emergency')">+ Add Contact</button></div>`,
     education:`<div id="emp-edu-content">Loading…</div>
