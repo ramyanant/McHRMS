@@ -1290,12 +1290,18 @@ function renderOrgProfile(editMode){
   if(!lcRows) lcRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No certificates added</td></tr>';
 
   var docRows='';
-  (d.documents||[]).forEach(function(doc){
-    docRows+='<tr><td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
-      '<td class="tbold">'+(doc.doc_name||'')+'</td><td>'+(doc.file_size||'')+'</td>'+
+  // Store docs in a registry for download by index
+  window._orgDocs=d.documents||[];
+  (d.documents||[]).forEach(function(doc,i){
+    docRows+='<tr>'+
+      '<td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
+      '<td class="tbold">'+(doc.doc_name||'')+'</td>'+
+      '<td>'+(doc.file_size||'–')+'</td>'+
       '<td style="font-size:11px">'+fmt.dt(doc.uploaded_at)+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" data-doc-id="'+doc.id+'" onclick="downloadOrgDoc(parseInt(this.dataset.docId),this.closest(\"tr\").querySelector(\".tbold\").textContent)">Download</button> '+
-      '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button></td></tr>';
+      '<td>'+
+        '<button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+',\''+doc.doc_name.replace(/'/g,'')+'\')">Download</button> '+
+        '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button>'+
+      '</td></tr>';
   });
   if(!docRows) docRows='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt2)">No documents uploaded</td></tr>';
 
@@ -1342,10 +1348,10 @@ function renderOrgProfile(editMode){
         frow(fselect('biz_country_id','Country',_countries),fselect('biz_state_id','State',_states)) +
       '</div></div></div>',
     tax: '<div class="org-section"><div class="org-section-title">Tax Registrations</div><div class="org-section-body">' +
-      frow(fi('pan','PAN'),fi('tan','TAN')) + frow(fi('cin','CIN'),fi('iec_code','IEC Code')) +
+      frow(fi('pan','PAN'),fi('tan','TAN')) +
+      frow(fi('cin','CIN'),fi('iec_code','IEC Code')) +
       frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
-      frow(fi('profession_tax_number','Profession Tax No.'),fi('msme_number','MSME Number')) +
-      frow(fi('incorporation_date','Incorporation Date','date'),fi('financial_year_start','FY Start')) +
+      frow(fi('profession_tax_number','Profession Tax No.'),fi('financial_year_start','FY Start (MM-DD)')) +
       '</div></div>',
     banking: '<div class="org-section"><div class="org-section-title">Bank Accounts ' +
       '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-bank\')">+ Add Account</button>' +
@@ -1438,7 +1444,10 @@ async function removeDoc(id){
 }
 
 // Edit GST inline
-function editGst(id, gstin, stateId, tradeName, regDate, isPrimary){
+function editGst(id){
+  const _g=(_orgData.gst_registrations||[]).find(x=>x.id==id)||{};
+  const gstin=_g.gstin||'', stateId=_g.state_id||'', tradeName=_g.trade_name||'',
+        regDate=(_g.registration_date||'').split('T')[0], isPrimary=_g.is_primary?1:0;
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-gst';
   $('m-title').textContent='Edit GST Registration';
@@ -1476,7 +1485,12 @@ async function editBank(id){
 }
 
 // Edit Labour Certificate
-function editLabourCert(id, certNum, authority, stateId, validFrom, validUntil){
+function editLabourCert(id){
+  const _lc=(_orgData.labour_certs||[]).find(x=>x.id==id)||{};
+  const certNum=_lc.cert_number||'', authority=_lc.issuing_authority||'',
+        stateId=_lc.state_id||'',
+        validFrom=(_lc.valid_from||'').split('T')[0],
+        validUntil=(_lc.valid_until||'').split('T')[0];
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-labour';
   $('m-title').textContent='Edit Labour Certificate';
