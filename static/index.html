@@ -237,9 +237,9 @@ tbody tr:hover td{background:var(--green-lt)}
 
 /* Tabbed modal system */
 .mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;background:var(--s2);flex-shrink:0;overflow-x:auto;flex-wrap:nowrap}
-.mtab{padding:10px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.mtab{padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .mtab:hover{color:var(--charcoal);background:rgba(0,0,0,.04)}
-.mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
+.mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.08);border-radius:6px 6px 0 0}
 .mtab-panel{display:none}.mtab-panel.active{display:block}
 .mtab-badge{background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--mono)}
 
@@ -2117,29 +2117,177 @@ async function switchMEditTab(type,el,empId){
   if(panelEl) panelEl.classList.add('active');
   if(!ct) return;
   ct.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">Loading…</div>';
-  const addBtn=(label,modal)=>'<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="window._curEmp={id:'+empId+'};openModal(\"'+modal+'\")">'+label+'</button></div>';
+  const addBtn=(label,type2,empId2)=>'<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="showInlineEmpForm(\''+type2+'\','+empId2+')">'+label+'</button></div>';
   try{
     if(type==='address'){
       console.log('fetching addresses for empId:', empId);
       const d=await apiFetch('/api/employees/'+empId+'/addresses');
       console.log('addresses result:', d);
-      ct.innerHTML=renderAddresses(d||[])+addBtn('+ Add / Update Address','add-address');
+      ct.innerHTML=renderAddresses(d||[])+addBtn('+ Add / Update Address','address',empId);
     }else if(type==='emergency'){
       const d=await apiFetch('/api/employees/'+empId+'/emergency-contacts');
-      ct.innerHTML=renderEmergency(d||[])+addBtn('+ Add Contact','add-emergency');
+      ct.innerHTML=renderEmergency(d||[])+addBtn('+ Add Contact','emergency',empId);
     }else if(type==='education'){
       const d=await apiFetch('/api/employees/'+empId+'/education');
-      ct.innerHTML=renderEducation(d||[])+addBtn('+ Add Education','add-education');
+      ct.innerHTML=renderEducation(d||[])+addBtn('+ Add Education','education',empId);
     }else if(type==='experience'){
       const d=await apiFetch('/api/employees/'+empId+'/experience');
-      ct.innerHTML=renderExperience(d||[])+addBtn('+ Add Experience','add-experience');
+      ct.innerHTML=renderExperience(d||[])+addBtn('+ Add Experience','experience',empId);
     }else if(type==='docs'){
       const d=await apiFetch('/api/employees/'+empId+'/documents');
       const rows=(d||[]).map(doc=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--s3)"><div>'+pill(doc.doc_type,'p-blue')+' <span style="font-size:13px">'+doc.doc_name+'</span></div><div style="gap:6px;display:flex"><button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc('+doc.id+')">Download</button><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc('+doc.id+')">Remove</button></div></div>').join('');
-      ct.innerHTML=(rows||'<div style="color:var(--txt3);padding:12px 0">No documents</div>')+addBtn('+ Upload Document','upload-emp-doc');
+      ct.innerHTML=(rows||'<div style="color:var(--txt3);padding:12px 0">No documents</div>')+addBtn('+ Upload Document','docs',empId);
     }
   }catch(err){ct.innerHTML='<div style="color:var(--red);padding:12px">Error: '+err.message+'</div>';}
 }
+
+// Show inline add form within the edit modal panel
+function showInlineEmpForm(type, empId){
+  const states = (_masters['states']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+  const countries = (_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  const forms = {
+    address: `<div class="inline-form">
+      <div class="inline-form-title">Add / Update Address</div>
+      <div class="fg"><label class="flabel">Type</label>
+        <select class="fselect" id="ief-addr-type"><option value="Current">Current</option><option value="Permanent">Permanent</option></select></div>
+      <div class="fg"><label class="flabel">Line 1</label><input class="finput" id="ief-addr-l1" placeholder="House/Flat, Street"></div>
+      <div class="fg"><label class="flabel">Line 2</label><input class="finput" id="ief-addr-l2" placeholder="Area, Landmark"></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">City</label><input class="finput" id="ief-addr-city"></div>
+        <div class="fg"><label class="flabel">Pincode</label><input class="finput" id="ief-addr-pin"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">State</label><select class="fselect" id="ief-addr-state"><option value="">Select…</option>${states}</select></div>
+        <div class="fg"><label class="flabel">Country</label><select class="fselect" id="ief-addr-country"><option value="">Select…</option>${countries}</select></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('address',${empId})">Save Address</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('address',null,${empId})">Cancel</button>
+      </div></div>`,
+    emergency: `<div class="inline-form">
+      <div class="inline-form-title">Add Emergency Contact</div>
+      <div class="fg"><label class="flabel">Full Name *</label><input class="finput" id="ief-emg-name" required placeholder="Jane Smith"></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Phone</label><input class="finput" id="ief-emg-phone" placeholder="+91-9000000000"></div>
+        <div class="fg"><label class="flabel">Email</label><input class="finput" id="ief-emg-email" type="email"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Relationship</label>
+          <select class="fselect" id="ief-emg-rel"><option>Spouse</option><option>Parent</option><option>Sibling</option><option>Child</option><option>Friend</option><option>Other</option></select></div>
+        <div class="fg"><label class="flabel">Primary?</label>
+          <select class="fselect" id="ief-emg-primary"><option value="0">No</option><option value="1">Yes</option></select></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('emergency',${empId})">Save Contact</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('emergency',null,${empId})">Cancel</button>
+      </div></div>`,
+    education: `<div class="inline-form">
+      <div class="inline-form-title">Add Education</div>
+      <div class="fg"><label class="flabel">Institution *</label><input class="finput" id="ief-edu-inst" required placeholder="IIT Hyderabad"></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Degree</label><input class="finput" id="ief-edu-deg" placeholder="B.Tech"></div>
+        <div class="fg"><label class="flabel">Field of Study</label><input class="finput" id="ief-edu-field" placeholder="Computer Science"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Start Year</label><input class="finput" id="ief-edu-sy" type="number" placeholder="2018"></div>
+        <div class="fg"><label class="flabel">End Year</label><input class="finput" id="ief-edu-ey" type="number" placeholder="2022"></div>
+        <div class="fg"><label class="flabel">Grade/CGPA</label><input class="finput" id="ief-edu-grade" placeholder="8.5/10"></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('education',${empId})">Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('education',null,${empId})">Cancel</button>
+      </div></div>`,
+    experience: `<div class="inline-form">
+      <div class="inline-form-title">Add Experience</div>
+      <div class="fg"><label class="flabel">Company *</label><input class="finput" id="ief-exp-co" required placeholder="Infosys"></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Designation</label><input class="finput" id="ief-exp-desg" placeholder="Software Engineer"></div>
+        <div class="fg"><label class="flabel">Location</label><input class="finput" id="ief-exp-loc" placeholder="Hyderabad"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Start Date</label><input class="finput" id="ief-exp-sd" type="date"></div>
+        <div class="fg"><label class="flabel">End Date</label><input class="finput" id="ief-exp-ed" type="date"></div>
+        <div class="fg"><label class="flabel">Current?</label><select class="fselect" id="ief-exp-cur"><option value="0">No</option><option value="1">Yes</option></select></div>
+      </div>
+      <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" id="ief-exp-desc" rows="2" placeholder="Key responsibilities…"></textarea></div>
+      <div class="frow" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('experience',${empId})">Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('experience',null,${empId})">Cancel</button>
+      </div></div>`,
+    docs: `<div class="inline-form">
+      <div class="inline-form-title">Upload Document</div>
+      <div class="fg"><label class="flabel">Document Type</label>
+        <select class="fselect" id="ief-doc-type">
+          <option>Offer Letter</option><option>ID Proof</option><option>Address Proof</option>
+          <option>Educational Certificate</option><option>Experience Letter</option>
+          <option>PAN Card</option><option>Aadhaar</option><option>Passport</option><option>Other</option>
+        </select></div>
+      <div class="fg"><label class="flabel">Document Name</label><input class="finput" id="ief-doc-name" placeholder="PAN Card - ABCDE1234F"></div>
+      <div class="fg"><label class="flabel">File</label>
+        <input type="file" id="ief-doc-file" class="finput" onchange="handleIefFile(this)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
+        <div id="ief-doc-preview" style="font-size:11px;color:var(--green-dk);margin-top:4px"></div></div>
+      <div class="frow" style="margin-top:8px">
+        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('docs',${empId})">Upload</button>
+        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('docs',null,${empId})">Cancel</button>
+      </div></div>`
+  };
+  const ct = document.getElementById('medit-'+type+'-content');
+  if(ct) ct.innerHTML = forms[type]||'';
+}
+
+function handleIefFile(input){
+  const file=input.files[0]; if(!file) return;
+  if(file.size>5*1024*1024){alert('File too large — max 5MB');return;}
+  const r=new FileReader();
+  r.onload=e=>{window._iefFile={data:e.target.result.split(',')[1],name:file.name,size:(file.size/1024).toFixed(0)+' KB',mime:file.type};
+    const p=document.getElementById('ief-doc-preview');if(p)p.textContent='✓ '+file.name+' ready';};
+  r.readAsDataURL(file);
+}
+
+async function saveInlineEmpForm(type, empId){
+  const g=id=>document.getElementById(id);
+  let data={}, url='/api/employees/'+empId+'/';
+  try{
+    if(type==='address'){
+      url+='addresses';
+      data={address_type:g('ief-addr-type')?.value, address_line1:g('ief-addr-l1')?.value,
+        address_line2:g('ief-addr-l2')?.value, city:g('ief-addr-city')?.value,
+        pincode:g('ief-addr-pin')?.value,
+        state_id:parseInt(g('ief-addr-state')?.value)||null,
+        country_id:parseInt(g('ief-addr-country')?.value)||null};
+    } else if(type==='emergency'){
+      if(!g('ief-emg-name')?.value){alert('Name is required');return;}
+      url+='emergency-contacts';
+      data={name:g('ief-emg-name').value, phone:g('ief-emg-phone')?.value,
+        email:g('ief-emg-email')?.value, relationship:g('ief-emg-rel')?.value,
+        is_primary:parseInt(g('ief-emg-primary')?.value||0)};
+    } else if(type==='education'){
+      if(!g('ief-edu-inst')?.value){alert('Institution is required');return;}
+      url+='education';
+      data={institution:g('ief-edu-inst').value, degree:g('ief-edu-deg')?.value,
+        field_of_study:g('ief-edu-field')?.value,
+        start_year:parseInt(g('ief-edu-sy')?.value)||null,
+        end_year:parseInt(g('ief-edu-ey')?.value)||null, grade:g('ief-edu-grade')?.value};
+    } else if(type==='experience'){
+      if(!g('ief-exp-co')?.value){alert('Company is required');return;}
+      url+='experience';
+      data={company:g('ief-exp-co').value, designation:g('ief-exp-desg')?.value,
+        location:g('ief-exp-loc')?.value,
+        start_date:g('ief-exp-sd')?.value||null, end_date:g('ief-exp-ed')?.value||null,
+        is_current:parseInt(g('ief-exp-cur')?.value||0), description:g('ief-exp-desc')?.value};
+    } else if(type==='docs'){
+      if(!window._iefFile){alert('Please select a file first');return;}
+      url+='documents';
+      data={doc_type:g('ief-doc-type')?.value, doc_name:g('ief-doc-name')?.value||window._iefFile.name,
+        file_data:window._iefFile.data, file_size:window._iefFile.size, mime_type:window._iefFile.mime};
+      window._iefFile=null;
+    }
+    await apiFetch(url,{method:'POST',body:JSON.stringify(data)});
+    const el=document.querySelector('#mform .mtab.active');
+    switchMEditTab(type, el, empId);
+  } catch(e){ alert('Error: '+e.message); }
+}
+
 
 async function termEmp(id,name){
   if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
@@ -2430,7 +2578,7 @@ async function editEmployee(id){
           <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
           <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>
         </div>
-        <div class="finfo">ℹ️ Addresses and emergency contacts can be managed from the employee's full Profile panel after saving.</div>
+
       </div>
 
       <!-- TAB 4: Statutory -->
