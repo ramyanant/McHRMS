@@ -2294,6 +2294,165 @@ def bulk_template(entity):
     return Response(output.getvalue(), mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename={entity}_template.csv'})
 
+# ═══════════════════════════════════════════════════════
+# EMPLOYEE SELF-SERVICE ROUTES
+# ═══════════════════════════════════════════════════════
+
+@app.route('/api/employee/profile', methods=['GET','PUT'])
+@require_auth
+def employee_self_profile():
+    """Employee can view and edit their own personal fields"""
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile linked to this account", 403)
+    db = get_db()
+    if request.method == 'GET':
+        r = row1("""SELECT e.*,d.name as department_name,et.name as employment_type,
+            rm.first_name||' '||rm.last_name as reporting_manager_name
+            FROM employees e
+            LEFT JOIN departments d ON d.id=e.department_id
+            LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
+            LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
+            WHERE e.id=%s""",(uid,))
+        return ok(r) if r else err("Not found",404)
+    d = request.get_json()
+    # Employees can only edit these personal fields
+    allowed = ['personal_email','personal_phone','bank_account_name','bank_name',
+               'bank_branch','bank_account_number','bank_ifsc','pan','aadhaar',
+               'passport_number','pf_number','esi_number']
+    sets = [f"{f}=%s" for f in allowed if f in d]
+    vals = [d[f] for f in allowed if f in d]
+    if sets:
+        vals.append(uid)
+        _cur().execute(f"UPDATE employees SET {','.join(sets)},updated_at=NOW() WHERE id=%s", vals)
+        db.commit()
+    return ok(msg="Profile updated")
+
+@app.route('/api/employee/dashboard', methods=['GET'])
+@require_auth
+def employee_dashboard():
+    """Employee personal dashboard data"""
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile", 403)
+    emp = row1("SELECT * FROM employees WHERE id=%s",(uid,))
+    if not emp: return err("Employee not found",404)
+    # Pending timesheets
+    pending_ts = _scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE t.employee_id=%s AND s.name='Pending'",(uid,))
+    # Total approved hours this month
+    approved_hours = row1("""SELECT COALESCE(SUM(t.total_hours),0) as hours
+        FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id
+        WHERE t.employee_id=%s AND s.name='Approved'
+        AND t.week_ending >= date_trunc('month',NOW())""",(uid,))
+    # Leave balance (simple: 18 days per year, used = sum of approved leaves this year)
+    try:
+        leaves_taken = row1("""SELECT COALESCE(SUM(days),0) as used
+            FROM employee_leaves WHERE employee_id=%s AND status='Approved'
+            AND EXTRACT(YEAR FROM from_date)=EXTRACT(YEAR FROM NOW())""",(uid,))
+    except:
+        leaves_taken = {'used': 0}
+    # Recent timesheets
+    recent_ts = rows("""SELECT t.*,s.name as status,c.name as client_name
+        FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id
+        LEFT JOIN clients c ON c.id=t.client_id
+        WHERE t.employee_id=%s ORDER BY t.submitted_at DESC LIMIT 5""",(uid,))
+    # Pending leaves
+    try:
+        pending_leaves = rows("""SELECT * FROM employee_leaves WHERE employee_id=%s
+            ORDER BY created_at DESC LIMIT 5""",(uid,))
+    except:
+        pending_leaves = []
+    return ok({
+        'employee': emp,
+        'pending_timesheets': pending_ts,
+        'approved_hours_mtd': float(approved_hours['hours']) if approved_hours else 0,
+        'leave_balance': max(0, 18 - float(leaves_taken['used'] if leaves_taken else 0)),
+        'leaves_taken': float(leaves_taken['used']) if leaves_taken else 0,
+        'recent_timesheets': recent_ts,
+        'pending_leaves': pending_leaves,
+    })
+
+@app.route('/api/employee/leaves', methods=['GET','POST'])
+@require_auth
+def employee_leaves():
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile", 403)
+    db = get_db()
+    if request.method == 'GET':
+        return ok(rows("""SELECT * FROM employee_leaves WHERE employee_id=%s
+            ORDER BY created_at DESC""",(uid,)))
+    d = request.get_json()
+    if not d.get('from_date') or not d.get('to_date'): return err("from_date and to_date required")
+    _cur().execute("""INSERT INTO employee_leaves(employee_id,leave_type,from_date,to_date,reason)
+        VALUES(%s,%s,%s,%s,%s) RETURNING id""",
+        (uid,d.get('leave_type','Casual'),d['from_date'],d['to_date'],d.get('reason','')))
+    lid = _cur().fetchone()['id']
+    db.commit()
+    return ok({'id':lid}, "Leave applied", 201)
+
+@app.route('/api/employee/leaves/<int:lid>', methods=['PUT','DELETE'])
+@require_auth
+def employee_leave_detail(lid):
+    db = get_db()
+    uid = g.user.get('employee_id')
+    leave = row1("SELECT * FROM employee_leaves WHERE id=%s",(lid,))
+    if not leave: return err("Not found",404)
+    # Approval by manager/HR
+    if request.method == 'PUT':
+        d = request.get_json()
+        status = d.get('status','Pending')
+        _cur().execute("""UPDATE employee_leaves SET status=%s,rejection_reason=%s,
+            approved_by=%s,approved_at=NOW() WHERE id=%s""",
+            (status,d.get('rejection_reason'),uid,lid))
+        db.commit()
+        return ok(msg=f"Leave {status.lower()}")
+    if request.method == 'DELETE':
+        if leave['employee_id'] != uid: return err("Unauthorized",403)
+        if leave['status'] != 'Pending': return err("Can only cancel pending leaves")
+        _cur().execute("DELETE FROM employee_leaves WHERE id=%s",(lid,))
+        db.commit()
+        return ok(msg="Leave cancelled")
+
+@app.route('/api/manager/team', methods=['GET'])
+@require_auth
+def manager_team():
+    """Reporting manager sees their direct reports + their timesheets/leaves"""
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile",403)
+    team = rows("""SELECT e.*,et.name as employment_type,d.name as department_name
+        FROM employees e
+        LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
+        LEFT JOIN departments d ON d.id=e.department_id
+        WHERE e.reporting_manager_id=%s AND e.status='Active'""",(uid,))
+    return ok(team)
+
+@app.route('/api/manager/timesheets', methods=['GET'])
+@require_auth
+def manager_timesheets():
+    """Manager sees pending timesheets of their direct reports"""
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile",403)
+    status = request.args.get('status','Pending')
+    result = rows("""SELECT t.*,e.first_name||' '||e.last_name as employee_name,
+        e.emp_id,c.name as client_name,s.name as status
+        FROM timesheets t
+        JOIN employees e ON e.id=t.employee_id
+        JOIN master_timesheet_statuses s ON s.id=t.status_id
+        LEFT JOIN clients c ON c.id=t.client_id
+        WHERE e.reporting_manager_id=%s AND s.name=%s
+        ORDER BY t.week_ending DESC""",(uid,status))
+    return ok(result)
+
+@app.route('/api/manager/leaves', methods=['GET'])
+@require_auth
+def manager_leaves():
+    """Manager sees leave requests from their direct reports"""
+    uid = g.user.get('employee_id')
+    if not uid: return err("No employee profile",403)
+    result = rows("""SELECT l.*,e.first_name||' '||e.last_name as employee_name,e.emp_id
+        FROM employee_leaves l JOIN employees e ON e.id=l.employee_id
+        WHERE e.reporting_manager_id=%s ORDER BY l.created_at DESC""",(uid,))
+    return ok(result)
+
+
 if __name__ == '__main__':
     import sys
     port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
