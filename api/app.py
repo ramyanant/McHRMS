@@ -2303,7 +2303,17 @@ def bulk_template(entity):
 def employee_self_profile():
     """Employee can view and edit their own personal fields"""
     uid = g.user.get('employee_id')
-    if not uid: return err("No employee profile linked to this account", 403)
+    if not uid:
+        user_email = g.user.get('email','')
+        emp = row1("SELECT id FROM employees WHERE email=%s AND status='Active'",(user_email,))
+        if emp:
+            uid = emp['id']
+            try:
+                _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(uid,g.user['id']))
+                get_db().commit()
+            except: pass
+        else:
+            return err("No employee profile linked to this account",403)
     db = get_db()
     if request.method == 'GET':
         r = row1("""SELECT e.*,d.name as department_name,et.name as employment_type,
@@ -2332,7 +2342,19 @@ def employee_self_profile():
 def employee_dashboard():
     """Employee personal dashboard data"""
     uid = g.user.get('employee_id')
-    if not uid: return err("No employee profile", 403)
+    if not uid:
+        # Try to find employee by email
+        user_email = g.user.get('email','')
+        emp = row1("SELECT id FROM employees WHERE email=%s AND status='Active'",(user_email,))
+        if emp:
+            uid = emp['id']
+            # Auto-link the user to their employee record
+            try:
+                _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(uid,g.user['id']))
+                get_db().commit()
+            except: pass
+        else:
+            return err("No employee profile linked to this account",403)
     emp = row1("SELECT * FROM employees WHERE id=%s",(uid,))
     if not emp: return err("Employee not found",404)
     # Pending timesheets
@@ -2374,7 +2396,11 @@ def employee_dashboard():
 @require_auth
 def employee_leaves():
     uid = g.user.get('employee_id')
-    if not uid: return err("No employee profile", 403)
+    if not uid:
+        user_email = g.user.get('email','')
+        emp = row1("SELECT id FROM employees WHERE email=%s",(user_email,))
+        if emp: uid = emp['id']
+        else: return err("No employee profile",403)
     db = get_db()
     if request.method == 'GET':
         return ok(rows("""SELECT * FROM employee_leaves WHERE employee_id=%s
@@ -2414,9 +2440,12 @@ def employee_leave_detail(lid):
 @app.route('/api/manager/team', methods=['GET'])
 @require_auth
 def manager_team():
-    """Reporting manager sees their direct reports + their timesheets/leaves"""
+    """Reporting manager sees their direct reports"""
     uid = g.user.get('employee_id')
-    if not uid: return err("No employee profile",403)
+    if not uid:
+        emp = row1("SELECT id FROM employees WHERE email=%s",(g.user.get('email',''),))
+        if emp: uid = emp['id']
+        else: return ok([])  # No team if no employee profile
     team = rows("""SELECT e.*,et.name as employment_type,d.name as department_name
         FROM employees e
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
@@ -2451,6 +2480,22 @@ def manager_leaves():
         FROM employee_leaves l JOIN employees e ON e.id=l.employee_id
         WHERE e.reporting_manager_id=%s ORDER BY l.created_at DESC""",(uid,))
     return ok(result)
+
+
+@app.route('/api/admin/link-employees', methods=['POST'])
+@require_auth
+def admin_link_employees():
+    """Admin utility: link users to employees by matching email"""
+    if g.user.get('role_name') != 'Admin': return err("Admin only",403)
+    linked = 0
+    users = rows("SELECT id,email FROM users WHERE employee_id IS NULL AND email IS NOT NULL")
+    for u in users:
+        emp = row1("SELECT id FROM employees WHERE email=%s",(u['email'],))
+        if emp:
+            _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(emp['id'],u['id']))
+            linked += 1
+    get_db().commit()
+    return ok({'linked': linked}, f"Linked {linked} users to employee records")
 
 
 if __name__ == '__main__':
