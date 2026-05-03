@@ -939,15 +939,31 @@ function afterLogin(){
   if(u.role!=='Admin')$('nav-users').style.display='none';
   loadMasters().then(()=>{
     if(u.role==='Employee'){
-      // Hide most nav items, show employee portal
+      // Employee portal: restrict to own data only
+      window._isEmployee = true;
+      window._empUserId = u.employee_id;
+      // Hide restricted nav items
       document.querySelectorAll('.ni').forEach(el=>{
-        const m=el.dataset.mod;
-        if(!['dashboard','timesheets','employees'].includes(m))el.style.display='none';
+        const allowed=['dashboard','timesheets','employees'];
+        if(!allowed.includes(el.dataset.mod)) el.style.display='none';
       });
-      nav('dashboard');
-      // Pre-open own profile if linked
-      if(u.employee_id)setTimeout(()=>openEmployeeProfile(u.employee_id),800);
+      // Hide Add New button and other admin controls
+      const addBtn=document.querySelector('.tb-add');
+      if(addBtn) addBtn.style.display='none';
+      // Show employee-specific top bar message
+      const tbRight=document.querySelector('.tb-right');
+      if(tbRight&&!document.getElementById('emp-portal-badge')){
+        const badge=document.createElement('div');
+        badge.id='emp-portal-badge';
+        badge.style.cssText='font-size:11px;background:var(--green-lt);color:var(--green-dk);padding:4px 10px;border-radius:20px;font-weight:600;margin-right:8px';
+        badge.textContent='Employee Portal';
+        tbRight.prepend(badge);
+      }
+      nav('timesheets');
+      // Load employee's own timesheet view
+      if(u.employee_id) loadEmpPortal(u.employee_id);
     } else {
+      window._isEmployee = false;
       nav('dashboard');
     }
   });
@@ -3247,6 +3263,24 @@ const modalDefs={
       </div>`,
     afterSave:loadOrgProfile
   },
+  'add-ts':{
+    title:'Submit Timesheet',submit:'Submit',endpoint:'/api/timesheets',method:'POST',
+    fields:()=>{
+      const clients=_masters['_clients']||[];
+      const cOpts='<option value="">Internal / No Client</option>'+clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      apiFetch('/api/lookup/clients').then(r=>{_masters['_clients']=r||[];});
+      return`
+        <div class="frow"><div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" name="week_ending" required></div>
+          <div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id">${cOpts}</select></div></div>
+        <div class="fg"><label class="flabel">Project / Assignment</label><input class="finput" name="project" placeholder="Project or task description"></div>
+        <div class="frow"><div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" min="0" max="80" step="0.5" value="40" required></div>
+          <div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" name="overtime_hours" min="0" max="40" step="0.5" value="0"></div></div>
+        <div class="fg"><label class="flabel">Notes</label><textarea class="ftextarea" name="notes" rows="2" placeholder="Any notes for your manager…"></textarea></div>`;
+    },
+    afterSave:()=>{if(window._isEmployee)loadEmpTimesheets();else loadTimesheets('Pending');},
+    getEndpoint:()=>'/api/timesheets',
+    numericFields:['client_id','regular_hours','overtime_hours'],
+  },
   'add-bank':{
     title:'Add Bank Account',submit:'Add Account',endpoint:'/api/organisation/banks',method:'POST',
     fields:()=>`
@@ -3641,6 +3675,92 @@ function bulkStep(step) {
       indicator.style.color = s === step ? '#fff' : s < step ? 'var(--green-dk)' : 'var(--txt2)';
     }
   });
+}
+
+
+// ═══════════════════════════════════════════════════
+// EMPLOYEE PORTAL
+// ═══════════════════════════════════════════════════
+async function loadEmpPortal(empId){
+  if(!empId) return;
+  try{
+    const e=await apiFetch(`/api/employees/${empId}`);
+    if(!e) return;
+    window._portalEmp=e;
+    // Override loadTimesheets to only show this employee's timesheets
+    // Override loadEmployees to only show this employee
+    setHtml('emp-kpis',`
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Employee ID</div><div class="kpi-value" style="font-size:18px">${e.emp_id}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Department</div><div class="kpi-value" style="font-size:16px">${e.department_name||'–'}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Reporting Manager</div><div class="kpi-value" style="font-size:16px">${e.reporting_manager_name||'–'}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Status</div><div class="kpi-value" style="font-size:16px">${e.status||'Active'}</div></div>`);
+  }catch(err){console.error(err);}
+}
+
+// Override nav for employee portal
+const _origNav=nav;
+function nav(id){
+  _origNav(id);
+  if(window._isEmployee){
+    // After nav, restrict data to employee only
+    if(id==='timesheets') setTimeout(loadEmpTimesheets,100);
+    if(id==='employees') setTimeout(loadEmpOwnProfile,100);
+  }
+}
+
+async function loadEmpTimesheets(){
+  const empId=window._empUserId;
+  if(!empId) return;
+  try{
+    const rows=await apiFetch(`/api/timesheets?employee_id=${empId}`);
+    const pending=(rows||[]).filter(t=>t.status==='Pending'||t.status==='Returned').length;
+    setHtml('ts-kpis',`
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">My Timesheets</div><div class="kpi-value">${(rows||[]).length}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Pending/Returned</div><div class="kpi-value">${pending}</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Approved</div><div class="kpi-value">${(rows||[]).filter(t=>t.status==='Approved').length}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Total Hours</div><div class="kpi-value">${(rows||[]).reduce((s,t)=>s+(t.total_hours||0),0)}</div></div>`);
+    const hasRows=(rows||[]).length>0;
+    setHtml('ts-tbl', hasRows
+      ? `<div style="margin-bottom:12px"><button class="btn btn-primary btn-sm" onclick="openModal('add-ts')">+ Submit Timesheet</button></div>
+        <table><thead><tr><th>Week Ending</th><th>Project</th><th>Reg Hrs</th><th>OT Hrs</th><th>Total</th><th>Status</th></tr></thead><tbody>${
+        (rows||[]).map(t=>`<tr>
+          <td class="tmono">${fmt.date(t.week_ending)}</td>
+          <td>${t.project||'–'}</td>
+          <td class="tmono">${t.regular_hours}</td>
+          <td class="tmono">${t.overtime_hours}</td>
+          <td class="tmono fw7">${t.total_hours}</td>
+          <td>${pill(t.status||'Pending')}${t.status==='Returned'?` <span style="font-size:11px;color:var(--red)">${t.notes||''}</span>`:''}</td>
+        </tr>`).join('')}</tbody></table>`
+      : `<div style="text-align:center;padding:32px">
+          <div style="font-size:32px;margin-bottom:12px">⏱️</div>
+          <div style="font-weight:600;margin-bottom:8px">No timesheets yet</div>
+          <button class="btn btn-primary" onclick="openModal('add-ts')">+ Submit Your First Timesheet</button>
+        </div>`);
+    $('ts-title').textContent='My Timesheets';
+  }catch(e){console.error(e);}
+}
+
+async function loadEmpOwnProfile(){
+  const empId=window._empUserId;
+  if(!empId){setHtml('emp-tbl','<div class="empty"><div class="empty-title">No employee profile linked</div></div>');return;}
+  // Show only their own profile
+  const e=window._portalEmp||(await apiFetch(`/api/employees/${empId}`));
+  if(!e) return;
+  setHtml('emp-tbl',`<table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Type</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+    <tr>
+      <td><div class="avrow"><div class="av ${fmt.avCol(e.first_name+' '+e.last_name)}">${fmt.ini(e.first_name+' '+e.last_name)}</div>
+        <div><div class="av-name">${e.first_name} ${e.last_name}</div><div class="av-meta">${e.emp_id}</div></div></div></td>
+      <td>${e.job_title||'–'}</td>
+      <td>${e.department_name||'–'}</td>
+      <td>${pill(e.employment_type||'–')}</td>
+      <td>${pill(e.status)}</td>
+      <td><button class="btn btn-ghost btn-xs" onclick="openEmployeeProfile(${e.id})">View Profile</button></td>
+    </tr></tbody></table>`);
+  setHtml('emp-kpis',`
+    <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Employee ID</div><div class="kpi-value">${e.emp_id}</div></div>
+    <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Department</div><div class="kpi-value" style="font-size:16px">${e.department_name||'–'}</div></div>
+    <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Reporting Manager</div><div class="kpi-value" style="font-size:16px">${e.reporting_manager_name||'–'}</div></div>
+    <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Status</div><div class="kpi-value" style="font-size:16px">${e.status}</div></div>`);
 }
 
 // ═══════════════════════════════════════════════════
