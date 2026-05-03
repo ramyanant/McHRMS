@@ -866,6 +866,7 @@ const fmt={
   num:v=>v==null?'–':Number(v).toLocaleString('en-IN'),
   date:v=>{if(!v||v==='None'||v==='null')return'–';try{const s=String(v).split('T')[0];const d=new Date(s+'T12:00:00');return isNaN(d)?'–':d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}catch{return'–';}},
   dt:v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'–',
+  datetime:v=>{if(!v)return'–';try{const d=new Date(String(v).replace(' ','T'));return isNaN(d)?'–':d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})+', '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});}catch(e){return'–';}},
   ini:n=>n?n.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase():'?',
   avCol:n=>['av-green','av-blue','av-purple','av-amber','av-teal','av-charcoal'][(n||'').charCodeAt(0)%6],
 };
@@ -1284,7 +1285,7 @@ function renderOrgProfile(editMode){
   (d.documents||[]).forEach(function(doc){
     docRows+='<tr><td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
       '<td class="tbold">'+(doc.doc_name||'')+'</td><td>'+(doc.file_size||'')+'</td>'+
-      '<td style="font-size:11px">'+fmt.datetime(doc.uploaded_at)+'</td>'+
+      '<td style="font-size:11px">'+fmt.dt(doc.uploaded_at)+'</td>'+
       '<td><button class="btn btn-ghost btn-xs" data-doc-id="'+doc.id+'" onclick="downloadOrgDoc(parseInt(this.dataset.docId),this.closest(\"tr\").querySelector(\".tbold\").textContent)">Download</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button></td></tr>';
   });
