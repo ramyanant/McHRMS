@@ -1272,19 +1272,28 @@ function renderOrgProfile(editMode){
 
   var gstRows='';
   (d.gst_registrations||[]).forEach(function(g){
+    var regDateVal=(g.registration_date||'').split('T')[0];
     gstRows+='<tr><td class="tbold tmono">'+(g.gstin||'')+'</td><td>'+(g.state_name||'–')+'</td>'+
       '<td>'+(g.trade_name||'–')+'</td><td>'+fmt.date(g.registration_date)+'</td>'+
       '<td>'+(g.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" onclick="editGst('+g.id+')">Edit</button> '+
+      '<td><button class="btn btn-ghost btn-xs" '+
+        'data-id="'+g.id+'" data-gstin="'+(g.gstin||'')+'" data-state="'+(g.state_id||'')+'" '+
+        'data-trade="'+(g.trade_name||'').replace(/"/g,'&quot;')+'" data-date="'+regDateVal+'" data-primary="'+(g.is_primary?1:0)+'" '+
+        'onclick="editGstBtn(this)">Edit</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeGst('+g.id+')">Remove</button></td></tr>';
   });
   if(!gstRows) gstRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No GST registrations added</td></tr>';
 
   var lcRows='';
   (d.labour_certs||[]).forEach(function(lc){
+    var vf=(lc.valid_from||'').split('T')[0], vu=(lc.valid_until||'').split('T')[0];
     lcRows+='<tr><td class="tbold">'+(lc.cert_number||'')+'</td><td>'+(lc.issuing_authority||'–')+'</td>'+
       '<td>'+(lc.state_name||'–')+'</td><td>'+fmt.date(lc.valid_from)+'</td><td>'+fmt.date(lc.valid_until)+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" onclick="editLabourCert('+lc.id+')">Edit</button> '+
+      '<td><button class="btn btn-ghost btn-xs" '+
+        'data-id="'+lc.id+'" data-cert="'+(lc.cert_number||'').replace(/"/g,'&quot;')+'" '+
+        'data-auth="'+(lc.issuing_authority||'').replace(/"/g,'&quot;')+'" data-state="'+(lc.state_id||'')+'" '+
+        'data-from="'+vf+'" data-until="'+vu+'" '+
+        'onclick="editLabourBtn(this)">Edit</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeLabourCert('+lc.id+')">Remove</button></td></tr>';
   });
   if(!lcRows) lcRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No certificates added</td></tr>';
@@ -1444,10 +1453,13 @@ async function removeDoc(id){
 }
 
 // Edit GST inline
-function editGst(id){
-  const _g=(_orgData.gst_registrations||[]).find(x=>x.id==id)||{};
-  const gstin=_g.gstin||'', stateId=_g.state_id||'', tradeName=_g.trade_name||'',
-        regDate=(_g.registration_date||'').split('T')[0], isPrimary=_g.is_primary?1:0;
+function editGstBtn(btn){
+  const id=btn.dataset.id, gstin=btn.dataset.gstin||'', stateId=btn.dataset.state||'',
+        tradeName=btn.dataset.trade||'', regDate=btn.dataset.date||'', isPrimary=parseInt(btn.dataset.primary)||0;
+  editGst(id,gstin,stateId,tradeName,regDate,isPrimary);
+}
+function editGst(id,gstin,stateId,tradeName,regDate,isPrimary){
+  gstin=gstin||''; stateId=stateId||''; tradeName=tradeName||''; regDate=regDate||''; isPrimary=isPrimary||0;
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-gst';
   $('m-title').textContent='Edit GST Registration';
@@ -1485,12 +1497,11 @@ async function editBank(id){
 }
 
 // Edit Labour Certificate
-function editLabourCert(id){
-  const _lc=(_orgData.labour_certs||[]).find(x=>x.id==id)||{};
-  const certNum=_lc.cert_number||'', authority=_lc.issuing_authority||'',
-        stateId=_lc.state_id||'',
-        validFrom=(_lc.valid_from||'').split('T')[0],
-        validUntil=(_lc.valid_until||'').split('T')[0];
+function editLabourBtn(btn){
+  editLabourCert(btn.dataset.id, btn.dataset.cert, btn.dataset.auth, btn.dataset.state, btn.dataset.from, btn.dataset.until);
+}
+function editLabourCert(id,certNum,authority,stateId,validFrom,validUntil){
+  certNum=certNum||''; authority=authority||''; stateId=stateId||''; validFrom=validFrom||''; validUntil=validUntil||'';
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-labour';
   $('m-title').textContent='Edit Labour Certificate';
