@@ -1243,7 +1243,12 @@ function renderOrgProfile(editMode){
     type=type||'text';placeholder=placeholder||'';hint=hint||'';
     const raw=d[key];
     // For date inputs: value must be YYYY-MM-DD format; display must be human-readable
-    const inputVal=type==='date'&&raw?String(raw).split('T')[0]:(raw||'');
+    // Parse date robustly - handle ISO "2022-04-20", datetime "2022-04-20 00:00:00", 
+    // or legacy "Wed, 20 Apr 2022 00:00:00 GMT" formats
+    const _parseDate=(v)=>{if(!v)return '';const s=String(v);
+      if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
+      try{const d=new Date(s);if(!isNaN(d))return d.toISOString().substring(0,10);}catch(e){}return '';};
+    const inputVal=type==='date'?_parseDate(raw):(raw||'');
     const display=type==='date'&&raw?fmt.date(raw):(raw||'—');
     if(editMode) return '<div class="fg"><label class="flabel">'+label+'</label><input class="finput" data-key="'+key+'" type="'+type+'" value="'+inputVal+'" placeholder="'+placeholder+'"><div class="field-hint">'+hint+'</div></div>';
     return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value '+(raw?'':'empty')+'">'+ display+'</div></div>';
@@ -1416,7 +1421,6 @@ async function saveOrgProfile(){
   const data={..._orgData};
   let hasErr=false;
   document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{
-    console.log('field:',el.dataset.key,'value:',el.value);
     // Handle both inputs and selects
     data[el.dataset.key]=el.value||null;
     // Cast state/country IDs to integers
@@ -1434,7 +1438,6 @@ async function saveOrgProfile(){
   });
   if(hasErr){toast('Please fix validation errors before saving','error');return;}
   try{
-    console.log('SAVING ORG:', JSON.stringify(data));
     await apiFetch('/api/organisation',{method:'PUT',body:JSON.stringify(data)});
     toast('Organisation profile saved!','success');
     await loadOrgProfile();
@@ -3315,7 +3318,6 @@ async function submitModal(){
     const url=$('overlay').dataset.putUrl;
     try{
       await apiFetch(url,{method:'PUT',body:JSON.stringify(data)});
-      console.log('ORG EDIT SAVED, type:', _curModalType);
       toast('Saved!','success');closeModal();
       if(_curModalType==='org-edit')loadOrgStructure();else loadOrgProfile();
     }catch(e){toast('Save failed: '+e.message,'error');}
