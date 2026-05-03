@@ -929,7 +929,49 @@ async function doLogin(){
 
 function showLErr(m){const e=$('lerr');e.textContent=m;e.classList.add('show');}
 
+
+function showForcePwdChange(){
+  $('lscreen').style.display='none';
+  $('mapp').style.display='none';
+  let el=document.getElementById('force-pwd-screen');
+  if(!el){
+    el=document.createElement('div');el.id='force-pwd-screen';
+    el.style.cssText='position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999';
+    el.innerHTML=`<div style="background:var(--surface);border-radius:12px;padding:32px;width:380px;box-shadow:0 8px 32px rgba(0,0,0,.12)">
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px">Change Your Password</div>
+      <div style="font-size:13px;color:var(--txt2);margin-bottom:20px">You must set a new password before continuing.</div>
+      <div class="fg mb12"><label class="flabel">Current Password</label>
+        <input class="finput" id="fpc-curr" type="password" placeholder="Enter current password"></div>
+      <div class="fg mb12"><label class="flabel">New Password</label>
+        <input class="finput" id="fpc-new" type="password" placeholder="Min 8 characters"></div>
+      <div class="fg mb20"><label class="flabel">Confirm New Password</label>
+        <input class="finput" id="fpc-conf" type="password" placeholder="Repeat new password"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="submitForcePwdChange()">Set New Password</button>
+      <div id="fpc-err" style="color:var(--red);font-size:12px;margin-top:8px;display:none"></div>
+    </div>`;
+    document.body.appendChild(el);
+  }
+  el.style.display='flex';
+}
+
+async function submitForcePwdChange(){
+  const curr=$('fpc-curr')?.value||'',newp=$('fpc-new')?.value||'',conf=$('fpc-conf')?.value||'';
+  const errEl=$('fpc-err');
+  if(newp.length<8){errEl.textContent='Password must be at least 8 characters';errEl.style.display='';return;}
+  if(newp!==conf){errEl.textContent='Passwords do not match';errEl.style.display='';return;}
+  errEl.style.display='none';
+  try{
+    await apiFetch('/api/auth/change-password',{method:'POST',body:JSON.stringify({current_password:curr,new_password:newp})});
+    _auth.user.must_change_pwd=0;
+    document.getElementById('force-pwd-screen').style.display='none';
+    toast('Password changed successfully!','success');
+    afterLogin();
+  }catch(e){errEl.textContent=e.message||'Incorrect current password';errEl.style.display='';}
+}
+
 function afterLogin(){
+  const _u=_auth?.user;
+  if(_u?.must_change_pwd){showForcePwdChange();return;}
   $('lscreen').style.display='none';
   $('mapp').style.display='flex';
   const u=_auth.user;
@@ -2690,6 +2732,76 @@ async function markPaid(id,num){
 // ═══════════════════════════════════════════════════
 // USERS
 // ═══════════════════════════════════════════════════
+async function editUser(btn){
+  const uid=btn.dataset.uid, name=btn.dataset.name,
+        email=btn.dataset.email, roleId=btn.dataset.role, isActive=btn.dataset.active;
+  const roles=(_masters['user-roles']||[]);
+  const roleOpts=roles.map(r=>`<option value="${r.id}" ${r.id==roleId?'selected':''}>${r.name}</option>`).join('');
+  showModal(`
+    <div style="padding:20px">
+      <h3 style="margin-bottom:16px">Edit User</h3>
+      <div class="fg mb8"><label class="flabel">Full Name</label>
+        <input class="finput" id="eu-name" value="${name}"></div>
+      <div class="fg mb8"><label class="flabel">Email</label>
+        <input class="finput" id="eu-email" type="email" value="${email}"></div>
+      <div class="fg mb8"><label class="flabel">Role</label>
+        <select class="fselect" id="eu-role">${roleOpts}</select></div>
+      <div class="fg mb8"><label class="flabel">Status</label>
+        <select class="fselect" id="eu-active">
+          <option value="1" ${isActive=='1'?'selected':''}>Active</option>
+          <option value="0" ${isActive=='0'?'selected':''}>Inactive</option>
+        </select></div>
+      <div class="divider"></div>
+      <div style="font-weight:600;margin-bottom:8px;font-size:12px">Reset Password (optional)</div>
+      <div class="fg mb8"><label class="flabel">New Password</label>
+        <input class="finput" id="eu-pwd" type="password" placeholder="Leave blank to keep current"></div>
+      <div class="frow" style="align-items:center;gap:8px;margin-bottom:16px">
+        <input type="checkbox" id="eu-force" checked>
+        <label for="eu-force" style="font-size:12px">Force change on next login</label>
+        <input type="checkbox" id="eu-email-notify" checked>
+        <label for="eu-email-notify" style="font-size:12px">Send email notification</label>
+      </div>
+      <div class="frow" style="justify-content:flex-end;gap:8px">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveUser(${uid},'${email}')">Save Changes</button>
+      </div>
+    </div>
+  `,'','');
+}
+
+async function saveUser(uid, originalEmail){
+  const data={
+    full_name:document.getElementById('eu-name')?.value,
+    email:document.getElementById('eu-email')?.value,
+    role_id:parseInt(document.getElementById('eu-role')?.value),
+    is_active:parseInt(document.getElementById('eu-active')?.value),
+  };
+  const newPwd=document.getElementById('eu-pwd')?.value;
+  if(newPwd){
+    data.new_password=newPwd;
+    data.must_change_pwd=document.getElementById('eu-force')?.checked?1:0;
+    data.send_email=document.getElementById('eu-email-notify')?.checked;
+  }
+  try{
+    await apiFetch(`/api/users/${uid}`,{method:'PUT',body:JSON.stringify(data)});
+    toast('User updated!','success');
+    closeModal();loadUsers();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function resetUserPassword(uid, email){
+  const alpha='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
+  let pwd='';for(let i=0;i<12;i++)pwd+=alpha[Math.floor(Math.random()*alpha.length)];
+  if(!confirm(`Reset password for this user? A new password will be generated and emailed to ${email||'them'}.`))return;
+  try{
+    await apiFetch(`/api/users/${uid}`,{method:'PUT',body:JSON.stringify({
+      new_password:pwd, must_change_pwd:1, send_email:!!email, email:email
+    })});
+    toast(`Password reset! New password: ${pwd}`,'success');
+    loadUsers();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
 async function loadUsers(){
   try{
     const rows=await apiFetch('/api/users');
@@ -2704,7 +2816,11 @@ async function loadUsers(){
         <td>${u.is_active?'<span class="pill p-green">Active</span>':'<span class="pill p-gray">Inactive</span>'}</td>
         <td><div class="tact">
           ${u.is_active&&u.username!=='admin'?`<button class="btn btn-danger btn-xs" onclick="deactivateUser(${u.id},'${(u.full_name||u.username).replace(/'/g,"\\'")}')">Deactivate</button>`:''}
-          <button class="btn btn-ghost btn-xs" onclick="toast('Opening user editor…','info')">Edit</button>
+          <button class="btn btn-ghost btn-xs"
+            data-uid="${u.id}" data-name="${u.full_name||u.username}" data-email="${u.email||''}"
+            data-role="${u.role_id}" data-active="${u.is_active?1:0}"
+            onclick="editUser(this)">Edit</button>
+          <button class="btn btn-warning btn-xs" onclick="resetUserPassword(${u.id},'${u.email||''}')">Reset Pwd</button>
         </div></td>
       </tr>`).join('')
     }</tbody></table>`);
@@ -3332,6 +3448,14 @@ function openModal(type){
   }
   $('overlay').classList.add('open');
   if(def.afterRender)def.afterRender();
+}
+
+function showModal(bodyHtml, title='', submitLabel=''){
+  $('m-title').textContent=title;
+  $('m-body').innerHTML=bodyHtml;
+  if($('m-submit'))$('m-submit').style.display=submitLabel?'':'none';
+  $('overlay').classList.add('open');
+  $('modal').classList.add('open');
 }
 
 function closeModal(){$('overlay').classList.remove('open');_curModalType=null;$('m-submit').style.display='';const mm=document.getElementById('main-modal');if(mm)mm.className='modal';}
