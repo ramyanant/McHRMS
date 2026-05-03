@@ -21,7 +21,9 @@ print(f"[startup] db={'PostgreSQL' if DATABASE_URL else 'NO DATABASE_URL SET'}",
 from decimal import Decimal
 
 from datetime import date as _date
-class PGJSONEncoder(json.JSONEncoder):
+from flask.json.provider import DefaultJSONProvider
+
+class PGJSONProvider(DefaultJSONProvider):
     def default(self, obj):
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%d %H:%M:%S')
@@ -33,7 +35,8 @@ class PGJSONEncoder(json.JSONEncoder):
 
 app = Flask(__name__, static_folder=STATIC)
 app.config['JSON_SORT_KEYS'] = False
-app.json_encoder = PGJSONEncoder
+app.json_provider_class = PGJSONProvider
+app.json = PGJSONProvider(app)
 
 @app.errorhandler(Exception)
 def handle_exception(e):
