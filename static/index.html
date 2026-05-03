@@ -2146,7 +2146,16 @@ function showEmpTab(tab,el){
         <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.id},'${s.month}')">Payslip</button></td></tr>`).join('')}</tbody></table>`
       :`<div class="empty"><div class="empty-title">No payroll entries found</div></div>`);
   }
-  if(tab==='docs') apiFetch(`/api/employees/${e.id}/documents`).then(docs=>setHtml('emp-docs-content',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`));
+  if(tab==='docs') apiFetch(`/api/employees/${e.id}/documents`).then(docs=>{
+    setHtml('emp-docs-content',docs.length
+      ?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`
+      :'<div class="empty"><div class="empty-title">No documents uploaded yet</div></div>');
+    const hd=document.getElementById('emp-docs-content');
+    if(hd){const b=document.createElement('div');b.style.marginBottom='12px';
+      b.innerHTML='<button class="btn btn-primary btn-sm" onclick="openEmpDocUpload()">+ Upload Document</button>';
+      hd.prepend(b);}
+  });
+
 }
 
 function renderAddresses(addrs){
@@ -2178,6 +2187,20 @@ function renderExperience(ex){
 async function deleteEmgContact(id){await apiFetch(`/api/employees/emergency-contacts/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('emergency',$('pp-tabs').children[3]);}
 async function deleteEdu(id){await apiFetch(`/api/employees/education/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('education',$('pp-tabs').children[4]);}
 async function deleteExp(id){await apiFetch(`/api/employees/experience/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('experience',$('pp-tabs').children[5]);}
+function openEmpDocUpload(){
+  const e=window._curEmp;if(!e)return;
+  window._uploadEmpId=e.id;
+  openModal('upload-emp-doc');
+}
+async function downloadEmpDoc(id){
+  try{
+    const doc=await apiFetch(`/api/employees/documents/${id}`);
+    if(!doc||!doc.file_data){toast('No file data','error');return;}
+    const a=document.createElement('a');
+    a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
+    a.download=doc.doc_name||'document';a.click();
+  }catch(e){toast('Download failed','error');}
+}
 async function deleteEmpDoc(id){await apiFetch(`/api/employees/documents/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('docs',$('pp-tabs').children[8]);}
 
 async function viewPayslip(empId, month){
