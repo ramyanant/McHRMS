@@ -1416,6 +1416,7 @@ async function saveOrgProfile(){
   const data={..._orgData};
   let hasErr=false;
   document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{
+    console.log('field:',el.dataset.key,'value:',el.value);
     // Handle both inputs and selects
     data[el.dataset.key]=el.value||null;
     // Cast state/country IDs to integers
@@ -1433,6 +1434,7 @@ async function saveOrgProfile(){
   });
   if(hasErr){toast('Please fix validation errors before saving','error');return;}
   try{
+    console.log('SAVING ORG:', JSON.stringify(data));
     await apiFetch('/api/organisation',{method:'PUT',body:JSON.stringify(data)});
     toast('Organisation profile saved!','success');
     await loadOrgProfile();
@@ -3313,6 +3315,7 @@ async function submitModal(){
     const url=$('overlay').dataset.putUrl;
     try{
       await apiFetch(url,{method:'PUT',body:JSON.stringify(data)});
+      console.log('ORG EDIT SAVED, type:', _curModalType);
       toast('Saved!','success');closeModal();
       if(_curModalType==='org-edit')loadOrgStructure();else loadOrgProfile();
     }catch(e){toast('Save failed: '+e.message,'error');}
