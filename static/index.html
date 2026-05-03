@@ -3025,6 +3025,23 @@ async function saveUser(uid, originalEmail){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
+async function fixUserEmpLink(uid, email){
+  // Try auto-link by email first, then ask for employee selection
+  try{
+    const r=await apiFetch('/api/admin/fix-user-link/'+uid,{method:'POST',body:JSON.stringify({})});
+    toast('User linked to employee profile!','success');
+    loadUsers();
+  }catch(e){
+    // Auto-link failed - ask admin to pick employee
+    const empId=prompt('Auto-link failed. Enter the Employee ID number (numeric id, not EMP-XXXX) to link this user to:');
+    if(!empId) return;
+    try{
+      await apiFetch('/api/admin/fix-user-link/'+uid,{method:'POST',body:JSON.stringify({employee_id:parseInt(empId)})});
+      toast('User linked!','success');
+      loadUsers();
+    }catch(e2){toast('Error: '+e2.message,'error');}
+  }
+}
 async function resetUserPassword(uid, email){
   const alpha='ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%';
   let pwd='';for(let i=0;i<12;i++)pwd+=alpha[Math.floor(Math.random()*alpha.length)];
@@ -3057,6 +3074,7 @@ async function loadUsers(){
             data-role="${u.role_id}" data-active="${u.is_active?1:0}"
             onclick="editUser(this)">Edit</button>
           <button class="btn btn-warning btn-xs" onclick="resetUserPassword(${u.id},'${u.email||''}')">Reset Pwd</button>
+          ${!u.employee_id&&u.role_name==='Employee'?`<button class="btn btn-primary btn-xs" onclick="fixUserEmpLink(${u.id},'${u.email||''}')">🔗 Link</button>`:''}
         </div></td>
       </tr>`).join('')
     }</tbody></table>`);
