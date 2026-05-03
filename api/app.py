@@ -396,6 +396,21 @@ def logout():
     _cur().execute("DELETE FROM user_sessions WHERE token=%s",(token,))
     get_db().commit(); return ok(msg="Logged out")
 
+@app.route('/api/auth/change-password', methods=['POST'])
+@require_auth
+def change_password():
+    import hashlib
+    d=request.get_json()
+    uid=g.user['id']
+    current=hashlib.sha256(d.get('current_password','').encode()).hexdigest()
+    u=row1("SELECT * FROM users WHERE id=%s",(uid,))
+    if not u: return err("User not found",404)
+    if u['password_hash']!=current: return err("Current password is incorrect",400)
+    new_hash=hashlib.sha256(d.get('new_password','').encode()).hexdigest()
+    _cur().execute("UPDATE users SET password_hash=%s,must_change_pwd=0 WHERE id=%s",(new_hash,uid))
+    get_db().commit()
+    return ok(msg="Password changed successfully")
+
 @app.route('/api/auth/me')
 @require_auth
 def auth_me():
@@ -444,11 +459,20 @@ def user_detail(uid):
     if request.method=='DELETE':
         _cur().execute("UPDATE users SET is_active=0 WHERE id=%s",(uid,)); db.commit(); return ok(msg="Deactivated")
     d=request.get_json()
+    import hashlib
     _cur().execute("UPDATE users SET email=%s,role_id=%s,full_name=%s,is_active=%s,employee_id=%s,client_id=%s,vendor_id=%s WHERE id=%s",
-        (d.get('email'),d.get('role_id'),d.get('full_name'),d.get('is_active',1),
-         d.get('employee_id'),d.get('client_id'),d.get('vendor_id'),uid))
-    if d.get('reset_password'):
-        _cur().execute("UPDATE users SET password_hash=%s,must_change_pwd=1 WHERE id=%s",(hash_pw(d['reset_password']),uid))
+        (d.get('email'),d.get('role_id'),d.get('full_name'),int(d.get('is_active',1)),
+         d.get('employee_id') or None,d.get('client_id') or None,d.get('vendor_id') or None,uid))
+    if d.get('new_password'):
+        pwd_hash=hashlib.sha256(d['new_password'].encode()).hexdigest()
+        force=1 if d.get('must_change_pwd',True) else 0
+        _cur().execute("UPDATE users SET password_hash=%s,must_change_pwd=%s WHERE id=%s",(pwd_hash,force,uid))
+        if d.get('send_email') and d.get('email'):
+            u2=row1("SELECT full_name,username FROM users WHERE id=%s",(uid,))
+            org=row1("SELECT legal_name FROM organisation LIMIT 1")
+            org_name=org['legal_name'] if org else 'McHR&TA'
+            html=f'<div style="font-family:Arial,sans-serif;padding:24px"><h2 style="color:#2d8f3e">{org_name} — Password Reset</h2><p>Hi {u2["full_name"] if u2 else ""},</p><p>Your password has been reset.</p><div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0"><p><strong>Username:</strong> {u2["username"] if u2 else ""}</p><p><strong>New Password:</strong> {d["new_password"]}</p></div><p style="color:#e53e3e"><strong>Please change your password on next login.</strong></p></div>'
+            send_email(d['email'],f"{org_name} — Password Reset",html)
     get_db().commit(); return ok(msg="Updated")
 
 # ═══════════════════════════════════════════════════
