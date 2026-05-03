@@ -11,7 +11,7 @@
 <!-- McHR&TA v3.5 -->
 <title>McHR&amp;TA — McRaaN Human Resources and Talent Acquisition</title>
 <!-- BUILD: v5.1 -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -828,7 +828,10 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
         <div style="font-size:12px;color:var(--txt2)" id="pp-meta">–</div>
       </div>
     </div>
+    <div style="display:flex;gap:8px">
+    <button class="btn btn-primary btn-sm" onclick="editEmployee(window._curEmp?.id)">✏ Edit Details</button>
     <button class="btn btn-ghost btn-sm" onclick="closeProfPanel()">✕ Close</button>
+  </div>
   </div>
   <div class="profile-body">
     <div class="ptab" id="pp-tabs"></div>
@@ -3306,6 +3309,35 @@ const modalDefs={
         <div class="fg"><label class="flabel">Headcount</label><input class="finput" type="number" name="headcount" value="0"></div></div>`,
     afterSave:loadOrgStructure
   },
+  'add-address':{
+    title:'Add / Update Address',submit:'Save Address',method:'POST',
+    fields:()=>{
+      const stOpts='<option value="">Select state…</option>'+(_masters['states']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
+      const coOpts='<option value="">Select country…</option>'+(_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      return `
+        <div class="fg"><label class="flabel">Address Type</label>
+          <select class="fselect" name="address_type">
+            <option value="Current">Current</option>
+            <option value="Permanent">Permanent</option>
+            <option value="Emergency">Emergency</option>
+          </select></div>
+        <div class="fg"><label class="flabel">Address Line 1</label>
+          <input class="finput" name="address_line1" placeholder="House/Flat No, Street"></div>
+        <div class="fg"><label class="flabel">Address Line 2</label>
+          <input class="finput" name="address_line2" placeholder="Area, Landmark"></div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">City</label><input class="finput" name="city" placeholder="Hyderabad"></div>
+          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" placeholder="500001"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div>
+          <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div>
+        </div>`;
+    },
+    afterSave:()=>{if(window._curEmp)showEmpTab('addresses',document.querySelector('#pp-tabs .ptab-item:nth-child(3)'));},
+    getEndpoint:()=>`/api/employees/${window._curEmp?.id}/addresses`,
+    numericFields:['state_id','country_id'],
+  },
   'add-emergency':{
     title:'Add Emergency Contact',submit:'Add Contact',method:'POST',
     fields:()=>`
@@ -3607,12 +3639,19 @@ async function submitModal(){
   if(fileModalTypes.includes(_curModalType)&&!data.file_data){
     toast('Please wait for the file to finish loading, then try again','error');return;
   }
+  const _sb=document.getElementById('m-submit');
+  if(_sb&&_sb.disabled)return;
+  if(_sb){_sb.disabled=true;_sb.textContent='Saving…';}
   try{
     await apiFetch(endpoint,{method:def.method||'POST',body:JSON.stringify(data)});
     toast((def.submit||'Saved')+'!','success');
     closeModal();
     if(def.afterSave)def.afterSave();
-  }catch(e){}
+  }catch(e){
+    toast(e.message||'Save failed','error');
+  }finally{
+    if(_sb){_sb.disabled=false;_sb.textContent=def.submit||'Save';}
+  }
 }
 
 // ═══════════════════════════════════════════════════
