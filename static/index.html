@@ -3289,9 +3289,9 @@ async function submitModal(){
     const url=$('overlay').dataset.putUrl;
     try{
       await apiFetch(url,{method:'PUT',body:JSON.stringify(data)});
-      toast('Updated!','success');closeModal();
+      toast('Saved!','success');closeModal();
       if(_curModalType==='org-edit')loadOrgStructure();else loadOrgProfile();
-    }catch(e){}
+    }catch(e){toast('Save failed: '+e.message,'error');}
     return;
   }
   if(_curModalType==='edit-client'){
