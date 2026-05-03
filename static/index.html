@@ -3282,10 +3282,12 @@ async function submitModal(){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
-    ['budget','business_unit_id','cost_centre_id','headcount','state_id','country_id','is_primary'].forEach(f=>{
-      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;
+    ['budget','business_unit_id','cost_centre_id','headcount','state_id','country_id'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseInt(data[f])||null;
       else if(data[f]==='')data[f]=null;
     });
+    // is_primary is 0 or 1 — must not use ||null (0 is falsy)
+    if(data.is_primary!==undefined) data.is_primary=data.is_primary===''?0:parseInt(data.is_primary)||0;
     const url=$('overlay').dataset.putUrl;
     try{
       await apiFetch(url,{method:'PUT',body:JSON.stringify(data)});
@@ -3300,7 +3302,7 @@ async function submitModal(){
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
     const id=data._id;delete data._id;
     ['contract_type_id','payment_terms_id','health_score','account_manager_id','state_id','country_id','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Client updated!','success');closeModal();loadClients();}catch(e){}
+    try{await apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Client updated!','success');closeModal();loadClients();}catch(e){toast('Error: '+e.message,'error');}
     return;
   }
   if(_curModalType==='edit-vendor'){
@@ -3309,7 +3311,7 @@ async function submitModal(){
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
     const id=data._id;delete data._id;
     ['category_id','account_manager_id','state_id','country_id','rating','sla_score'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/vendors/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Vendor updated!','success');closeModal();loadVendors();}catch(e){}
+    try{await apiFetch(`/api/vendors/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Vendor updated!','success');closeModal();loadVendors();}catch(e){toast('Error: '+e.message,'error');}
     return;
   }
   if(_curModalType==='edit-employee'){
@@ -3318,7 +3320,7 @@ async function submitModal(){
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
     const id=data._id;delete data._id;
     ['department_id','employment_type_id','reporting_manager_id','manager_id','client_id','office_location_id','salary','bill_rate','billable','billable_amount','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/employees/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Employee updated!','success');closeModal();loadEmployees();}catch(e){}
+    try{await apiFetch(`/api/employees/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Employee updated!','success');closeModal();loadEmployees();}catch(e){toast('Error: '+e.message,'error');}
     return;
   }
   if(_curModalType==='payslip'){closeModal();return;}
