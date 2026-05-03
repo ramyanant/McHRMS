@@ -1267,8 +1267,59 @@ function renderOrgProfile(editMode){
       </div></div>`;
   };
 
-  setHtml('org-profile-content',`
-  <div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:20px;overflow-x:auto;background:var(--surface);border-radius:var(--rl) var(--rl) 0 0;border:1px solid var(--bdr);border-bottom:2px solid var(--bdr)">
+  setHtml('org-profile-content',(() => {
+  // Pre-build dynamic table rows to avoid nested backtick issues
+  const bankRows = (d.bank_accounts||[]).map(b => {
+    const nm=b.account_name||'';const bn=b.bank_name||'';const br=b.branch||'';
+    const an=b.account_number||'';const ic=b.ifsc_code||'';const sw=b.swift_code||'';
+    const at=b.account_type||'Current';const cur=b.currency||'INR';
+    return '<tr><td class="tbold">'+nm+'</td><td>'+bn+'</td><td>'+(br||'–')+'</td>'+
+      '<td class="tmono">'+an+'</td><td class="tmono">'+(ic||'–')+'</td>'+
+      '<td>'+(at||'Current')+'</td><td>'+(cur||'INR')+'</td>'+
+      '<td>'+(b.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
+      '<td><div class="tact">'+
+      '<button class="btn btn-ghost btn-xs" onclick="editBank('+b.id+',\''+nm+'\',\''+bn+'\',\''+br+'\',\''+an+'\',\''+ic+'\',\''+sw+'\',\''+at+'\',\''+cur+'\','+b.is_primary+')">Edit</button>'+
+      '<button class="btn btn-danger btn-xs" onclick="removeBank('+b.id+')">Remove</button>'+
+      '</div></td></tr>';
+  }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--txt2)">No bank accounts added</td></tr>';
+
+  const gstRows = (d.gst_registrations||[]).map(g => {
+    const gstin=g.gstin||'';const tn=(g.trade_name||'').replace(/'/g,"&#39;");
+    return '<tr><td class="tbold tmono">'+gstin+'</td>'+
+      '<td>'+(g.state_name||'–')+'</td><td>'+(g.trade_name||'–')+'</td>'+
+      '<td class="tmono">'+fmt.date(g.registration_date)+'</td>'+
+      '<td>'+(g.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
+      '<td><div class="tact">'+
+      '<button class="btn btn-ghost btn-xs" onclick="editGst('+g.id+',\''+gstin+'\',\''+( g.state_id||'')+'\',\''+tn+'\',\''+( g.registration_date||'')+'\','+g.is_primary+')">Edit</button>'+
+      '<button class="btn btn-danger btn-xs" onclick="removeGst('+g.id+')">Remove</button>'+
+      '</div></td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No GST registrations added</td></tr>';
+
+  const labourRows = (d.labour_certs||[]).map(lc => {
+    const cn=lc.cert_number||'';const ia=(lc.issuing_authority||'').replace(/'/g,"&#39;");
+    return '<tr><td class="tbold tmono">'+cn+'</td>'+
+      '<td>'+(lc.issuing_authority||'–')+'</td><td>'+(lc.state_name||'–')+'</td>'+
+      '<td class="tmono">'+fmt.date(lc.valid_from)+'</td>'+
+      '<td class="tmono">'+fmt.date(lc.valid_until)+'</td>'+
+      '<td><div class="tact">'+
+      '<button class="btn btn-ghost btn-xs" onclick="editLabourCert('+lc.id+',\''+cn+'\',\''+ia+'\',\''+( lc.state_id||'')+'\',\''+( lc.valid_from||'')+'\',\''+( lc.valid_until||'')+'\')">Edit</button>'+
+      '<button class="btn btn-danger btn-xs" onclick="removeLabourCert('+lc.id+')">Remove</button>'+
+      '</div></td></tr>';
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No labour certificates added</td></tr>';
+
+  const docRows = (d.documents||[]).map(doc =>
+    '<tr><td><span class="pill p-blue">'+doc.doc_type+'</span></td>'+
+    '<td class="tbold">'+doc.doc_name+'</td>'+
+    '<td style="font-size:11px">'+(doc.file_size||'–')+'</td>'+
+    '<td style="font-size:11px">'+fmt.datetime(doc.uploaded_at)+'</td>'+
+    '<td><div class="tact">'+
+    '<button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+',\''+doc.doc_name+'\')">Download</button>'+
+    '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button>'+
+    '</div></td></tr>'
+  ).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No documents uploaded</td></tr>';
+
+  return `
+  <div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:20px;overflow-x:auto;background:var(--surface)">
     <div class="tab active" id="orgtab-company" onclick="switchOrgTab('company')" style="white-space:nowrap">🏢 Company</div>
     <div class="tab" id="orgtab-address" onclick="switchOrgTab('address')" style="white-space:nowrap">📍 Addresses</div>
     <div class="tab" id="orgtab-tax" onclick="switchOrgTab('tax')" style="white-space:nowrap">🧾 Tax & Compliance</div>
@@ -1278,7 +1329,6 @@ function renderOrgProfile(editMode){
     <div class="tab" id="orgtab-docs" onclick="switchOrgTab('docs')" style="white-space:nowrap">📁 Documents</div>
   </div>
 
-  <!-- TAB: Company Identity + POC -->
   <div id="orgtab-panel-company">
     <div class="g2">
       <div class="org-section">
@@ -1286,12 +1336,12 @@ function renderOrgProfile(editMode){
         <div class="org-section-body">
           ${frow(fi('legal_name','Legal Name *','text','McRaaN Consulting Private Limited'),fi('trade_name','Trade Name / Brand','text','McHR&TA'))}
           ${frow(fi('cin','CIN','text','L12345MH2020PTC123456'),fi('pan','PAN','text','AAAAA0000A'),fi('tan','TAN','text','HYDA12345B'))}
-          ${frow(fi('iec_code','IEC Code','text','AAGCI6265C','Same format as PAN: AAAAA0000A'),fi('profession_tax_number','Profession Tax No.','text',''))}
+          ${frow(fi('iec_code','IEC Code','text','AAGCI6265C'),fi('profession_tax_number','Profession Tax No.','text',''))}
           ${frow(fi('pf_number','PF Number','text','MH/BAN/0000000'),fi('esi_number','ESI Number','text','12345678901234567'))}
           ${frow(fi('msme_number','MSME Number','text','UDYAM-TS-02-0062971'),fi('incorporation_date','Incorporation Date','date',''))}
           ${frow(fi('email','Official Email','email','info@company.com'),fi('phone','Phone','text','+91-40-12345678'))}
           ${fi('website','Website','url','https://company.com')}
-          ${frow(fi('financial_year_start','Financial Year Start (MM-DD)','text','04-01'),fi('msme_number','MSME Number','text',''))}
+          ${fi('financial_year_start','Financial Year Start (MM-DD)','text','04-01')}
         </div>
       </div>
       <div class="org-section">
@@ -1305,7 +1355,6 @@ function renderOrgProfile(editMode){
     </div>
   </div>
 
-  <!-- TAB: Addresses -->
   <div id="orgtab-panel-address" style="display:none">
     <div class="g2">
       <div class="org-section">
@@ -1329,7 +1378,6 @@ function renderOrgProfile(editMode){
     </div>
   </div>
 
-  <!-- TAB: Tax & Compliance -->
   <div id="orgtab-panel-tax" style="display:none">
     <div class="org-section">
       <div class="org-section-title">🧾 Tax Registrations</div>
@@ -1343,7 +1391,6 @@ function renderOrgProfile(editMode){
     </div>
   </div>
 
-  <!-- TAB: Banking -->
   <div id="orgtab-panel-banking" style="display:none">
     <div class="org-section">
       <div class="org-section-title">🏦 Bank Accounts
@@ -1351,22 +1398,11 @@ function renderOrgProfile(editMode){
       </div>
       <div class="tbl-wrap">
         <table><thead><tr><th>Account Name</th><th>Bank</th><th>Branch</th><th>Account No.</th><th>IFSC</th><th>Type</th><th>Currency</th><th>Primary</th><th>Actions</th></tr></thead>
-        <tbody>${(d.bank_accounts||[]).map(b=>`<tr>
-          <td class="tbold">${b.account_name}</td><td>${b.bank_name}</td><td>${b.branch||'–'}</td>
-          <td class="tmono">${b.account_number}</td><td class="tmono">${b.ifsc_code||'–'}</td>
-          <td>${b.account_type||'Current'}</td><td>${b.currency||'INR'}</td>
-          <td>${b.is_primary?'<span class="pill p-green">Primary</span>':'–'}</td>
-          <td><div class="tact">
-            <button class="btn btn-ghost btn-xs" onclick="editBank(${b.id},'${b.account_name}','${b.bank_name}','${b.branch||''}','${b.account_number}','${b.ifsc_code||''}','${b.swift_code||''}','${b.account_type||'Current'}','${b.currency||'INR'}',${b.is_primary})">Edit</button>
-            <button class="btn btn-danger btn-xs" onclick="removeBank(${b.id})">Remove</button>
-          </div></td>
-        </tr>`).join('')||'<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--txt2)">No bank accounts added</td></tr>'}
-        </tbody></table>
+        <tbody>${bankRows}</tbody></table>
       </div>
     </div>
   </div>
 
-  <!-- TAB: GST -->
   <div id="orgtab-panel-gst" style="display:none">
     <div class="org-section">
       <div class="org-section-title">📋 GST Registrations
@@ -1374,47 +1410,23 @@ function renderOrgProfile(editMode){
       </div>
       <div class="tbl-wrap">
         <table><thead><tr><th>GSTIN</th><th>State</th><th>Trade Name</th><th>Reg. Date</th><th>Primary</th><th>Actions</th></tr></thead>
-        <tbody>${(d.gst_registrations||[]).map(g=>`<tr>
-          <td class="tbold tmono">${g.gstin}</td>
-          <td>${g.state_name||'–'}</td>
-          <td>${g.trade_name||'–'}</td>
-          <td class="tmono">${fmt.date(g.registration_date)}</td>
-          <td>${g.is_primary?'<span class="pill p-green">Primary</span>':'–'}</td>
-          <td><div class="tact">
-            <button class="btn btn-ghost btn-xs" onclick="editGst(${g.id},'${g.gstin}','${g.state_id||''}','${(g.trade_name||'').replace(/'/g,'&#39;')}','${g.registration_date||''}',${g.is_primary})">Edit</button>
-            <button class="btn btn-danger btn-xs" onclick="removeGst(${g.id})">Remove</button>
-          </div></td>
-        </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No GST registrations added</td></tr>'}
-        </tbody></table>
+        <tbody>${gstRows}</tbody></table>
       </div>
     </div>
   </div>
 
-  <!-- TAB: Labour Certs -->
   <div id="orgtab-panel-labour" style="display:none">
     <div class="org-section">
-      <div class="org-section-title">📜 Labour Department Certificates
+      <div class="org-section-title">📜 Labour Certificates
         <button class="btn btn-ghost btn-xs" onclick="openModal('add-labour')">+ Add Certificate</button>
       </div>
       <div class="tbl-wrap">
         <table><thead><tr><th>Certificate Number</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>
-        <tbody>${(d.labour_certs||[]).map(lc=>`<tr>
-          <td class="tbold tmono">${lc.cert_number}</td>
-          <td>${lc.issuing_authority||'–'}</td>
-          <td>${lc.state_name||'–'}</td>
-          <td class="tmono">${fmt.date(lc.valid_from)}</td>
-          <td class="tmono">${fmt.date(lc.valid_until)}</td>
-          <td><div class="tact">
-            <button class="btn btn-ghost btn-xs" onclick="editLabourCert(${lc.id},'${lc.cert_number}','${lc.issuing_authority||''}','${lc.state_id||''}','${lc.valid_from||''}','${lc.valid_until||''}')">Edit</button>
-            <button class="btn btn-danger btn-xs" onclick="removeLabourCert(${lc.id})">Remove</button>
-          </div></td>
-        </tr>`).join('')||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No labour certificates added</td></tr>'}
-        </tbody></table>
+        <tbody>${labourRows}</tbody></table>
       </div>
     </div>
   </div>
 
-  <!-- TAB: Documents -->
   <div id="orgtab-panel-docs" style="display:none">
     <div class="org-section">
       <div class="org-section-title">📁 Documents
@@ -1422,21 +1434,11 @@ function renderOrgProfile(editMode){
       </div>
       <div class="tbl-wrap">
         <table><thead><tr><th>Document Type</th><th>Document Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
-        <tbody>${(d.documents||[]).length?d.documents.map(doc=>`<tr>
-          <td><span class="pill p-blue">${doc.doc_type}</span></td>
-          <td class="tbold">${doc.doc_name}</td>
-          <td style="font-size:11px">${doc.file_size||'–'}</td>
-          <td style="font-size:11px">${fmt.datetime(doc.uploaded_at)}</td>
-          <td><div class="tact">
-            <button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc(${doc.id},'${doc.doc_name}')">Download</button>
-            <button class="btn btn-danger btn-xs" onclick="removeDoc(${doc.id})">Remove</button>
-          </div></td>
-        </tr>`).join(''):'<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No documents uploaded</td></tr>'}
-        </tbody></table>
+        <tbody>${docRows}</tbody></table>
       </div>
     </div>
   </div>
-`);
+`; })());
 
   setTimeout(attachFieldValidation, 100);
 }
