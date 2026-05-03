@@ -2108,27 +2108,36 @@ async function termEmp(id,name){
 }
 
 async function openEmployeeProfile(id){
+  if(!id){toast('No employee ID','error');return;}
   try{
-    const e=await apiFetch(`/api/employees/${id}`);
-    if(!e)return;
-    const fullName=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`;
-    $('pp-av').textContent=fmt.ini(fullName);$('pp-av').className='av av-lg av-green';
-    $('pp-name').textContent=fullName;
-    $('pp-meta').textContent=`${e.emp_id} · ${e.job_title||'–'} · ${e.department_name||'–'}`;
+    const e=await apiFetch('/api/employees/'+id);
+    if(!e){toast('Employee not found','error');return;}
     window._curEmp=e;
-    $('pp-tabs').innerHTML=`
-      <div class="ptab-item active" onclick="showEmpTab('overview',this)">Overview</div>
-      <div class="ptab-item" onclick="showEmpTab('personal',this)">Personal</div>
-      <div class="ptab-item" onclick="showEmpTab('addresses',this)">Addresses</div>
-      <div class="ptab-item" onclick="showEmpTab('emergency',this)">Emergency</div>
-      <div class="ptab-item" onclick="showEmpTab('education',this)">Education</div>
-      <div class="ptab-item" onclick="showEmpTab('experience',this)">Experience</div>
-      <div class="ptab-item" onclick="showEmpTab('statutory',this)">Statutory &amp; Banking</div>
-      <div class="ptab-item" onclick="showEmpTab('payslips',this)">Payslips</div>
-      <div class="ptab-item" onclick="showEmpTab('docs',this)">Documents</div>`;
-    showEmpTab('overview',$('pp-tabs').firstChild);
-    $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
-  }catch(err){console.error(err);}
+    const fullName=(e.first_name||'')+' '+(e.middle_name?e.middle_name+' ':'')+( e.last_name||'');
+    // Set header
+    const av=document.getElementById('pp-av');
+    const nm=document.getElementById('pp-name');
+    const mt=document.getElementById('pp-meta');
+    const tabs=document.getElementById('pp-tabs');
+    const overlay=document.getElementById('prof-overlay');
+    const panel=document.getElementById('prof-panel');
+    if(!panel){toast('Profile panel missing from page','error');return;}
+    if(av){av.textContent=fmt.ini(fullName);av.className='av av-lg av-green';}
+    if(nm) nm.textContent=fullName.trim();
+    if(mt) mt.textContent=(e.emp_id||'')+' · '+(e.job_title||'–')+' · '+(e.department_name||'–');
+    const tabDefs=[['overview','Overview'],['personal','Personal'],['addresses','Addresses'],
+      ['emergency','Emergency'],['education','Education'],['experience','Experience'],
+      ['statutory','Statutory & Banking'],['payslips','Payslips'],['docs','Documents']];
+    if(tabs) tabs.innerHTML=tabDefs.map((t,i)=>
+      `<div class="ptab-item${i===0?' active':''}" onclick="showEmpTab('${t[0]}',this)">${t[1]}</div>`
+    ).join('');
+    showEmpTab('overview', tabs ? tabs.firstChild : null);
+    if(overlay) overlay.classList.add('open');
+    if(panel) panel.classList.add('open');
+  }catch(err){
+    console.error('openEmployeeProfile error:',err);
+    toast('Error: '+err.message,'error');
+  }
 }
 
 function showEmpTab(tab,el){
@@ -3451,11 +3460,14 @@ function openModal(type){
 }
 
 function showModal(bodyHtml, title='', submitLabel=''){
-  $('m-title').textContent=title;
-  $('m-body').innerHTML=bodyHtml;
-  if($('m-submit'))$('m-submit').style.display=submitLabel?'':'none';
-  $('overlay').classList.add('open');
-  $('modal').classList.add('open');
+  const mtitle=document.getElementById('m-title');
+  const mbody=document.getElementById('m-body');
+  const msubmit=document.getElementById('m-submit');
+  const overlay=document.getElementById('overlay');
+  if(mtitle) mtitle.textContent=title||'';
+  if(mbody) mbody.innerHTML=bodyHtml;
+  if(msubmit) msubmit.style.display=submitLabel?'':'none';
+  if(overlay) overlay.classList.add('open');
 }
 
 function closeModal(){$('overlay').classList.remove('open');_curModalType=null;$('m-submit').style.display='';const mm=document.getElementById('main-modal');if(mm)mm.className='modal';}
