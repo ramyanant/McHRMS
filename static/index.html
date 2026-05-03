@@ -1031,6 +1031,10 @@ function afterLogin(){
     } else {
       window._isEmployee = false;
       window._isManager = false;
+      // Auto-link any orphaned user accounts to employees
+      apiFetch('/api/admin/link-employees',{method:'POST'}).then(r=>{
+        if(r&&r.linked>0) toast(`Linked ${r.linked} user(s) to employee records`,'info');
+      }).catch(()=>{});
       nav('dashboard');
     }
   });
@@ -4202,10 +4206,22 @@ async function loadEmployeePortal(){
     switchPortalTab('dashboard',document.getElementById('ptab-dashboard'));
   }catch(e){
     console.error('Portal dashboard error:',e);
-    // Still show portal with other tabs usable
-    _portalEmpData={employee:{},pending_timesheets:0,approved_hours_mtd:0,leave_balance:18,leaves_taken:0,recent_timesheets:[],pending_leaves:[]};
-    switchPortalTab('profile',document.getElementById('ptab-profile'));
-    toast('Dashboard data unavailable, showing profile instead','info');
+    const c=document.getElementById('portal-content');
+    if(e.message&&e.message.includes('No employee profile')){
+      if(c) c.innerHTML=`<div style="text-align:center;padding:48px 24px">
+        <div style="font-size:48px;margin-bottom:16px">👤</div>
+        <div style="font-size:20px;font-weight:700;margin-bottom:8px">No Employee Profile Linked</div>
+        <div style="color:var(--txt2);margin-bottom:24px">Your login account (${_auth?.user?.email||_auth?.user?.username}) is not yet linked to an employee record.</div>
+        <div style="color:var(--txt2);font-size:13px">Please contact your HR Administrator to link your account.<br>They can go to <strong>Users & Access</strong> and edit your user to set the Employee link.</div>
+        <div style="margin-top:24px;padding:16px;background:var(--s2);border-radius:8px;font-size:12px;color:var(--txt3)">
+          Your email: <strong>${_auth?.user?.email||'not set'}</strong>
+        </div>
+      </div>`;
+    } else {
+      _portalEmpData={employee:{},pending_timesheets:0,approved_hours_mtd:0,leave_balance:18,leaves_taken:0,recent_timesheets:[],pending_leaves:[]};
+      switchPortalTab('profile',document.getElementById('ptab-profile'));
+      toast('Dashboard error: '+e.message,'error');
+    }
   }
 }
 
