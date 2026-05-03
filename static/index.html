@@ -1014,14 +1014,17 @@ function afterLogin(){
   $('sb-av').textContent=fmt.ini(u.full_name||u.username);
   if(u.role!=='Admin')$('nav-users').style.display='none';
   loadMasters().then(()=>{
-    if(u.role==='Employee'||u.role==='Manager'){
+    if(u.role==='Employee'){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
-      window._isManager = u.role==='Manager';
+      window._isManager = false; // will be set after checking team
       // Show ONLY the portal nav
       document.querySelectorAll('.ni').forEach(el=>el.style.display='none');
       const portalNav=document.getElementById('nav-emp-portal');
       if(portalNav) portalNav.style.display='flex';
+      // Also ensure sidebar logo stays visible
+      const slogo=document.querySelector('.slogo');
+      if(slogo) slogo.style.display='flex';
       // Hide Add New button
       document.querySelectorAll('.tb-add,.tb-right button').forEach(b=>b.style.display='none');
       nav('emp-portal');
@@ -4183,15 +4186,26 @@ let _portalEmpData=null;
 let _portalCurrentTab='dashboard';
 
 async function loadEmployeePortal(){
+  // Always show the portal tabs immediately
+  const c=document.getElementById('portal-content');
+  if(c) c.innerHTML='<div style="padding:32px;text-align:center;color:var(--txt3)">Loading your dashboard…</div>';
   try{
     const d=await apiFetch('/api/employee/dashboard');
-    _portalEmpData=d;
-    // Show team tab only if manager
-    const teamTab=document.getElementById('ptab-team');
-    if(teamTab) teamTab.style.display=window._isManager?'':'none';
+    if(d){ _portalEmpData=d; }
+    // Check if this employee is a reporting manager for anyone
+    try{
+      const team=await apiFetch('/api/manager/team');
+      window._isManager=(team&&team.length>0);
+      const teamTab=document.getElementById('ptab-team');
+      if(teamTab) teamTab.style.display=window._isManager?'':'none';
+    }catch(ex){ window._isManager=false; }
     switchPortalTab('dashboard',document.getElementById('ptab-dashboard'));
   }catch(e){
-    setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading portal</div><div class="empty-sub">'+e.message+'</div></div>');
+    console.error('Portal dashboard error:',e);
+    // Still show portal with other tabs usable
+    _portalEmpData={employee:{},pending_timesheets:0,approved_hours_mtd:0,leave_balance:18,leaves_taken:0,recent_timesheets:[],pending_leaves:[]};
+    switchPortalTab('profile',document.getElementById('ptab-profile'));
+    toast('Dashboard data unavailable, showing profile instead','info');
   }
 }
 
