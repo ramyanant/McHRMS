@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<!-- McHR&TA v3.5 -->
 <title>McHR&amp;TA — McRaaN Human Resources and Talent Acquisition</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
@@ -1155,18 +1158,23 @@ async function loadDashboard(){
 // ORG PROFILE (editable)
 // ═══════════════════════════════════════════════════
 async function loadOrgProfile(){
+  setHtml('org-profile-content','<div style="padding:20px;color:var(--txt2)">Loading…</div>');
+  let org=null;
   try{
-    const org=await apiFetch('/api/organisation');
-    _orgData=org||{};
-    try {
-      renderOrgProfile(false);
-    } catch(renderErr) {
-      console.error('renderOrgProfile error:', renderErr);
-      setHtml('org-profile-content','<div class="empty"><div class="empty-title">Render error: '+renderErr.message+'</div></div>');
-    }
+    const h={'Content-Type':'application/json'};
+    if(_auth?.token)h['X-Auth-Token']=_auth.token;
+    const r=await fetch('/api/organisation',{headers:h});
+    const d=await r.json();
+    if(d.success) org=d.data||{};
+    else { setHtml('org-profile-content','<div style="padding:20px;color:red">API error: '+( d.message||'unknown')+'</div>'); return; }
   }catch(e){
-    console.error('loadOrgProfile error:', e);
-    setHtml('org-profile-content','<div class="empty"><div class="empty-title">Load error: '+e.message+'</div></div>');
+    setHtml('org-profile-content','<div style="padding:20px;color:red">Network error: '+e.message+'</div>'); return;
+  }
+  _orgData=org;
+  try{
+    renderOrgProfile(false);
+  }catch(renderErr){
+    setHtml('org-profile-content','<div style="padding:20px;color:red">Render error: '+renderErr.message+'<br><pre style="font-size:10px">'+renderErr.stack+'</pre></div>');
   }
 }
 
