@@ -865,7 +865,7 @@ async function apiFetch(url,opts={}){
 
 const fmt={
   money:v=>v==null?'–':'₹'+Number(v).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:0}),
-  moneyK:v=>{if(v==null)return'–';if(v>=10000000)return'₹'+(v/10000000).toFixed(1)+'Cr';if(v>=100000)return'₹'+(v/100000).toFixed(1)+'L';if(v>=1000)return'₹'+(v/1000).toFixed(0)+'K';return'₹'+Math.round(v);},
+  moneyK:v=>{if(v==null)return'–';if(v>=10000000)return'₹'+(v/10000000).toFixed(2)+'Cr';if(v>=100000)return'₹'+(v/100000).toFixed(2)+'L';if(v>=1000)return'₹'+(v/1000).toFixed(2)+'K';return'₹'+Number(v).toFixed(2);},
   num:v=>v==null?'–':Number(v).toLocaleString('en-IN'),
   date:v=>{if(!v||v==='None'||v==='null')return'–';try{const s=String(v).split('T')[0];const d=new Date(s+'T12:00:00');return isNaN(d)?'–':d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});}catch{return'–';}},
   dt:v=>v?new Date(v).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'–',
@@ -1322,13 +1322,10 @@ function renderOrgProfile(editMode){
   var panels={
     company: '<div class="g2">' +
       '<div class="org-section"><div class="org-section-title">Company Identity</div><div class="org-section-body">' +
-        frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name')) +
-        frow(fi('cin','CIN'),fi('pan','PAN'),fi('tan','TAN')) +
-        frow(fi('iec_code','IEC Code'),fi('profession_tax_number','Profession Tax No.')) +
-        frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
-        frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
+        frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name / Brand')) +
         frow(fi('email','Official Email','email'),fi('phone','Phone')) +
-        fi('website','Website','url') + fi('financial_year_start','Financial Year Start (MM-DD)') +
+        frow(fi('website','Website','url'),fi('financial_year_start','Financial Year Start (MM-DD)')) +
+        frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
       '</div></div>' +
       '<div class="org-section"><div class="org-section-title">Point of Contact</div><div class="org-section-body">' +
         fi('poc_name','POC Name') + fi('poc_email','POC Email','email') + fi('poc_phone','POC Phone') +
@@ -1363,7 +1360,7 @@ function renderOrgProfile(editMode){
       '</div><div class="tbl-wrap"><table><thead><tr><th>Certificate No.</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>' +
       '<tbody>'+lcRows+'</tbody></table></div></div>',
     docs: '<div class="org-section"><div class="org-section-title">Documents ' +
-      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'upload-doc\')">+ Upload Document</button>' +
+      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-org-doc\')">+ Upload Document</button>' +
       '</div><div class="tbl-wrap"><table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>' +
       '<tbody>'+docRows+'</tbody></table></div></div>'
   };
