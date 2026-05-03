@@ -454,6 +454,175 @@ def user_detail(uid):
 # ═══════════════════════════════════════════════════
 # MASTERS
 # ═══════════════════════════════════════════════════
+@app.route('/api/bulk/upload/<entity>', methods=['POST'])
+@require_auth
+def bulk_upload(entity):
+    """Process bulk CSV upload"""
+    data = request.get_json()
+    if not data or 'rows' not in data:
+        return err("No data provided")
+    rows_data = data['rows']
+    if not rows_data:
+        return err("Empty data")
+
+    results = {'created': 0, 'skipped': 0, 'errors': []}
+
+    if entity == 'employees':
+        # Get lookup data
+        depts = {d['name'].lower(): d['id'] for d in rows("SELECT id,name FROM departments WHERE is_active=1")}
+        emp_types = {e['name'].lower(): e['id'] for e in rows("SELECT id,name FROM master_employment_types")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                fn = (row.get('first_name') or '').strip()
+                ln = (row.get('last_name') or '').strip()
+                if not fn or not ln:
+                    results['errors'].append(f"Row {i}: first_name and last_name required")
+                    results['skipped'] += 1
+                    continue
+                dept_id = depts.get((row.get('department_name') or '').lower())
+                et_id = emp_types.get((row.get('employment_type') or 'full-time').lower())
+                # Auto emp_id
+                n = _scalar("SELECT COUNT(*) as c FROM employees WHERE emp_id LIKE 'EMP-%'")
+                emp_id = f"EMP-{int(n)+1:04d}"
+                _cur().execute("""INSERT INTO employees(emp_id,first_name,last_name,email,phone,
+                    job_title,department_id,employment_type_id,salary,bill_rate,
+                    start_date,status,referred_by,location)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (emp_id, fn, ln,
+                     row.get('email') or None, row.get('phone') or None,
+                     row.get('job_title') or None, dept_id, et_id,
+                     float(row.get('salary') or 0), float(row.get('bill_rate') or 0),
+                     row.get('start_date(YYYY-MM-DD)') or row.get('start_date') or None,
+                     row.get('status') or 'Active',
+                     row.get('referred_by') or None, row.get('location') or None))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i} ({row.get('first_name','')} {row.get('last_name','')}): {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'candidates':
+        sources = {s['name'].lower(): s['id'] for s in rows("SELECT id,name FROM master_candidate_sources")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                fn = (row.get('first_name') or '').strip()
+                ln = (row.get('last_name') or '').strip()
+                if not fn or not ln:
+                    results['errors'].append(f"Row {i}: first_name and last_name required")
+                    results['skipped'] += 1
+                    continue
+                src_id = sources.get((row.get('source') or '').lower())
+                _cur().execute("""INSERT INTO candidates(first_name,last_name,email,phone,
+                    location,current_title,years_exp,source_id,skills)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (fn, ln, row.get('email') or None, row.get('phone') or None,
+                     row.get('location') or None, row.get('current_title') or None,
+                     int(row.get('years_exp') or 0), src_id, row.get('skills') or None))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'clients':
+        ct_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM master_contract_types")}
+        pt_map = {str(p['days']): p['id'] for p in rows("SELECT id,days FROM master_payment_terms")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                name = (row.get('name') or '').strip()
+                if not name:
+                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
+                ct_id = ct_map.get((row.get('contract_type') or '').lower())
+                pt_id = pt_map.get(str(row.get('payment_terms_days') or '30'))
+                _cur().execute("""INSERT INTO clients(name,industry,contract_type_id,currency,
+                    payment_terms_id,primary_contact,contact_email,contact_phone,city,gstin,pan,status)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (name, row.get('industry') or None, ct_id,
+                     row.get('currency') or 'INR', pt_id,
+                     row.get('primary_contact') or None, row.get('contact_email') or None,
+                     row.get('contact_phone') or None, row.get('city') or None,
+                     row.get('gstin') or None, row.get('pan') or None,
+                     row.get('status') or 'Active'))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'vendors':
+        vc_map = {v['name'].lower(): v['id'] for v in rows("SELECT id,name FROM master_vendor_categories")}
+        for i, row in enumerate(rows_data, 1):
+            try:
+                name = (row.get('name') or '').strip()
+                if not name:
+                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
+                vc_id = vc_map.get((row.get('category') or '').lower())
+                _cur().execute("""INSERT INTO vendors(name,category_id,primary_contact,contact_email,
+                    contact_phone,city,gstin,pan,sla_score,status)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (name, vc_id, row.get('primary_contact') or None,
+                     row.get('contact_email') or None, row.get('contact_phone') or None,
+                     row.get('city') or None, row.get('gstin') or None, row.get('pan') or None,
+                     int(row.get('sla_score') or 90), row.get('status') or 'Active'))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+
+    elif entity == 'timesheets':
+        emp_map = {e['emp_id']: e['id'] for e in rows("SELECT id,emp_id FROM employees WHERE is_active=1")}
+        cli_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM clients WHERE is_active=1")}
+        st_id = _scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
+        for i, row in enumerate(rows_data, 1):
+            try:
+                emp_code = (row.get('employee_code') or '').strip()
+                if not emp_code or emp_code not in emp_map:
+                    results['errors'].append(f"Row {i}: employee_code '{emp_code}' not found"); results['skipped'] += 1; continue
+                we = row.get('week_ending(YYYY-MM-DD)') or row.get('week_ending')
+                if not we:
+                    results['errors'].append(f"Row {i}: week_ending required"); results['skipped'] += 1; continue
+                cli_id = cli_map.get((row.get('client_name') or '').lower())
+                _cur().execute("""INSERT INTO timesheets(employee_id,client_id,project,week_ending,
+                    regular_hours,overtime_hours,bill_rate,notes,status_id)
+                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                    (emp_map[emp_code], cli_id, row.get('project') or None, we,
+                     float(row.get('regular_hours') or 0), float(row.get('overtime_hours') or 0),
+                     float(row.get('bill_rate') or 0), row.get('notes') or None, st_id))
+                results['created'] += 1
+            except Exception as e:
+                results['errors'].append(f"Row {i}: {str(e)[:100]}")
+                results['skipped'] += 1
+    else:
+        return err(f"Bulk upload not supported for: {entity}", 400)
+
+    msg = f"Uploaded: {results['created']} created, {results['skipped']} skipped"
+    return ok(results, msg, 201 if results['created'] > 0 else 200)
+
+# ═══════════════════════════════════════════════════
+# RUN
+# ═══════════════════════════════════════════════════
+if __name__ == '__main__':
+    import sys
+    port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
+    print(f"McHR&TA v4 starting on port {port}", flush=True)
+    app.run(debug=False, port=port, host='0.0.0.0')
+
+@app.route('/api/masters/all')
+@require_auth
+def masters_all():
+    tmap={'employment-types':'master_employment_types','contract-types':'master_contract_types',
+          'vendor-categories':'master_vendor_categories','invoice-statuses':'master_invoice_statuses',
+          'application-stages':'master_application_stages','candidate-sources':'master_candidate_sources',
+          'payment-terms':'master_payment_terms','priority-levels':'master_priority_levels',
+          'timesheet-statuses':'master_timesheet_statuses','user-roles':'master_user_roles',
+          'countries':'master_countries','interview-formats':'master_interview_formats',
+          'onboarding-templates':'master_onboarding_templates','states':'master_states',
+          'relationship-types':'master_relationship_types'}
+    result={}
+    for t,tbl in tmap.items():
+        try: result[t]=rows(f"SELECT * FROM {tbl} ORDER BY name")
+        except: result[t]=[]
+    return ok(result)
+
+
+
 @app.route('/api/masters/<table>')
 def masters(table):
     tbl_map = {
@@ -2104,152 +2273,3 @@ def bulk_template(entity):
     return Response(output.getvalue(), mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename={entity}_template.csv'})
 
-@app.route('/api/bulk/upload/<entity>', methods=['POST'])
-@require_auth
-def bulk_upload(entity):
-    """Process bulk CSV upload"""
-    data = request.get_json()
-    if not data or 'rows' not in data:
-        return err("No data provided")
-    rows_data = data['rows']
-    if not rows_data:
-        return err("Empty data")
-
-    results = {'created': 0, 'skipped': 0, 'errors': []}
-
-    if entity == 'employees':
-        # Get lookup data
-        depts = {d['name'].lower(): d['id'] for d in rows("SELECT id,name FROM departments WHERE is_active=1")}
-        emp_types = {e['name'].lower(): e['id'] for e in rows("SELECT id,name FROM master_employment_types")}
-        for i, row in enumerate(rows_data, 1):
-            try:
-                fn = (row.get('first_name') or '').strip()
-                ln = (row.get('last_name') or '').strip()
-                if not fn or not ln:
-                    results['errors'].append(f"Row {i}: first_name and last_name required")
-                    results['skipped'] += 1
-                    continue
-                dept_id = depts.get((row.get('department_name') or '').lower())
-                et_id = emp_types.get((row.get('employment_type') or 'full-time').lower())
-                # Auto emp_id
-                n = _scalar("SELECT COUNT(*) as c FROM employees WHERE emp_id LIKE 'EMP-%'")
-                emp_id = f"EMP-{int(n)+1:04d}"
-                _cur().execute("""INSERT INTO employees(emp_id,first_name,last_name,email,phone,
-                    job_title,department_id,employment_type_id,salary,bill_rate,
-                    start_date,status,referred_by,location)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (emp_id, fn, ln,
-                     row.get('email') or None, row.get('phone') or None,
-                     row.get('job_title') or None, dept_id, et_id,
-                     float(row.get('salary') or 0), float(row.get('bill_rate') or 0),
-                     row.get('start_date(YYYY-MM-DD)') or row.get('start_date') or None,
-                     row.get('status') or 'Active',
-                     row.get('referred_by') or None, row.get('location') or None))
-                results['created'] += 1
-            except Exception as e:
-                results['errors'].append(f"Row {i} ({row.get('first_name','')} {row.get('last_name','')}): {str(e)[:100]}")
-                results['skipped'] += 1
-
-    elif entity == 'candidates':
-        sources = {s['name'].lower(): s['id'] for s in rows("SELECT id,name FROM master_candidate_sources")}
-        for i, row in enumerate(rows_data, 1):
-            try:
-                fn = (row.get('first_name') or '').strip()
-                ln = (row.get('last_name') or '').strip()
-                if not fn or not ln:
-                    results['errors'].append(f"Row {i}: first_name and last_name required")
-                    results['skipped'] += 1
-                    continue
-                src_id = sources.get((row.get('source') or '').lower())
-                _cur().execute("""INSERT INTO candidates(first_name,last_name,email,phone,
-                    location,current_title,years_exp,source_id,skills)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (fn, ln, row.get('email') or None, row.get('phone') or None,
-                     row.get('location') or None, row.get('current_title') or None,
-                     int(row.get('years_exp') or 0), src_id, row.get('skills') or None))
-                results['created'] += 1
-            except Exception as e:
-                results['errors'].append(f"Row {i}: {str(e)[:100]}")
-                results['skipped'] += 1
-
-    elif entity == 'clients':
-        ct_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM master_contract_types")}
-        pt_map = {str(p['days']): p['id'] for p in rows("SELECT id,days FROM master_payment_terms")}
-        for i, row in enumerate(rows_data, 1):
-            try:
-                name = (row.get('name') or '').strip()
-                if not name:
-                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
-                ct_id = ct_map.get((row.get('contract_type') or '').lower())
-                pt_id = pt_map.get(str(row.get('payment_terms_days') or '30'))
-                _cur().execute("""INSERT INTO clients(name,industry,contract_type_id,currency,
-                    payment_terms_id,primary_contact,contact_email,contact_phone,city,gstin,pan,status)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (name, row.get('industry') or None, ct_id,
-                     row.get('currency') or 'INR', pt_id,
-                     row.get('primary_contact') or None, row.get('contact_email') or None,
-                     row.get('contact_phone') or None, row.get('city') or None,
-                     row.get('gstin') or None, row.get('pan') or None,
-                     row.get('status') or 'Active'))
-                results['created'] += 1
-            except Exception as e:
-                results['errors'].append(f"Row {i}: {str(e)[:100]}")
-                results['skipped'] += 1
-
-    elif entity == 'vendors':
-        vc_map = {v['name'].lower(): v['id'] for v in rows("SELECT id,name FROM master_vendor_categories")}
-        for i, row in enumerate(rows_data, 1):
-            try:
-                name = (row.get('name') or '').strip()
-                if not name:
-                    results['errors'].append(f"Row {i}: name required"); results['skipped'] += 1; continue
-                vc_id = vc_map.get((row.get('category') or '').lower())
-                _cur().execute("""INSERT INTO vendors(name,category_id,primary_contact,contact_email,
-                    contact_phone,city,gstin,pan,sla_score,status)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (name, vc_id, row.get('primary_contact') or None,
-                     row.get('contact_email') or None, row.get('contact_phone') or None,
-                     row.get('city') or None, row.get('gstin') or None, row.get('pan') or None,
-                     int(row.get('sla_score') or 90), row.get('status') or 'Active'))
-                results['created'] += 1
-            except Exception as e:
-                results['errors'].append(f"Row {i}: {str(e)[:100]}")
-                results['skipped'] += 1
-
-    elif entity == 'timesheets':
-        emp_map = {e['emp_id']: e['id'] for e in rows("SELECT id,emp_id FROM employees WHERE is_active=1")}
-        cli_map = {c['name'].lower(): c['id'] for c in rows("SELECT id,name FROM clients WHERE is_active=1")}
-        st_id = _scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
-        for i, row in enumerate(rows_data, 1):
-            try:
-                emp_code = (row.get('employee_code') or '').strip()
-                if not emp_code or emp_code not in emp_map:
-                    results['errors'].append(f"Row {i}: employee_code '{emp_code}' not found"); results['skipped'] += 1; continue
-                we = row.get('week_ending(YYYY-MM-DD)') or row.get('week_ending')
-                if not we:
-                    results['errors'].append(f"Row {i}: week_ending required"); results['skipped'] += 1; continue
-                cli_id = cli_map.get((row.get('client_name') or '').lower())
-                _cur().execute("""INSERT INTO timesheets(employee_id,client_id,project,week_ending,
-                    regular_hours,overtime_hours,bill_rate,notes,status_id)
-                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (emp_map[emp_code], cli_id, row.get('project') or None, we,
-                     float(row.get('regular_hours') or 0), float(row.get('overtime_hours') or 0),
-                     float(row.get('bill_rate') or 0), row.get('notes') or None, st_id))
-                results['created'] += 1
-            except Exception as e:
-                results['errors'].append(f"Row {i}: {str(e)[:100]}")
-                results['skipped'] += 1
-    else:
-        return err(f"Bulk upload not supported for: {entity}", 400)
-
-    msg = f"Uploaded: {results['created']} created, {results['skipped']} skipped"
-    return ok(results, msg, 201 if results['created'] > 0 else 200)
-
-# ═══════════════════════════════════════════════════
-# RUN
-# ═══════════════════════════════════════════════════
-if __name__ == '__main__':
-    import sys
-    port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
-    print(f"McHR&TA v4 starting on port {port}", flush=True)
-    app.run(debug=False, port=port, host='0.0.0.0')
