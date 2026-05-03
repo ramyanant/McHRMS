@@ -971,6 +971,21 @@ def employees():
                 (emp_db_id,atype,d.get(f'{key}_address_line1'),d.get(f'{key}_address_line2'),d.get(f'{key}_city'),d.get(f'{key}_state_id'),d.get(f'{key}_pincode'),d.get(f'{key}_country_id')))
 
     log("employees",emp_db_id,"hired",f"{d.get('first_name','')} {d.get('last_name','')} ({emp_id}) added",g.user.get('username','System')); db.commit()
+    # Auto-create user login for new employee
+    try:
+        import hashlib
+        default_pwd = hashlib.sha256(b"Employee@123").hexdigest()
+        uname = (d.get('email','') or f"{d.get('first_name','').lower()}.{d.get('last_name','').lower()}").split('@')[0].replace(' ','.')
+        emp_role = row1("SELECT id FROM master_user_roles WHERE name='Employee'")
+        if emp_role:
+            existing = row1("SELECT id FROM users WHERE username=%s OR (employee_id=%s AND employee_id IS NOT NULL)",(uname,emp_db_id))
+            if not existing:
+                _cur().execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,1) RETURNING id",
+                    (uname,d.get('email'),default_pwd,emp_role['id'],emp_db_id,
+                     f"{d.get('first_name','')} {d.get('last_name','')}".strip()))
+        db.commit()
+    except Exception as ue:
+        print(f"Warning: Could not create user for employee: {ue}", flush=True)
     return ok({"id":emp_db_id,"emp_id":emp_id},"Employee created",201)
 
 @app.route('/api/employees/<int:eid>', methods=['GET','PUT','DELETE'])
@@ -1156,7 +1171,7 @@ def my_timesheets():
     st=_scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
     cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
         (g.user['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],
-         d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
+         d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),d.get('notes'),st))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Timesheet submitted",201)
 
 @app.route('/api/my/payslips')
@@ -1194,12 +1209,20 @@ def timesheets():
             LEFT JOIN clients c ON c.id=t.client_id
             LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE 1=1"""
         params=[]
+        emp_filter=request.args.get('employee_id')
+        if emp_filter: sql+=" AND t.employee_id=%s"; params.append(int(emp_filter))
+        elif g.user.get('role_name')=='Employee' and g.user.get('employee_id'):
+            sql+=" AND t.employee_id=%s"; params.append(g.user['employee_id'])
         if status: sql+=" AND s.name=%s"; params.append(status)
         sql+=" ORDER BY t.week_ending DESC,t.submitted_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
+    # Employee role: force their own employee_id
+    if g.user.get('role_name')=='Employee' and g.user.get('employee_id'):
+        d['employee_id']=g.user['employee_id']
+    if not d.get('employee_id'): return err("employee_id required")
     st=_scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
-    cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+    cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
         (d['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),st))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Submitted",201)
 
@@ -1511,6 +1534,10 @@ def invoices():
             LEFT JOIN master_invoice_statuses s ON s.id=i.status_id
             LEFT JOIN master_contract_types ct ON ct.id=i.contract_type_id WHERE 1=1"""
         params=[]
+        emp_filter=request.args.get('employee_id')
+        if emp_filter: sql+=" AND t.employee_id=%s"; params.append(int(emp_filter))
+        elif g.user.get('role_name')=='Employee' and g.user.get('employee_id'):
+            sql+=" AND t.employee_id=%s"; params.append(g.user['employee_id'])
         if status: sql+=" AND s.name=%s"; params.append(status)
         sql+=" ORDER BY i.created_at DESC"
         return ok(rows(sql,params))
