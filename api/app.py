@@ -951,7 +951,7 @@ def employees():
         pan,aadhaar,passport_number,pf_number,esi_number,
         bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc)
         VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (emp_id,d['first_name'],d.get('middle_name'),d['last_name'],d.get('email'),d.get('phone'),
+        (emp_id,d.get('first_name',''),d.get('middle_name'),d.get('last_name',''),d.get('email'),d.get('phone'),
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
@@ -966,7 +966,7 @@ def employees():
             _cur().execute("INSERT INTO employee_addresses(employee_id,address_type,address_line1,address_line2,city,state_id,pincode,country_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
                 (emp_db_id,atype,d.get(f'{key}_address_line1'),d.get(f'{key}_address_line2'),d.get(f'{key}_city'),d.get(f'{key}_state_id'),d.get(f'{key}_pincode'),d.get(f'{key}_country_id')))
 
-    log("employees",emp_db_id,"hired",f"{d['first_name']} {d['last_name']} ({emp_id}) added",g.user.get('username','System')); db.commit()
+    log("employees",emp_db_id,"hired",f"{d.get('first_name','')} {d.get('last_name','')} ({emp_id}) added",g.user.get('username','System')); db.commit()
     return ok({"id":emp_db_id,"emp_id":emp_id},"Employee created",201)
 
 @app.route('/api/employees/<int:eid>', methods=['GET','PUT','DELETE'])
@@ -1006,7 +1006,7 @@ def employee_detail(eid):
         salary=%s,bill_rate=%s,billable=%s,billable_amount=%s,start_date=%s,status=%s,referred_by=%s,rating=%s,
         pan=%s,aadhaar=%s,passport_number=%s,pf_number=%s,esi_number=%s,
         bank_account_name=%s,bank_name=%s,bank_branch=%s,bank_account_number=%s,bank_ifsc=%s,updated_at=NOW() WHERE id=%s""",
-        (new_emp_id,d['first_name'],d.get('middle_name'),d['last_name'],d.get('email'),d.get('phone'),
+        (new_emp_id,d.get('first_name',''),d.get('middle_name'),d.get('last_name',''),d.get('email'),d.get('phone'),
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
