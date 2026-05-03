@@ -156,7 +156,7 @@ tbody tr:hover td{background:var(--green-lt)}
 .frow3{grid-template-columns:1fr 1fr 1fr}
 .overlay{position:fixed;inset:0;background:rgba(26,32,44,.5);display:flex;align-items:center;justify-content:center;z-index:1000;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.open{opacity:1;pointer-events:all}
-.modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);width:600px;max-width:95vw;max-height:90vh;overflow-y:auto;transform:scale(.96);transition:transform .2s;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);width:900px;max-width:96vw;max-height:90vh;overflow-y:auto;transform:scale(.96);transition:transform .2s;box-shadow:0 20px 60px rgba(0,0,0,.15)}
 .overlay.open .modal{transform:scale(1)}
 .mhd{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--s2)}
 .m-title{font-size:15px;font-weight:700;color:var(--txt)}
@@ -236,7 +236,7 @@ tbody tr:hover td{background:var(--green-lt)}
 .mob-overlay.open{display:block}
 
 /* Tabbed modal system */
-.mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;background:var(--s2);flex-shrink:0}
+.mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;background:var(--s2);flex-shrink:0;overflow-x:auto;flex-wrap:nowrap}
 .mtab{padding:10px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
 .mtab:hover{color:var(--charcoal);background:rgba(0,0,0,.04)}
 .mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
@@ -2106,6 +2106,7 @@ async function loadEmployees(q=''){
 
 // switchMEditTab: loads sub-entity data into edit modal tabs
 async function switchMEditTab(type,el,empId){
+  console.log('switchMEditTab called:', type, empId);
   document.querySelectorAll('#mform .mtab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('#mform .mtab-panel').forEach(p=>p.classList.remove('active'));
   const msub=document.getElementById('m-submit');
@@ -2119,7 +2120,9 @@ async function switchMEditTab(type,el,empId){
   const addBtn=(label,modal)=>'<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="window._curEmp={id:'+empId+'};openModal(\"'+modal+'\")">'+label+'</button></div>';
   try{
     if(type==='address'){
+      console.log('fetching addresses for empId:', empId);
       const d=await apiFetch('/api/employees/'+empId+'/addresses');
+      console.log('addresses result:', d);
       ct.innerHTML=renderAddresses(d||[])+addBtn('+ Add / Update Address','add-address');
     }else if(type==='emergency'){
       const d=await apiFetch('/api/employees/'+empId+'/emergency-contacts');
@@ -2462,7 +2465,14 @@ async function editEmployee(id){
         </div>
       </div>
       </div>
-    </form>`;
+    
+      <!-- Sub-entity panels (loaded by switchMEditTab) -->
+      <div class="mtab-panel" id="medit-address-panel"><div id="medit-address-content" style="padding:8px 0;min-height:100px"></div></div>
+      <div class="mtab-panel" id="medit-emergency-panel"><div id="medit-emergency-content" style="padding:8px 0;min-height:100px"></div></div>
+      <div class="mtab-panel" id="medit-education-panel"><div id="medit-education-content" style="padding:8px 0;min-height:100px"></div></div>
+      <div class="mtab-panel" id="medit-experience-panel"><div id="medit-experience-content" style="padding:8px 0;min-height:100px"></div></div>
+      <div class="mtab-panel" id="medit-docs-panel"><div id="medit-docs-content" style="padding:8px 0;min-height:100px"></div></div>
+</form>`;
     $('m-submit').style.display='';$('m-submit').textContent='Save Employee';
     $('overlay').classList.add('open');
   }catch(err){console.error(err);}
