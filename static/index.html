@@ -991,14 +991,17 @@ async function tryAutoLogin(){
 async function loadMasters(){
   try{
     const all=await apiFetch('/api/masters/all');
-    if(all){Object.keys(all).forEach(k=>{_masters[k]=all[k]||[];});}
-  }catch(e){
-    const tables=['employment-types','contract-types','vendor-categories','payment-terms',
-                  'timesheet-statuses','user-roles','countries','states'];
-    await Promise.all(tables.map(async t=>{
-      try{_masters[t]=await apiFetch(`/api/masters/${t}`)||[];}catch(ex){_masters[t]=[];}
-    }));
-  }
+    if(all&&typeof all==='object'){
+      Object.keys(all).forEach(k=>{_masters[k]=all[k]||[];});
+      return;
+    }
+  }catch(e){ console.warn('Masters bulk load failed, falling back to individual calls'); }
+  // Fallback: individual calls
+  const tables=['employment-types','contract-types','vendor-categories','payment-terms',
+                'timesheet-statuses','user-roles','countries','states'];
+  await Promise.all(tables.map(async t=>{
+    try{_masters[t]=await apiFetch(`/api/masters/${t}`)||[];}catch(ex){_masters[t]=[];}
+  }));
 }
 
 function masterOpts(key,valKey='name',labelKey='name',blank=''){
@@ -1084,16 +1087,13 @@ function nav(id){
   const cfg=modCfg[id]||{};
   setHtml('tb-title',cfg.title||id);setHtml('tb-sub',cfg.sub||'');
   _curMod=id;
+  if(window._isEmployee) setTimeout(()=>empPortalAfterNav(id),150);
   // Hide/show topbar Add New button based on module
   const hideAddBtn=['org-profile','reports','sourcing','dashboard'];
   const addBtn=document.querySelector('.tb-right .btn-primary');
   if(addBtn)addBtn.style.display=hideAddBtn.includes(id)?'none':'';
   const loaders={
-    'dashboard':()=>{
-    // Show skeletons immediately
-    setHtml('dash-kpis','<div class="kpi"><div class="kpi-label">Active Employees</div><div class="kpi-value" style="background:var(--s3);border-radius:4px;color:transparent;min-width:40px">0</div></div>'.repeat(4));
-    loadDashboard();
-  },'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
+    'dashboard':loadDashboard,'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
     'clients':loadClients,'vendors':loadVendors,'employees':loadEmployees,
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
@@ -3697,15 +3697,11 @@ async function loadEmpPortal(empId){
   }catch(err){console.error(err);}
 }
 
-// Override nav for employee portal
-const _origNav=nav;
-function nav(id){
-  _origNav(id);
-  if(window._isEmployee){
-    // After nav, restrict data to employee only
-    if(id==='timesheets') setTimeout(loadEmpTimesheets,100);
-    if(id==='employees') setTimeout(loadEmpOwnProfile,100);
-  }
+// Employee portal nav handler - called after normal nav
+function empPortalAfterNav(id){
+  if(!window._isEmployee) return;
+  if(id==='timesheets') setTimeout(loadEmpTimesheets,100);
+  if(id==='employees') setTimeout(loadEmpOwnProfile,100);
 }
 
 async function loadEmpTimesheets(){
