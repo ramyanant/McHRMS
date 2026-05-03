@@ -598,12 +598,6 @@ def bulk_upload(entity):
 # ═══════════════════════════════════════════════════
 # RUN
 # ═══════════════════════════════════════════════════
-if __name__ == '__main__':
-    import sys
-    port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
-    print(f"McHR&TA v4 starting on port {port}", flush=True)
-    app.run(debug=False, port=port, host='0.0.0.0')
-
 @app.route('/api/masters/all')
 @require_auth
 def masters_all():
@@ -620,6 +614,9 @@ def masters_all():
         try: result[t]=rows(f"SELECT * FROM {tbl} ORDER BY name")
         except: result[t]=[]
     return ok(result)
+
+
+
 
 
 
@@ -2272,4 +2269,13 @@ def bulk_template(entity):
     from flask import Response
     return Response(output.getvalue(), mimetype='text/csv',
         headers={'Content-Disposition': f'attachment; filename={entity}_template.csv'})
+
+if __name__ == '__main__':
+    import sys
+    port = int(os.environ.get('PORT', sys.argv[1] if len(sys.argv) > 1 else 5000))
+    print(f"McHR&TA v4.1 starting on port {port}", flush=True)
+    app.run(debug=False, port=port, host='0.0.0.0')
+@app.route('/health')
+def health_check(): return jsonify({'status':'ok','version':'4.1'})
+
 
