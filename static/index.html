@@ -1236,9 +1236,12 @@ function renderOrgProfile(editMode){
 
   const fi=(key,label,type,placeholder,hint)=>{
     type=type||'text';placeholder=placeholder||'';hint=hint||'';
-    const val=d[key]||'';
-    if(editMode) return '<div class="fg"><label class="flabel">'+label+'</label><input class="finput" data-key="'+key+'" type="'+type+'" value="'+val+'" placeholder="'+placeholder+'"><div class="field-hint">'+hint+'</div></div>';
-    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value '+(val?'':'empty')+'">'+( val||'—')+'</div></div>';
+    const raw=d[key];
+    // For date inputs: value must be YYYY-MM-DD format; display must be human-readable
+    const inputVal=type==='date'&&raw?String(raw).split('T')[0]:(raw||'');
+    const display=type==='date'&&raw?fmt.date(raw):(raw||'—');
+    if(editMode) return '<div class="fg"><label class="flabel">'+label+'</label><input class="finput" data-key="'+key+'" type="'+type+'" value="'+inputVal+'" placeholder="'+placeholder+'"><div class="field-hint">'+hint+'</div></div>';
+    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value '+(raw?'':'empty')+'">'+ display+'</div></div>';
   };
   const frow=function(){
     var items=Array.prototype.slice.call(arguments);
@@ -3243,11 +3246,10 @@ window._fileData={};
 function handleFileSelect(input,prefix){
   const file=input.files[0];if(!file)return;
   if(file.size>5*1024*1024){toast('File too large — max 5MB','error');input.value='';return;}
-  // Show preview text
   const previewEl=$(prefix+'-file-preview');
-  if(previewEl) previewEl.textContent=`✓ ${file.name} (${(file.size/1024).toFixed(0)} KB) — ready to upload`;
   const infoEl=$(prefix+'-file-info');
-  if(infoEl) infoEl.textContent=`✓ ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+  // Clear any previous data for this prefix while loading
+  delete window._fileData[prefix];
   const reader=new FileReader();
   reader.onload=e=>{
     window._fileData[prefix]={
@@ -3256,7 +3258,11 @@ function handleFileSelect(input,prefix){
       size:(file.size/1024).toFixed(0)+' KB',
       mime:file.type
     };
+    if(previewEl) previewEl.textContent='✓ '+file.name+' ('+(file.size/1024).toFixed(0)+' KB) — ready to upload';
+    if(infoEl) infoEl.textContent='✓ '+file.name+' ('+(file.size/1024).toFixed(0)+' KB)';
+    toast('File ready to upload','success');
   };
+  reader.onerror=()=>toast('Failed to read file','error');
   reader.readAsDataURL(file);
 }
 
@@ -3354,7 +3360,7 @@ async function submitModal(){
     else if(data[f]==='')data[f]=null;
   });
   // Handle file uploads — attach base64 data if present
-  const fileKeys=['emp','cli','vend'];
+  const fileKeys=['emp','cli','vend','org'];
   fileKeys.forEach(k=>{
     if(window._fileData[k]){
       data.file_data=window._fileData[k].data;
@@ -3364,6 +3370,10 @@ async function submitModal(){
       delete window._fileData[k];
     }
   });
+  const fileModalTypes=['add-org-doc','upload-emp-doc','upload-client-doc','upload-vendor-doc'];
+  if(fileModalTypes.includes(_curModalType)&&!data.file_data){
+    toast('Please wait for the file to finish loading, then try again','error');return;
+  }
   try{
     await apiFetch(endpoint,{method:def.method||'POST',body:JSON.stringify(data)});
     toast((def.submit||'Saved')+'!','success');
