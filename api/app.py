@@ -512,7 +512,7 @@ def organisation():
             'iec_code','profession_tax_number','pf_number','esi_number',
             'incorporation_date','financial_year_start']
     _date_fields = {'reg_state_id','reg_country_id','biz_state_id','biz_country_id'}
-    vals=[d.get(f) or None if f in {'incorporation_date','reg_state_id','reg_country_id','biz_state_id','biz_country_id'} else (d.get(f) or None if d.get(f)=='' else d.get(f)) for f in fields]
+    vals=[d.get(f) or None if f in {'incorporation_date','reg_state_id','reg_country_id','biz_state_id','biz_country_id'} else d.get(f) for f in fields]
     if existing:
         _cur().execute("UPDATE organisation SET "+",".join(f+"=%s" for f in fields)+",updated_at=NOW() WHERE id=%s",vals+[existing['id']])
         org_id=existing['id']
@@ -531,7 +531,7 @@ def add_gst():
     org=row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up.")
     _cur().execute("INSERT INTO organisation_gst(organisation_id,gstin,state_id,trade_name,registration_date,is_primary) VALUES(%s,%s,%s,%s,%s,%s)",
-        (org['id'],d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date'),d.get('is_primary',0)))
+        (org['id'],d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date') or None,d.get('is_primary',0)))
     get_db().commit(); return ok(msg="GST added",status=201)
 
 @app.route('/api/organisation/gst/<int:gid>', methods=['PUT','DELETE'])
@@ -542,7 +542,7 @@ def gst_detail(gid):
         _cur().execute("UPDATE organisation_gst SET is_active=0 WHERE id=%s",(gid,)); db.commit(); return ok(msg="GST removed")
     d=request.get_json()
     _cur().execute("UPDATE organisation_gst SET gstin=%s,state_id=%s,trade_name=%s,registration_date=%s,is_primary=%s WHERE id=%s",
-        (d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date'),d.get('is_primary',0),gid))
+        (d['gstin'],d.get('state_id'),d.get('trade_name'),d.get('registration_date') or None,d.get('is_primary',0),gid))
     get_db().commit(); return ok(msg="GST updated")
 
 @app.route('/api/organisation/banks', methods=['POST'])
@@ -587,7 +587,7 @@ def labour_cert_detail(lid):
         _cur().execute("UPDATE organisation_labour_certs SET is_active=0 WHERE id=%s",(lid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
     _cur().execute("UPDATE organisation_labour_certs SET cert_number=%s,issuing_authority=%s,state_id=%s,valid_from=%s,valid_until=%s WHERE id=%s",
-        (d['cert_number'],d.get('issuing_authority'),d.get('state_id'),d.get('valid_from'),d.get('valid_until'),lid))
+        (d['cert_number'],d.get('issuing_authority'),d.get('state_id') or None,d.get('valid_from') or None,d.get('valid_until') or None,lid))
     get_db().commit(); return ok(msg="Updated")
 
 @app.route('/api/organisation/documents', methods=['GET','POST'])
