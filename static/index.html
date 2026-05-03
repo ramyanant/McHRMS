@@ -1714,12 +1714,21 @@ function showClientTab(tab,el,id){
   setHtml('pp-content',tabs[tab]||'');
   if(tab==='docs'&&c.id){
     apiFetch(`/api/clients/${c.id}/documents`).then(docs=>{
-      setHtml('client-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteClientDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`
+      setHtml('client-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadClientDocById(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteClientDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`
         :`<div class="empty"><div class="empty-title">No documents uploaded</div></div>`);
     });
   }
 }
 
+async function downloadClientDocById(id){
+  try{
+    const doc=await apiFetch(`/api/clients/documents/${id}`);
+    if(!doc||!doc.file_data){toast('No file data available','error');return;}
+    const a=document.createElement('a');
+    a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
+    a.download=doc.doc_name||'document';a.click();
+  }catch(e){toast('Download failed','error');}
+}
 async function deleteClientDoc(id){if(!confirm('Remove document?'))return;await apiFetch(`/api/clients/documents/${id}`,{method:'DELETE'});toast('Document removed','success');showClientTab('docs',$('pp-tabs').children[3],window._curClient?.id);}
 
 async function editClient(id){
@@ -1883,9 +1892,18 @@ function showVendorTab(tab,el){
   setHtml('pp-content',tabs[tab]||'');
   if(tab==='docs'&&v.id){
     apiFetch(`/api/vendors/${v.id}/documents`).then(docs=>{
-      setHtml('vendor-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><button class="btn btn-danger btn-xs" onclick="deleteVendorDoc(${d.id})">Remove</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`);
+      setHtml('vendor-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadVendorDocById(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteVendorDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`);
     });
   }
+}
+async function downloadVendorDocById(id){
+  try{
+    const doc=await apiFetch(`/api/vendors/documents/${id}`);
+    if(!doc||!doc.file_data){toast('No file data available','error');return;}
+    const a=document.createElement('a');
+    a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
+    a.download=doc.doc_name||'document';a.click();
+  }catch(e){toast('Download failed','error');}
 }
 async function deleteVendorDoc(id){if(!confirm('Remove?'))return;await apiFetch(`/api/vendors/documents/${id}`,{method:'DELETE'});toast('Removed','success');showVendorTab('docs',$('pp-tabs').children[3]);}
 
@@ -2852,6 +2870,11 @@ const modalDefs={
       </div>`;
     },
     numericFields:['contract_type_id','payment_terms_id','health_score','account_manager_id','state_id','country_id','rating'],
+    afterRender:async()=>{
+      const emps=await apiFetch('/api/lookup/employees')||[];
+      const sel=document.querySelector('#mform select[name="account_manager_id"]');
+      if(sel){sel.innerHTML='<option value="">None</option>'+emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');}
+    },
   },
 
   'add-vendor':{
@@ -2910,6 +2933,11 @@ const modalDefs={
       </div>`;
     },
     numericFields:['category_id','account_manager_id','state_id','country_id','rating','sla_score'],
+    afterRender:async()=>{
+      const emps=await apiFetch('/api/lookup/employees')||[];
+      const sel=document.querySelector('#mform select[name="account_manager_id"]');
+      if(sel){sel.innerHTML='<option value="">None</option>'+emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');}
+    },
   },
 
   'add-emp':{
