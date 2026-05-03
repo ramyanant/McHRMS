@@ -1225,175 +1225,152 @@ function renderOrgProfile(editMode){
   $('org-cancel-btn').style.display=editMode?'':'none';
   const d=_orgData;
 
-  // Field helper: renders editable input or read-only value
-  const fi=(key,label,type='text',placeholder='',hint='')=>{
+  const fi=(key,label,type,placeholder,hint)=>{
+    type=type||'text';placeholder=placeholder||'';hint=hint||'';
     const val=d[key]||'';
-    if(editMode) return`<div class="fg"><label class="flabel">${label}</label><input class="finput" data-key="${key}" type="${type}" value="${val.replace(/"/g,'&quot;')}" placeholder="${placeholder}">${hint?`<div style="font-size:10px;color:var(--txt3);margin-top:2px">${hint}</div>`:''}</div>`;
-    return`<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value ${!val?'empty':''}">${val||'<span style="color:var(--txt3);font-style:italic">Not set</span>'}</div></div>`;
+    if(editMode) return '<div class="fg"><label class="flabel">'+label+'</label><input class="finput" data-key="'+key+'" type="'+type+'" value="'+val+'" placeholder="'+placeholder+'"><div class="field-hint">'+hint+'</div></div>';
+    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value '+(val?'':'empty')+'">'+( val||'—')+'</div></div>';
   };
-  const fselect=(key,label,options=[])=>{
+  const frow=function(){
+    var items=Array.prototype.slice.call(arguments);
+    return '<div class="frow'+(items.length===3?' frow3':'')+'">'+items.join('')+'</div>';
+  };
+  const fselect=(key,label,options)=>{
+    options=options||[];
     const val=d[key];
-    if(editMode) return`<div class="fg"><label class="flabel">${label}</label><select class="fselect" data-key="${key}">
-      <option value="">Select…</option>${options.map(o=>`<option value="${o.id}" ${o.id==val?'selected':''}>${o.name}</option>`).join('')}
-    </select></div>`;
-    const found=options.find(o=>o.id==val);
-    return`<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value ${found?'':'empty'}">${found?found.name:'—'}</div></div>`;
+    if(editMode){
+      var opts='<option value="">Select…</option>';
+      options.forEach(function(o){opts+='<option value="'+o.id+'"'+(o.id==val?' selected':'')+'>'+o.name+'</option>';});
+      return '<div class="fg"><label class="flabel">'+label+'</label><select class="fselect" data-key="'+key+'">'+opts+'</select></div>';
+    }
+    var found=options.find(function(o){return o.id==val;});
+    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value">'+( found?found.name:'—')+'</div></div>';
   };
   const _states=_masters['states']||[];
   const _countries=_masters['countries']||[];
-  const frow=(...items)=>`<div class="frow${items.length===3?' frow3':''}">${items.join('')}</div>`;
 
-  // State and country dropdowns for address sections
-  const stateOpts=(selId)=>(_masters['states']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  const countryOpts=(_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-
-  const addrSection=(prefix,title)=>{
-    const stId=d[`${prefix}_state_id`];const coId=d[`${prefix}_country_id`];
-    if(editMode) return`<div class="org-section">
-      <div class="org-section-title">${title}</div>
-      <div class="org-section-body">
-        ${fi(`${prefix}_address_line1`,'Address Line 1')}
-        ${fi(`${prefix}_address_line2`,'Address Line 2')}
-        ${frow(fi(`${prefix}_city`,'City'),fi(`${prefix}_pincode`,'PIN Code'))}
-        <div class="frow">
-          <div class="fg"><label class="flabel">State</label>
-            <select class="fselect" data-key="${prefix}_state_id">
-              <option value="">Select state…</option>${(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stId?'selected':''}>${s.name}</option>`).join('')}
-            </select></div>
-          <div class="fg"><label class="flabel">Country</label>
-            <select class="fselect" data-key="${prefix}_country_id">
-              <option value="">Select country…</option>${(_masters['countries']||[]).map(c=>`<option value="${c.id}" ${c.id==coId?'selected':''}>${c.name}</option>`).join('')}
-            </select></div>
-        </div>
-      </div></div>`;
-    return`<div class="org-section">
-      <div class="org-section-title">${title}</div>
-      <div class="org-section-body">
-        ${fi(`${prefix}_address_line1`,'Address Line 1')}${fi(`${prefix}_address_line2`,'Address Line 2')}
-        ${frow(fi(`${prefix}_city`,'City'),fi(`${prefix}_pincode`,'PIN Code'))}
-        ${frow(fi(`${prefix}_state_id`,'State'),fi(`${prefix}_country_id`,'Country'))}
-      </div></div>`;
-  };
-
-  // Build all HTML sections
-  const _bankRows = (d.bank_accounts||[]).map(function(b){
-    return '<tr><td class="tbold">'+( b.account_name||'')+'</td><td>'+(b.bank_name||'')+'</td><td>'+(b.branch||'–')+'</td>'+
+  // Pre-build table rows
+  var bankRows='';
+  (d.bank_accounts||[]).forEach(function(b){
+    bankRows+='<tr><td class="tbold">'+(b.account_name||'')+'</td><td>'+(b.bank_name||'')+'</td><td>'+(b.branch||'–')+'</td>'+
       '<td class="tmono">'+(b.account_number||'')+'</td><td class="tmono">'+(b.ifsc_code||'–')+'</td>'+
       '<td>'+(b.account_type||'Current')+'</td><td>'+(b.currency||'INR')+'</td>'+
       '<td>'+(b.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
       '<td><button class="btn btn-ghost btn-xs" onclick="editBank('+b.id+')">Edit</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeBank('+b.id+')">Remove</button></td></tr>';
-  }).join('') || '<tr><td colspan="9" style="text-align:center;padding:20px;color:var(--txt2)">No bank accounts added</td></tr>';
+  });
+  if(!bankRows) bankRows='<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--txt2)">No bank accounts added</td></tr>';
 
-  const _gstRows = (d.gst_registrations||[]).map(function(g){
-    return '<tr><td class="tbold tmono">'+(g.gstin||'')+'</td><td>'+(g.state_name||'–')+'</td>'+
-      '<td>'+(g.trade_name||'–')+'</td><td class="tmono">'+fmt.date(g.registration_date)+'</td>'+
+  var gstRows='';
+  (d.gst_registrations||[]).forEach(function(g){
+    gstRows+='<tr><td class="tbold tmono">'+(g.gstin||'')+'</td><td>'+(g.state_name||'–')+'</td>'+
+      '<td>'+(g.trade_name||'–')+'</td><td>'+fmt.date(g.registration_date)+'</td>'+
       '<td>'+(g.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
       '<td><button class="btn btn-ghost btn-xs" onclick="editGst('+g.id+')">Edit</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeGst('+g.id+')">Remove</button></td></tr>';
-  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No GST registrations</td></tr>';
+  });
+  if(!gstRows) gstRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No GST registrations added</td></tr>';
 
-  const _lcRows = (d.labour_certs||[]).map(function(lc){
-    return '<tr><td class="tbold tmono">'+(lc.cert_number||'')+'</td><td>'+(lc.issuing_authority||'–')+'</td>'+
+  var lcRows='';
+  (d.labour_certs||[]).forEach(function(lc){
+    lcRows+='<tr><td class="tbold">'+(lc.cert_number||'')+'</td><td>'+(lc.issuing_authority||'–')+'</td>'+
       '<td>'+(lc.state_name||'–')+'</td><td>'+fmt.date(lc.valid_from)+'</td><td>'+fmt.date(lc.valid_until)+'</td>'+
       '<td><button class="btn btn-ghost btn-xs" onclick="editLabourCert('+lc.id+')">Edit</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeLabourCert('+lc.id+')">Remove</button></td></tr>';
-  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No certificates</td></tr>';
+  });
+  if(!lcRows) lcRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No certificates added</td></tr>';
 
-  const _docRows = (d.documents||[]).map(function(doc){
-    return '<tr><td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
-      '<td class="tbold">'+(doc.doc_name||'')+'</td><td>'+(doc.file_size||'–')+'</td>'+
-      '<td>'+fmt.datetime(doc.uploaded_at)+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+',this.closest('tr').querySelector('.tbold').textContent)">Download</button> '+
+  var docRows='';
+  (d.documents||[]).forEach(function(doc){
+    docRows+='<tr><td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
+      '<td class="tbold">'+(doc.doc_name||'')+'</td><td>'+(doc.file_size||'')+'</td>'+
+      '<td style="font-size:11px">'+fmt.datetime(doc.uploaded_at)+'</td>'+
+      '<td><button class="btn btn-ghost btn-xs" data-doc-id="'+doc.id+'" onclick="downloadOrgDoc(parseInt(this.dataset.docId),this.closest(\"tr\").querySelector(\".tbold\").textContent)">Download</button> '+
       '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button></td></tr>';
-  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No documents uploaded</td></tr>';
+  });
+  if(!docRows) docRows='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt2)">No documents uploaded</td></tr>';
 
-  const _tabBar = '<div style="display:flex;border-bottom:2px solid var(--bdr);margin-bottom:20px;overflow-x:auto">'+
-    '<div class="tab active" id="orgtab-company" onclick="switchOrgTab('company')" style="white-space:nowrap">&#127970; Company</div>'+
-    '<div class="tab" id="orgtab-address" onclick="switchOrgTab('address')" style="white-space:nowrap">&#128205; Addresses</div>'+
-    '<div class="tab" id="orgtab-tax" onclick="switchOrgTab('tax')" style="white-space:nowrap">&#129534; Tax</div>'+
-    '<div class="tab" id="orgtab-banking" onclick="switchOrgTab('banking')" style="white-space:nowrap">&#127974; Banking</div>'+
-    '<div class="tab" id="orgtab-gst" onclick="switchOrgTab('gst')" style="white-space:nowrap">&#128203; GST</div>'+
-    '<div class="tab" id="orgtab-labour" onclick="switchOrgTab('labour')" style="white-space:nowrap">&#128220; Labour</div>'+
-    '<div class="tab" id="orgtab-docs" onclick="switchOrgTab('docs')" style="white-space:nowrap">&#128193; Docs</div>'+
-  '</div>';
+  // Build HTML using DOM (avoids all string escaping issues)
+  var el=$('org-profile-content');
+  el.innerHTML='';
 
-  setHtml('org-profile-content', _tabBar +
-    '<div id="orgtab-panel-company">' +
-      '<div class="g2">' +
-        '<div class="org-section"><div class="org-section-title">Company Identity</div><div class="org-section-body">' +
-          frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name')) +
-          frow(fi('cin','CIN'),fi('pan','PAN'),fi('tan','TAN')) +
-          frow(fi('iec_code','IEC Code'),fi('profession_tax_number','Profession Tax No.')) +
-          frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
-          frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
-          frow(fi('email','Official Email','email'),fi('phone','Phone')) +
-          fi('website','Website','url') +
-          fi('financial_year_start','Financial Year Start (MM-DD)') +
-        '</div></div>' +
-        '<div class="org-section"><div class="org-section-title">Point of Contact</div><div class="org-section-body">' +
-          fi('poc_name','POC Name') + fi('poc_email','POC Email','email') + fi('poc_phone','POC Phone') +
-        '</div></div>' +
-      '</div>' +
-    '</div>' +
-    '<div id="orgtab-panel-address" style="display:none">' +
-      '<div class="g2">' +
-        '<div class="org-section"><div class="org-section-title">Registered Address</div><div class="org-section-body">' +
-          fi('reg_address_line1','Address Line 1') + fi('reg_address_line2','Address Line 2') +
-          frow(fi('reg_city','City'),fi('reg_pincode','Pincode')) +
-          frow(fselect('reg_country_id','Country',_countries),fselect('reg_state_id','State',_states)) +
-        '</div></div>' +
-        '<div class="org-section"><div class="org-section-title">Business Address</div><div class="org-section-body">' +
-          fi('biz_address_line1','Address Line 1') + fi('biz_address_line2','Address Line 2') +
-          frow(fi('biz_city','City'),fi('biz_pincode','Pincode')) +
-          frow(fselect('biz_country_id','Country',_countries),fselect('biz_state_id','State',_states)) +
-        '</div></div>' +
-      '</div>' +
-    '</div>' +
-    '<div id="orgtab-panel-tax" style="display:none">' +
-      '<div class="org-section"><div class="org-section-title">Tax Registrations</div><div class="org-section-body">' +
-        frow(fi('pan','PAN'),fi('tan','TAN')) + frow(fi('cin','CIN'),fi('iec_code','IEC Code')) +
+  // Tab bar
+  var tabs=[['company','Company'],['address','Addresses'],['tax','Tax'],['banking','Banking'],['gst','GST'],['labour','Labour'],['docs','Documents']];
+  var tabBar=document.createElement('div');
+  tabBar.style.cssText='display:flex;border-bottom:2px solid var(--bdr);margin-bottom:20px;overflow-x:auto';
+  tabs.forEach(function(t,i){
+    var tab=document.createElement('div');
+    tab.className='tab'+(i===0?' active':'');
+    tab.id='orgtab-'+t[0];
+    tab.style.whiteSpace='nowrap';
+    tab.textContent=t[1];
+    tab.onclick=function(){switchOrgTab(t[0]);};
+    tabBar.appendChild(tab);
+  });
+  el.appendChild(tabBar);
+
+  // Content panels
+  var panels={
+    company: '<div class="g2">' +
+      '<div class="org-section"><div class="org-section-title">Company Identity</div><div class="org-section-body">' +
+        frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name')) +
+        frow(fi('cin','CIN'),fi('pan','PAN'),fi('tan','TAN')) +
+        frow(fi('iec_code','IEC Code'),fi('profession_tax_number','Profession Tax No.')) +
         frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
-        frow(fi('profession_tax_number','Profession Tax No.'),fi('msme_number','MSME Number')) +
-        frow(fi('incorporation_date','Incorporation Date','date'),fi('financial_year_start','FY Start')) +
+        frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
+        frow(fi('email','Official Email','email'),fi('phone','Phone')) +
+        fi('website','Website','url') + fi('financial_year_start','Financial Year Start (MM-DD)') +
       '</div></div>' +
-    '</div>' +
-    '<div id="orgtab-panel-banking" style="display:none">' +
-      '<div class="org-section"><div class="org-section-title">Bank Accounts' +
-        ' <button class="btn btn-ghost btn-xs" onclick="openModal('add-bank')">+ Add Account</button>' +
-      '</div><div class="tbl-wrap">' +
-        '<table><thead><tr><th>Account Name</th><th>Bank</th><th>Branch</th><th>Account No.</th><th>IFSC</th><th>Type</th><th>Currency</th><th>Primary</th><th>Actions</th></tr></thead>' +
-        '<tbody>' + _bankRows + '</tbody></table>' +
+      '<div class="org-section"><div class="org-section-title">Point of Contact</div><div class="org-section-body">' +
+        fi('poc_name','POC Name') + fi('poc_email','POC Email','email') + fi('poc_phone','POC Phone') +
+      '</div></div></div>',
+    address: '<div class="g2">' +
+      '<div class="org-section"><div class="org-section-title">Registered Address</div><div class="org-section-body">' +
+        fi('reg_address_line1','Address Line 1') + fi('reg_address_line2','Address Line 2') +
+        frow(fi('reg_city','City'),fi('reg_pincode','Pincode')) +
+        frow(fselect('reg_country_id','Country',_countries),fselect('reg_state_id','State',_states)) +
       '</div></div>' +
-    '</div>' +
-    '<div id="orgtab-panel-gst" style="display:none">' +
-      '<div class="org-section"><div class="org-section-title">GST Registrations' +
-        ' <button class="btn btn-ghost btn-xs" onclick="openModal('add-gst')">+ Add GST</button>' +
-      '</div><div class="tbl-wrap">' +
-        '<table><thead><tr><th>GSTIN</th><th>State</th><th>Trade Name</th><th>Reg. Date</th><th>Primary</th><th>Actions</th></tr></thead>' +
-        '<tbody>' + _gstRows + '</tbody></table>' +
-      '</div></div>' +
-    '</div>' +
-    '<div id="orgtab-panel-labour" style="display:none">' +
-      '<div class="org-section"><div class="org-section-title">Labour Certificates' +
-        ' <button class="btn btn-ghost btn-xs" onclick="openModal('add-labour')">+ Add Certificate</button>' +
-      '</div><div class="tbl-wrap">' +
-        '<table><thead><tr><th>Certificate No.</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>' +
-        '<tbody>' + _lcRows + '</tbody></table>' +
-      '</div></div>' +
-    '</div>' +
-    '<div id="orgtab-panel-docs" style="display:none">' +
-      '<div class="org-section"><div class="org-section-title">Documents' +
-        ' <button class="btn btn-ghost btn-xs" onclick="openModal('upload-doc')">+ Upload Document</button>' +
-      '</div><div class="tbl-wrap">' +
-        '<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>' +
-        '<tbody>' + _docRows + '</tbody></table>' +
-      '</div></div>' +
-    '</div>'
-  );
+      '<div class="org-section"><div class="org-section-title">Business Address</div><div class="org-section-body">' +
+        fi('biz_address_line1','Address Line 1') + fi('biz_address_line2','Address Line 2') +
+        frow(fi('biz_city','City'),fi('biz_pincode','Pincode')) +
+        frow(fselect('biz_country_id','Country',_countries),fselect('biz_state_id','State',_states)) +
+      '</div></div></div>',
+    tax: '<div class="org-section"><div class="org-section-title">Tax Registrations</div><div class="org-section-body">' +
+      frow(fi('pan','PAN'),fi('tan','TAN')) + frow(fi('cin','CIN'),fi('iec_code','IEC Code')) +
+      frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
+      frow(fi('profession_tax_number','Profession Tax No.'),fi('msme_number','MSME Number')) +
+      frow(fi('incorporation_date','Incorporation Date','date'),fi('financial_year_start','FY Start')) +
+      '</div></div>',
+    banking: '<div class="org-section"><div class="org-section-title">Bank Accounts ' +
+      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-bank\')">+ Add Account</button>' +
+      '</div><div class="tbl-wrap"><table><thead><tr><th>Account Name</th><th>Bank</th><th>Branch</th><th>Account No.</th><th>IFSC</th><th>Type</th><th>Currency</th><th>Primary</th><th>Actions</th></tr></thead>' +
+      '<tbody>'+bankRows+'</tbody></table></div></div>',
+    gst: '<div class="org-section"><div class="org-section-title">GST Registrations ' +
+      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-gst\')">+ Add GST</button>' +
+      '</div><div class="tbl-wrap"><table><thead><tr><th>GSTIN</th><th>State</th><th>Trade Name</th><th>Reg. Date</th><th>Primary</th><th>Actions</th></tr></thead>' +
+      '<tbody>'+gstRows+'</tbody></table></div></div>',
+    labour: '<div class="org-section"><div class="org-section-title">Labour Certificates ' +
+      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-labour\')">+ Add Certificate</button>' +
+      '</div><div class="tbl-wrap"><table><thead><tr><th>Certificate No.</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>' +
+      '<tbody>'+lcRows+'</tbody></table></div></div>',
+    docs: '<div class="org-section"><div class="org-section-title">Documents ' +
+      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'upload-doc\')">+ Upload Document</button>' +
+      '</div><div class="tbl-wrap"><table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>' +
+      '<tbody>'+docRows+'</tbody></table></div></div>'
+  };
 
-  setTimeout(attachFieldValidation, 100);
+  tabs.forEach(function(t,i){
+    var panel=document.createElement('div');
+    panel.id='orgtab-panel-'+t[0];
+    panel.style.display=i===0?'':'none';
+    panel.innerHTML=panels[t[0]]||'';
+    el.appendChild(panel);
+  });
+
+  setTimeout(attachFieldValidation,100);
 }
+
+
 function switchOrgTab(tab){
   ['company','address','tax','banking','gst','labour','docs'].forEach(t=>{
     const panel=document.getElementById('orgtab-panel-'+t);
