@@ -221,6 +221,17 @@ tbody tr:hover td{background:var(--green-lt)}
 .profile-hd{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--s2);position:sticky;top:0;z-index:1}
 .profile-body{padding:20px}
 .ptab{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px}
+.portal-tab{padding:14px 20px;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
+.portal-tab:hover{color:var(--txt);background:var(--s2)}
+.portal-tab.active{color:var(--green-dk);border-bottom-color:var(--green);background:rgba(45,143,62,.06)}
+.portal-card{background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;margin-bottom:16px}
+.portal-card-title{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.portal-stat{background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:16px 20px;text-align:center}
+.portal-stat-label{font-size:11px;color:var(--txt3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.portal-stat-value{font-size:28px;font-weight:800;color:var(--txt)}
+.leave-badge-Pending{background:#fff3cd;color:#856404;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.leave-badge-Approved{background:#d1e7dd;color:#0f5132;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.leave-badge-Rejected{background:#f8d7da;color:#842029;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
 .ptab-item{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap}
 .ptab-item:hover{color:var(--charcoal)}.ptab-item.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
 .payslip-modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:24px;max-width:680px;margin:0 auto}
@@ -432,6 +443,10 @@ tbody tr:hover td{background:var(--green-lt)}
     <div class="ni" data-mod="employees" onclick="nav('employees')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Employees
     </div>
+<div class="ni" data-mod="emp-portal" id="nav-emp-portal" style="display:none" onclick="nav('emp-portal')">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+  <span>My Portal</span>
+</div>
     <div class="ni" data-mod="timesheets" onclick="nav('timesheets')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg>Timesheets
     </div>
@@ -813,7 +828,23 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
 </div>
 </div>
 
-  </div><!-- /page -->
+  
+<!-- ═══════════════════ EMPLOYEE PORTAL MODULE ═══════════════════ -->
+<div id="mod-emp-portal" class="mod" style="padding:0">
+  <!-- PORTAL TABS -->
+  <div style="background:var(--surface);border-bottom:2px solid var(--bdr);padding:0 24px;display:flex;gap:0;position:sticky;top:0;z-index:10">
+    <div class="portal-tab active" id="ptab-dashboard" onclick="switchPortalTab('dashboard',this)">🏠 Dashboard</div>
+    <div class="portal-tab" id="ptab-profile" onclick="switchPortalTab('profile',this)">👤 My Profile</div>
+    <div class="portal-tab" id="ptab-timesheets" onclick="switchPortalTab('timesheets',this)">⏱ Timesheets</div>
+    <div class="portal-tab" id="ptab-leaves" onclick="switchPortalTab('leaves',this)">🏖 Leave</div>
+    <div class="portal-tab" id="ptab-team" onclick="switchPortalTab('team',this)" id="ptab-team" style="display:none">👥 My Team</div>
+  </div>
+  <!-- PORTAL CONTENT -->
+  <div id="portal-content" style="padding:24px;max-width:1100px;margin:0 auto">
+    <div class="empty"><div class="empty-title">Loading…</div></div>
+  </div>
+</div>
+</div><!-- /page -->
 </main>
 </div><!-- /mapp -->
 
@@ -983,32 +1014,20 @@ function afterLogin(){
   $('sb-av').textContent=fmt.ini(u.full_name||u.username);
   if(u.role!=='Admin')$('nav-users').style.display='none';
   loadMasters().then(()=>{
-    if(u.role==='Employee'){
-      // Employee portal: restrict to own data only
+    if(u.role==='Employee'||u.role==='Manager'){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
-      // Hide restricted nav items
-      document.querySelectorAll('.ni').forEach(el=>{
-        const allowed=['dashboard','timesheets','employees'];
-        if(!allowed.includes(el.dataset.mod)) el.style.display='none';
-      });
-      // Hide Add New button and other admin controls
-      const addBtn=document.querySelector('.tb-add');
-      if(addBtn) addBtn.style.display='none';
-      // Show employee-specific top bar message
-      const tbRight=document.querySelector('.tb-right');
-      if(tbRight&&!document.getElementById('emp-portal-badge')){
-        const badge=document.createElement('div');
-        badge.id='emp-portal-badge';
-        badge.style.cssText='font-size:11px;background:var(--green-lt);color:var(--green-dk);padding:4px 10px;border-radius:20px;font-weight:600;margin-right:8px';
-        badge.textContent='Employee Portal';
-        tbRight.prepend(badge);
-      }
-      nav('timesheets');
-      // Load employee's own timesheet view
-      if(u.employee_id) loadEmpPortal(u.employee_id);
+      window._isManager = u.role==='Manager';
+      // Show ONLY the portal nav
+      document.querySelectorAll('.ni').forEach(el=>el.style.display='none');
+      const portalNav=document.getElementById('nav-emp-portal');
+      if(portalNav) portalNav.style.display='flex';
+      // Hide Add New button
+      document.querySelectorAll('.tb-add,.tb-right button').forEach(b=>b.style.display='none');
+      nav('emp-portal');
     } else {
       window._isEmployee = false;
+      window._isManager = false;
       nav('dashboard');
     }
   });
@@ -1138,7 +1157,8 @@ function nav(id){
   const addBtn=document.querySelector('.tb-right .btn-primary');
   if(addBtn)addBtn.style.display=hideAddBtn.includes(id)?'none':'';
   const loaders={
-    'dashboard':loadDashboard,'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
+    'dashboard':loadDashboard,
+    'emp-portal':()=>loadEmployeePortal(),'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
     'clients':loadClients,'vendors':loadVendors,'employees':loadEmployees,
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
@@ -4154,6 +4174,422 @@ async function loadEmpOwnProfile(){
     <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Reporting Manager</div><div class="kpi-value" style="font-size:16px">${e.reporting_manager_name||'–'}</div></div>
     <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Status</div><div class="kpi-value" style="font-size:16px">${e.status}</div></div>`);
 }
+
+
+// ═══════════════════════════════════════════════════
+// EMPLOYEE PORTAL
+// ═══════════════════════════════════════════════════
+let _portalEmpData=null;
+let _portalCurrentTab='dashboard';
+
+async function loadEmployeePortal(){
+  try{
+    const d=await apiFetch('/api/employee/dashboard');
+    _portalEmpData=d;
+    // Show team tab only if manager
+    const teamTab=document.getElementById('ptab-team');
+    if(teamTab) teamTab.style.display=window._isManager?'':'none';
+    switchPortalTab('dashboard',document.getElementById('ptab-dashboard'));
+  }catch(e){
+    setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading portal</div><div class="empty-sub">'+e.message+'</div></div>');
+  }
+}
+
+function switchPortalTab(tab,el){
+  _portalCurrentTab=tab;
+  document.querySelectorAll('.portal-tab').forEach(t=>t.classList.remove('active'));
+  if(el) el.classList.add('active');
+  renderPortalTab(tab);
+}
+
+async function renderPortalTab(tab){
+  const c=document.getElementById('portal-content');
+  if(!c) return;
+  c.innerHTML='<div style="padding:40px;text-align:center;color:var(--txt3)">Loading…</div>';
+  try{
+    if(tab==='dashboard') await renderPortalDashboard();
+    else if(tab==='profile') await renderPortalProfile();
+    else if(tab==='timesheets') await renderPortalTimesheets();
+    else if(tab==='leaves') await renderPortalLeaves();
+    else if(tab==='team') await renderPortalTeam();
+  }catch(e){
+    c.innerHTML='<div class="empty"><div class="empty-title">Error</div><div class="empty-sub">'+e.message+'</div></div>';
+  }
+}
+
+async function renderPortalDashboard(){
+  const d=_portalEmpData;
+  if(!d){setHtml('portal-content','<div class="empty"><div class="empty-title">No data</div></div>');return;}
+  const e=d.employee||{};
+  const html=`
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;background:linear-gradient(135deg,var(--green-dk),#1a7a2e);border-radius:12px;padding:20px 24px;color:#fff">
+    <div style="width:60px;height:60px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800">${fmt.ini((e.first_name||'')+' '+(e.last_name||''))}</div>
+    <div>
+      <div style="font-size:20px;font-weight:800">${(e.first_name||'')+' '+(e.last_name||'')}</div>
+      <div style="font-size:13px;opacity:.85">${e.job_title||'–'} · ${e.department_name||'–'}</div>
+      <div style="font-size:12px;opacity:.7;margin-top:2px">${e.emp_id||''} · Reports to: ${e.reporting_manager_name||'–'}</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px">
+    <div class="portal-stat" style="border-top:3px solid var(--amber)">
+      <div class="portal-stat-label">Pending Timesheets</div>
+      <div class="portal-stat-value" style="color:var(--amber)">${d.pending_timesheets||0}</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--green)">
+      <div class="portal-stat-label">Hours This Month</div>
+      <div class="portal-stat-value" style="color:var(--green)">${d.approved_hours_mtd||0}</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--blue)">
+      <div class="portal-stat-label">Leave Balance</div>
+      <div class="portal-stat-value" style="color:var(--blue)">${d.leave_balance||0}</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--purple)">
+      <div class="portal-stat-label">Leaves Taken (YTD)</div>
+      <div class="portal-stat-value" style="color:var(--purple)">${d.leaves_taken||0}</div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="portal-card">
+      <div class="portal-card-title">⏱ Recent Timesheets
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="switchPortalTab('timesheets',document.getElementById('ptab-timesheets'))">View All</button>
+      </div>
+      ${(d.recent_timesheets&&d.recent_timesheets.length)?`<table><thead><tr><th>Week Ending</th><th>Hours</th><th>Status</th></tr></thead><tbody>${
+        d.recent_timesheets.map(t=>`<tr><td class="tmono">${fmt.date(t.week_ending)}</td><td class="tmono fw7">${t.total_hours}</td><td>${pill(t.status)}</td></tr>`).join('')
+      }</tbody></table>`:'<div class="empty" style="padding:20px 0"><div class="empty-title">No timesheets yet</div></div>'}
+      <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="showPortalTsForm()">+ Submit Timesheet</button></div>
+    </div>
+    <div class="portal-card">
+      <div class="portal-card-title">🏖 Recent Leaves
+        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="switchPortalTab('leaves',document.getElementById('ptab-leaves'))">View All</button>
+      </div>
+      ${(d.pending_leaves&&d.pending_leaves.length)?`<table><thead><tr><th>Type</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody>${
+        d.pending_leaves.map(l=>`<tr><td>${l.leave_type}</td><td class="tmono">${fmt.date(l.from_date)}</td><td class="tmono">${fmt.date(l.to_date)}</td><td><span class="leave-badge-${l.status}">${l.status}</span></td></tr>`).join('')
+      }</tbody></table>`:'<div class="empty" style="padding:20px 0"><div class="empty-title">No leaves this year</div></div>'}
+      <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()">+ Apply Leave</button></div>
+    </div>
+  </div>`;
+  setHtml('portal-content',html);
+}
+
+async function renderPortalProfile(){
+  const d=await apiFetch('/api/employee/profile');
+  if(!d){setHtml('portal-content','<div class="empty"><div class="empty-title">Profile not found</div></div>');return;}
+  // Split fields: HR-controlled (read only) vs self-editable
+  const html=`
+  <div class="portal-card">
+    <div class="portal-card-title">👤 Employee Information <span style="font-size:11px;color:var(--txt3);font-weight:400">(Managed by HR)</span></div>
+    <div class="g3">
+      ${[['Employee ID',d.emp_id],['Full Name',(d.first_name||'')+' '+(d.last_name||'')],['Job Title',d.job_title],
+         ['Department',d.department_name],['Employment Type',d.employment_type],['Status',d.status],
+         ['Start Date',fmt.date(d.start_date)],['Reporting Manager',d.reporting_manager_name]
+      ].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3);text-transform:uppercase;font-weight:600;margin-bottom:4px">${l}</div><div style="font-size:13px;color:var(--txt);font-weight:500">${v||'–'}</div></div>`).join('')}
+    </div>
+  </div>
+  <div class="portal-card">
+    <div class="portal-card-title">📞 Personal Details <span style="font-size:11px;color:var(--txt3);font-weight:400">(You can edit these)</span>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="savePortalProfile()">Save Changes</button>
+    </div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">Personal Email</label><input class="finput" id="pp-pemail" type="email" value="${d.personal_email||''}"></div>
+      <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" id="pp-pphone" value="${d.personal_phone||''}"></div>
+    </div>
+  </div>
+  <div class="portal-card">
+    <div class="portal-card-title">🏦 Bank Details <span style="font-size:11px;color:var(--txt3);font-weight:400">(Verify carefully)</span></div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">Account Name</label><input class="finput" id="pp-bname" value="${d.bank_account_name||''}"></div>
+      <div class="fg"><label class="flabel">Bank Name</label><input class="finput" id="pp-bank" value="${d.bank_name||''}"></div>
+      <div class="fg"><label class="flabel">Account Number</label><input class="finput" id="pp-bacct" value="${d.bank_account_number||''}"></div>
+      <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" id="pp-bifsc" value="${d.bank_ifsc||''}"></div>
+    </div>
+  </div>
+  <div class="portal-card">
+    <div class="portal-card-title">📋 Statutory IDs</div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">PAN</label><input class="finput" id="pp-pan" value="${d.pan||''}"></div>
+      <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" id="pp-aadh" value="${d.aadhaar||''}"></div>
+      <div class="fg"><label class="flabel">Passport</label><input class="finput" id="pp-pass" value="${d.passport_number||''}"></div>
+      <div class="fg"><label class="flabel">PF Number</label><input class="finput" id="pp-pf" value="${d.pf_number||''}"></div>
+    </div>
+  </div>`;
+  setHtml('portal-content',html);
+}
+
+async function savePortalProfile(){
+  const g2=id=>document.getElementById(id)?.value;
+  const data={
+    personal_email:g2('pp-pemail'), personal_phone:g2('pp-pphone'),
+    bank_account_name:g2('pp-bname'), bank_name:g2('pp-bank'),
+    bank_account_number:g2('pp-bacct'), bank_ifsc:g2('pp-bifsc'),
+    pan:g2('pp-pan'), aadhaar:g2('pp-aadh'),
+    passport_number:g2('pp-pass'), pf_number:g2('pp-pf'),
+  };
+  try{
+    await apiFetch('/api/employee/profile',{method:'PUT',body:JSON.stringify(data)});
+    toast('Profile updated!','success');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function renderPortalTimesheets(){
+  const rows2=await apiFetch('/api/timesheets')||[];
+  const html=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-size:18px;font-weight:700">My Timesheets</div>
+    <button class="btn btn-primary" onclick="showPortalTsForm()">+ Submit Timesheet</button>
+  </div>
+  <div id="portal-ts-form"></div>
+  ${rows2.length?`<table><thead><tr><th>Week Ending</th><th>Project/Client</th><th>Reg Hrs</th><th>OT Hrs</th><th>Total</th><th>Status</th><th>Notes</th></tr></thead><tbody>${
+    rows2.map(t=>`<tr>
+      <td class="tmono">${fmt.date(t.week_ending)}</td>
+      <td>${t.client_name||t.project||'–'}</td>
+      <td class="tmono">${t.regular_hours}</td>
+      <td class="tmono">${t.overtime_hours}</td>
+      <td class="tmono fw7">${t.total_hours}</td>
+      <td>${pill(t.status||'Pending')}</td>
+      <td style="font-size:11px;color:${t.status==='Returned'?'var(--red)':'var(--txt3)'}">${t.notes||'–'}</td>
+    </tr>`).join('')
+  }</tbody></table>`:'<div class="empty" style="margin-top:24px"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets submitted yet</div></div>'}`;
+  setHtml('portal-content',html);
+}
+
+function showPortalTsForm(){
+  const clients=(_masters['_clients']||[]);
+  const cOpts='<option value="">Internal / No Client</option>'+clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  apiFetch('/api/lookup/clients').then(r=>{
+    _masters['_clients']=r||[];
+    const sel=document.getElementById('pts-client');
+    if(sel) sel.innerHTML='<option value="">Internal / No Client</option>'+(r||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  });
+  const formHtml=`<div class="portal-card" style="border:2px solid var(--green);margin-bottom:16px">
+    <div class="portal-card-title">📝 Submit New Timesheet</div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" id="pts-date" required></div>
+      <div class="fg"><label class="flabel">Client</label><select class="fselect" id="pts-client">${cOpts}</select></div>
+    </div>
+    <div class="fg"><label class="flabel">Project / Assignment</label><input class="finput" id="pts-project" placeholder="Project name or task description"></div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" id="pts-reg" min="0" max="80" step="0.5" value="40"></div>
+      <div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" id="pts-ot" min="0" max="40" step="0.5" value="0"></div>
+    </div>
+    <div class="fg"><label class="flabel">Notes for Manager</label><textarea class="ftextarea" id="pts-notes" rows="2" placeholder="Any notes or comments for your reporting manager…"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" onclick="submitPortalTs()">Submit Timesheet</button>
+      <button class="btn btn-ghost" onclick="renderPortalTab('timesheets')">Cancel</button>
+    </div>
+  </div>`;
+  const el=document.getElementById('portal-ts-form');
+  if(el) el.innerHTML=formHtml;
+  else{
+    const c=document.getElementById('portal-content');
+    if(c) c.innerHTML=formHtml+(c.innerHTML||'');
+  }
+}
+
+async function submitPortalTs(){
+  const d=document.getElementById('pts-date')?.value;
+  const reg=parseFloat(document.getElementById('pts-reg')?.value||0);
+  if(!d){toast('Please select a week ending date','error');return;}
+  if(!reg){toast('Please enter regular hours','error');return;}
+  try{
+    await apiFetch('/api/timesheets',{method:'POST',body:JSON.stringify({
+      week_ending:d,
+      client_id:parseInt(document.getElementById('pts-client')?.value)||null,
+      project:document.getElementById('pts-project')?.value,
+      regular_hours:reg,
+      overtime_hours:parseFloat(document.getElementById('pts-ot')?.value||0),
+      notes:document.getElementById('pts-notes')?.value,
+    })});
+    toast('Timesheet submitted!','success');
+    // Refresh dashboard data
+    apiFetch('/api/employee/dashboard').then(r=>{_portalEmpData=r;});
+    renderPortalTab('timesheets');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function renderPortalLeaves(){
+  const leaves=await apiFetch('/api/employee/leaves')||[];
+  const html=`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div style="font-size:18px;font-weight:700">My Leaves</div>
+    <button class="btn btn-primary" onclick="showPortalLeaveForm()">+ Apply Leave</button>
+  </div>
+  <div id="portal-leave-form"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+    <div class="portal-stat" style="border-top:3px solid var(--green)">
+      <div class="portal-stat-label">Leave Balance</div>
+      <div class="portal-stat-value" style="color:var(--green)">${_portalEmpData?.leave_balance||0} days</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--amber)">
+      <div class="portal-stat-label">Pending Requests</div>
+      <div class="portal-stat-value" style="color:var(--amber)">${leaves.filter(l=>l.status==='Pending').length}</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--blue)">
+      <div class="portal-stat-label">Approved This Year</div>
+      <div class="portal-stat-value" style="color:var(--blue)">${leaves.filter(l=>l.status==='Approved').length}</div>
+    </div>
+  </div>
+  ${leaves.length?`<table><thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th><th>Remarks</th></tr></thead><tbody>${
+    leaves.map(l=>`<tr>
+      <td>${pill(l.leave_type,'p-blue')}</td>
+      <td class="tmono">${fmt.date(l.from_date)}</td>
+      <td class="tmono">${fmt.date(l.to_date)}</td>
+      <td class="tmono fw7">${l.days}</td>
+      <td style="font-size:12px">${l.reason||'–'}</td>
+      <td><span class="leave-badge-${l.status}">${l.status}</span></td>
+      <td style="font-size:11px;color:var(--red)">${l.rejection_reason||''}</td>
+    </tr>`).join('')
+  }</tbody></table>`:'<div class="empty" style="margin-top:24px"><div class="empty-icon">🏖</div><div class="empty-title">No leave requests yet</div></div>'}`;
+  setHtml('portal-content',html);
+}
+
+function showPortalLeaveForm(){
+  const formHtml=`<div class="portal-card" style="border:2px solid var(--blue);margin-bottom:16px">
+    <div class="portal-card-title">🏖 Apply for Leave</div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">Leave Type</label>
+        <select class="fselect" id="pl-type">
+          <option value="Casual">Casual Leave</option>
+          <option value="Sick">Sick Leave</option>
+          <option value="Annual">Annual Leave</option>
+          <option value="Maternity">Maternity Leave</option>
+          <option value="Paternity">Paternity Leave</option>
+          <option value="Other">Other</option>
+        </select></div>
+      <div></div>
+    </div>
+    <div class="g2">
+      <div class="fg"><label class="flabel">From Date *</label><input class="finput" type="date" id="pl-from" required></div>
+      <div class="fg"><label class="flabel">To Date *</label><input class="finput" type="date" id="pl-to" required></div>
+    </div>
+    <div class="fg"><label class="flabel">Reason</label>
+      <textarea class="ftextarea" id="pl-reason" rows="2" placeholder="Brief reason for leave…"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn btn-primary" onclick="submitPortalLeave()">Apply Leave</button>
+      <button class="btn btn-ghost" onclick="renderPortalTab('leaves')">Cancel</button>
+    </div>
+  </div>`;
+  const el=document.getElementById('portal-leave-form');
+  if(el) el.innerHTML=formHtml;
+}
+
+async function submitPortalLeave(){
+  const from=document.getElementById('pl-from')?.value;
+  const to=document.getElementById('pl-to')?.value;
+  if(!from||!to){toast('Please select from and to dates','error');return;}
+  if(to<from){toast('To date must be after from date','error');return;}
+  try{
+    await apiFetch('/api/employee/leaves',{method:'POST',body:JSON.stringify({
+      leave_type:document.getElementById('pl-type')?.value,
+      from_date:from, to_date:to,
+      reason:document.getElementById('pl-reason')?.value,
+    })});
+    toast('Leave request submitted!','success');
+    apiFetch('/api/employee/dashboard').then(r=>{_portalEmpData=r;});
+    renderPortalTab('leaves');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function renderPortalTeam(){
+  const [team,pending]=await Promise.all([
+    apiFetch('/api/manager/team'),
+    apiFetch('/api/manager/timesheets?status=Pending'),
+  ]);
+  const pendingLeaves=await apiFetch('/api/manager/leaves').then(r=>(r||[]).filter(l=>l.status==='Pending'));
+  const html=`
+  <div style="font-size:18px;font-weight:700;margin-bottom:20px">👥 My Team</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+    <div class="portal-stat" style="border-top:3px solid var(--green)">
+      <div class="portal-stat-label">Direct Reports</div>
+      <div class="portal-stat-value">${(team||[]).length}</div>
+    </div>
+    <div class="portal-stat" style="border-top:3px solid var(--amber)">
+      <div class="portal-stat-label">Pending Timesheets</div>
+      <div class="portal-stat-value" style="color:var(--amber)">${(pending||[]).length}</div>
+    </div>
+  </div>
+
+  ${(pending&&pending.length)?`<div class="portal-card">
+    <div class="portal-card-title">⏱ Pending Timesheet Approvals</div>
+    <table><thead><tr><th>Employee</th><th>Week Ending</th><th>Hours</th><th>Project</th><th>Notes</th><th>Actions</th></tr></thead><tbody>${
+      pending.map(t=>`<tr>
+        <td>${avFull(t.employee_name,t.emp_id)}</td>
+        <td class="tmono">${fmt.date(t.week_ending)}</td>
+        <td class="tmono fw7">${t.total_hours}</td>
+        <td>${t.project||t.client_name||'–'}</td>
+        <td style="font-size:11px">${t.notes||'–'}</td>
+        <td><div class="tact">
+          <button class="btn btn-primary btn-xs" onclick="approveTs(${t.id},'Approved')">✓ Approve</button>
+          <button class="btn btn-warning btn-xs" onclick="promptReturnTs(${t.id})">↩ Return</button>
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>
+  </div>`:'<div class="portal-card" style="text-align:center;color:var(--txt3);padding:32px">No pending timesheet approvals 🎉</div>'}
+
+  ${(pendingLeaves&&pendingLeaves.length)?`<div class="portal-card">
+    <div class="portal-card-title">🏖 Pending Leave Requests</div>
+    <table><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Actions</th></tr></thead><tbody>${
+      pendingLeaves.map(l=>`<tr>
+        <td>${avFull(l.employee_name,l.emp_id)}</td>
+        <td>${l.leave_type}</td>
+        <td class="tmono">${fmt.date(l.from_date)}</td>
+        <td class="tmono">${fmt.date(l.to_date)}</td>
+        <td class="tmono fw7">${l.days}</td>
+        <td style="font-size:12px">${l.reason||'–'}</td>
+        <td><div class="tact">
+          <button class="btn btn-primary btn-xs" onclick="approveLeave(${l.id},'Approved')">✓ Approve</button>
+          <button class="btn btn-danger btn-xs" onclick="promptRejectLeave(${l.id})">✗ Reject</button>
+        </div></td>
+      </tr>`).join('')
+    }</tbody></table>
+  </div>`:''}
+
+  <div class="portal-card">
+    <div class="portal-card-title">👥 Team Members</div>
+    <table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Type</th><th>Status</th></tr></thead><tbody>${
+      (team||[]).map(e=>`<tr>
+        <td>${avFull((e.first_name||'')+' '+(e.last_name||''),e.emp_id)}</td>
+        <td>${e.job_title||'–'}</td>
+        <td>${e.department_name||'–'}</td>
+        <td>${pill(e.employment_type||'–')}</td>
+        <td>${pill(e.status||'Active')}</td>
+      </tr>`).join('')
+    }</tbody></table>
+  </div>`;
+  setHtml('portal-content',html);
+}
+
+async function approveTs(id,status){
+  try{
+    await apiFetch('/api/timesheets/'+id,{method:'PUT',body:JSON.stringify({status})});
+    toast(status==='Approved'?'Timesheet approved!':'Timesheet returned','success');
+    renderPortalTab('team');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+function promptReturnTs(id){
+  const reason=prompt('Return reason (will be shown to employee):');
+  if(reason===null) return;
+  apiFetch('/api/timesheets/'+id,{method:'PUT',body:JSON.stringify({status:'Returned',notes:reason})})
+    .then(()=>{toast('Timesheet returned','success');renderPortalTab('team');})
+    .catch(e=>toast('Error: '+e.message,'error'));
+}
+
+async function approveLeave(id,status){
+  try{
+    await apiFetch('/api/employee/leaves/'+id,{method:'PUT',body:JSON.stringify({status})});
+    toast(status==='Approved'?'Leave approved!':'Leave rejected','success');
+    renderPortalTab('team');
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+function promptRejectLeave(id){
+  const reason=prompt('Rejection reason:');
+  if(reason===null) return;
+  apiFetch('/api/employee/leaves/'+id,{method:'PUT',body:JSON.stringify({status:'Rejected',rejection_reason:reason})})
+    .then(()=>{toast('Leave rejected','success');renderPortalTab('team');})
+    .catch(e=>toast('Error: '+e.message,'error'));
+}
+
 
 // ═══════════════════════════════════════════════════
 // INIT
