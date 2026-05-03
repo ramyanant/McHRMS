@@ -2305,7 +2305,12 @@ def employee_self_profile():
     uid = g.user.get('employee_id')
     if not uid:
         user_email = g.user.get('email','')
-        emp = row1("SELECT id FROM employees WHERE email=%s AND status='Active'",(user_email,))
+        emp = row1("SELECT id FROM employees WHERE (email=%s OR personal_email=%s) AND status='Active'",(user_email,user_email))
+        if not emp:
+            # Try username as email prefix match
+            uname = g.user.get('username','')
+            if uname and '@' not in uname:
+                emp = row1("SELECT id FROM employees WHERE email LIKE %s",( uname+'@%',))
         if emp:
             uid = emp['id']
             try:
@@ -2490,12 +2495,51 @@ def admin_link_employees():
     linked = 0
     users = rows("SELECT id,email FROM users WHERE employee_id IS NULL AND email IS NOT NULL")
     for u in users:
-        emp = row1("SELECT id FROM employees WHERE email=%s",(u['email'],))
+        emp = row1("SELECT id FROM employees WHERE email=%s OR personal_email=%s",(u['email'],u['email']))
+        if not emp:
+            # Try matching by username as email prefix
+            uname = u.get('username','')
+            if '@' not in uname:
+                emp = row1("SELECT id FROM employees WHERE email LIKE %s",(uname+'@%',))
         if emp:
             _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(emp['id'],u['id']))
             linked += 1
     get_db().commit()
     return ok({'linked': linked}, f"Linked {linked} users to employee records")
+
+
+@app.route('/api/admin/users-debug', methods=['GET'])
+@require_auth  
+def users_debug():
+    if g.user.get('role_name') != 'Admin': return err("Admin only",403)
+    result = rows("""SELECT u.id,u.username,u.email,u.employee_id,u.full_name,
+        r.name as role_name,
+        e.first_name||' '||e.last_name as emp_name,
+        e.email as emp_email
+        FROM users u 
+        JOIN master_user_roles r ON r.id=u.role_id
+        LEFT JOIN employees e ON e.id=u.employee_id
+        ORDER BY u.id""")
+    return ok(result)
+
+@app.route('/api/admin/fix-user-link/<int:uid>', methods=['POST'])
+@require_auth
+def fix_user_link(uid):
+    """Manually link a user to an employee record by employee_id"""
+    if g.user.get('role_name') != 'Admin': return err("Admin only",403)
+    d = request.get_json()
+    emp_id = d.get('employee_id')
+    if not emp_id:
+        # Try auto-link by email
+        u = row1("SELECT email FROM users WHERE id=%s",(uid,))
+        if u:
+            emp = row1("SELECT id FROM employees WHERE email=%s OR personal_email=%s",
+                      (u['email'],u['email']))
+            if emp: emp_id = emp['id']
+    if not emp_id: return err("Could not find matching employee")
+    _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(emp_id,uid))
+    get_db().commit()
+    return ok(msg="User linked to employee")
 
 
 if __name__ == '__main__':
