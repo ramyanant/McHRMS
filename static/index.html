@@ -46,10 +46,17 @@ button{font-family:var(--font);cursor:pointer}input,select,textarea{font-family:
 .nbadge{margin-left:auto;background:var(--green);color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:10px;font-family:var(--mono)}
 .sfooter{border-top:1px solid var(--bdr);padding:10px 14px;display:flex;align-items:center;gap:9px;flex-shrink:0}
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.topbar{height:var(--hh);background:var(--surface);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-.tb-title{font-size:15px;font-weight:700;color:var(--txt)}
-.tb-sep{color:var(--txt3);margin:0 4px}
-.tb-sub{font-size:12px;color:var(--txt2)}
+.topbar{height:var(--hh);background:var(--surface);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.tb-title{font-size:14px;font-weight:700;color:var(--txt);display:flex;align-items:center;gap:6px}
+.tb-sep{color:var(--txt3);font-size:11px;margin:0 2px;opacity:.6}
+.tb-sub{font-size:11.5px;color:var(--txt3);font-weight:400}
+/* Breadcrumb */
+.breadcrumb{display:flex;align-items:center;gap:4px;font-size:11.5px;color:var(--txt3)}
+.bc-item{color:var(--txt3);cursor:default}
+.bc-item.bc-link{color:var(--txt2);cursor:pointer}
+.bc-item.bc-link:hover{color:var(--green-dk)}
+.bc-item.bc-current{color:var(--txt);font-weight:600}
+.bc-sep{color:var(--bdr2);font-size:10px;margin:0 2px}
 .tb-right{margin-left:auto;display:flex;align-items:center;gap:8px}
 .search-wrap{position:relative}
 .search-wrap svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);pointer-events:none}
@@ -132,10 +139,10 @@ tbody tr:hover td{background:var(--green-lt)}
 .tl-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
 .tl-title{font-size:12.5px;font-weight:500;color:var(--txt)}
 .tl-meta{font-size:11px;color:var(--txt2);margin-top:2px}
-.tabs{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px;overflow-x:auto}
-.tab{padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .15s;white-space:nowrap;letter-spacing:.01em}
-.tab:hover{color:var(--charcoal);background:rgba(0,0,0,.03);border-radius:6px 6px 0 0}
-.tab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.06);border-radius:6px 6px 0 0}
+.tabs{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px;overflow-x:auto;gap:2px}
+.tab{padding:9px 16px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--txt3);border-bottom:2px solid transparent;margin-bottom:-2px;transition:color .12s,border-color .12s,background .12s;white-space:nowrap;letter-spacing:.01em;border-radius:6px 6px 0 0;user-select:none}
+.tab:hover{color:var(--txt);background:var(--s3)}
+.tab.active{color:var(--green-dk);border-bottom:2.5px solid var(--green);font-weight:700;background:rgba(45,143,62,.07)}
 .kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:8px}
 .kcol{min-width:215px;max-width:215px}
 .kcol-hd{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--s2);border-radius:var(--r) var(--r) 0 0;border:1px solid var(--bdr);border-bottom:none}
@@ -148,9 +155,10 @@ tbody tr:hover td{background:var(--green-lt)}
 .kc-meta{font-size:10.5px;color:var(--txt2);line-height:1.5}
 .kc-tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
 .fg{margin-bottom:14px}
-.flabel{display:block;font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
-.finput,.fselect,.ftextarea{width:100%;background:var(--surface);border:1px solid var(--bdr2);border-radius:var(--r);padding:8px 11px;font-size:12.5px;color:var(--txt);outline:none;transition:all .15s}
+.flabel{display:block;font-size:10px;font-weight:700;color:var(--txt3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.7px}
+.finput,.fselect,.ftextarea{width:100%;background:var(--surface);border:1.5px solid var(--bdr2);border-radius:var(--r);padding:8px 11px;font-size:12.5px;color:var(--txt);outline:none;transition:border-color .15s,box-shadow .15s}
 .finput:focus,.fselect:focus,.ftextarea:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim)}
+.finput:hover:not(:focus),.fselect:hover:not(:focus){border-color:var(--bdr3)}
 .fselect option{background:var(--surface)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .frow3{grid-template-columns:1fr 1fr 1fr}
@@ -186,14 +194,27 @@ tbody tr:hover td{background:var(--green-lt)}
 .lbtn{width:100%;padding:10px;background:var(--green);color:#fff;border:none;border-radius:var(--r);font-size:13px;font-weight:600;cursor:pointer;transition:background .12s;margin-top:4px}
 .lbtn:hover{background:var(--green-dk)}
 .lfoot{text-align:center;padding:12px;font-size:11px;color:var(--txt3);border-top:1px solid var(--bdr)}
-/* Org Profile editable sections */
+/* Org Profile */
+/* Client / Vendor in-page detail */
+.detail-action-bar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;padding:10px 14px;background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .org-section{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);margin-bottom:14px;overflow:hidden}
 .org-section-title{background:var(--s2);padding:10px 16px;border-bottom:1px solid var(--bdr);font-size:12px;font-weight:600;color:var(--txt);display:flex;align-items:center;justify-content:space-between}
 .org-section-body{padding:16px}
-.org-field{display:flex;flex-direction:column;margin-bottom:12px}
-.org-field-label{font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
-.org-field-value{font-size:13px;color:var(--txt);font-weight:500}
-.org-field-value.empty{color:var(--txt3);font-style:italic}
+.org-field{display:flex;flex-direction:column;margin-bottom:14px}
+.org-field-label{font-size:9.5px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+.org-field-value{font-size:13px;color:var(--txt);font-weight:500;line-height:1.4}
+.org-field-value.empty{color:var(--txt3);font-style:italic;font-weight:400}
+/* Org tab bar */
+.org-tab-bar{display:flex;border-bottom:2px solid var(--bdr);overflow-x:auto;background:linear-gradient(to bottom,var(--s2),var(--surface));border-radius:var(--rl) var(--rl) 0 0;padding:0 4px;gap:1px}
+.org-tab{display:flex;align-items:center;gap:6px;padding:11px 15px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt3);border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:color .12s,border-color .12s,background .12s;white-space:nowrap;border-radius:6px 6px 0 0;user-select:none}
+.org-tab:hover{color:var(--txt);background:rgba(0,0,0,.035)}
+.org-tab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.08)}
+.org-tab .tab-icon{font-size:14px;line-height:1}
+/* Field validation */
+.field-err{font-size:10.5px;color:var(--red);margin-top:3px;display:flex;align-items:center;gap:4px}
+/* Completeness */
+.completeness-bar{height:6px;background:var(--s3);border-radius:3px;overflow:hidden}
+.completeness-fill{height:100%;border-radius:3px;transition:width .6s cubic-bezier(.4,0,.2,1)}
 /* Utils */
 .fb{display:flex;align-items:center;justify-content:space-between}
 .fc{display:flex;align-items:center}
@@ -221,9 +242,9 @@ tbody tr:hover td{background:var(--green-lt)}
 .profile-hd{padding:16px 20px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;background:var(--s2);position:sticky;top:0;z-index:1}
 .profile-body{padding:20px}
 .ptab{display:flex;border-bottom:2px solid var(--bdr);margin-bottom:16px}
-.portal-tab{padding:14px 20px;font-size:13px;font-weight:600;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;transition:all .15s;white-space:nowrap}
-.portal-tab:hover{color:var(--txt);background:var(--s2)}
-.portal-tab.active{color:var(--green-dk);border-bottom-color:var(--green);background:rgba(45,143,62,.06)}
+.portal-tab{padding:11px 18px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--txt3);border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:color .12s,border-color .12s,background .12s;white-space:nowrap;border-radius:6px 6px 0 0;user-select:none}
+.portal-tab:hover{color:var(--txt);background:var(--s3)}
+.portal-tab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.07)}
 .portal-card{background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;margin-bottom:16px}
 .portal-card-title{font-size:14px;font-weight:700;color:var(--txt);margin-bottom:14px;display:flex;align-items:center;gap:8px}
 .portal-stat{background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:16px 20px;text-align:center}
@@ -232,8 +253,8 @@ tbody tr:hover td{background:var(--green-lt)}
 .leave-badge-Pending{background:#fff3cd;color:#856404;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
 .leave-badge-Approved{background:#d1e7dd;color:#0f5132;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
 .leave-badge-Rejected{background:#f8d7da;color:#842029;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
-.ptab-item{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap}
-.ptab-item:hover{color:var(--charcoal)}.ptab-item.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:600}
+.ptab-item{padding:8px 14px;font-size:11.5px;font-weight:500;cursor:pointer;color:var(--txt3);border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:color .12s,border-color .12s;white-space:nowrap;border-radius:4px 4px 0 0;user-select:none}
+.ptab-item:hover{color:var(--txt);background:var(--s3)}.ptab-item.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.06)}
 .payslip-modal{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:24px;max-width:680px;margin:0 auto}
 
 /* ═══════════════════════════════════════
@@ -247,18 +268,18 @@ tbody tr:hover td{background:var(--green-lt)}
 .mob-overlay.open{display:block}
 
 /* Tabbed modal system */
-.mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 20px;overflow-x:auto;background:var(--s2);flex-shrink:0;overflow-x:auto;flex-wrap:nowrap}
-.mtab{padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;color:var(--txt2);border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
-.mtab:hover{color:var(--charcoal);background:rgba(0,0,0,.04)}
-.mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.08);border-radius:6px 6px 0 0}
+.mtabs{display:flex;border-bottom:2px solid var(--bdr);margin:-20px -20px 20px;padding:0 16px;overflow-x:auto;background:var(--s2);flex-shrink:0;flex-wrap:nowrap;gap:2px}
+.mtab{padding:10px 14px;font-size:11.5px;font-weight:500;cursor:pointer;color:var(--txt3);border-bottom:2.5px solid transparent;margin-bottom:-2px;transition:color .12s,border-color .12s,background .12s;white-space:nowrap;display:flex;align-items:center;gap:5px;border-radius:6px 6px 0 0;user-select:none}
+.mtab:hover{color:var(--txt);background:var(--s3)}
+.mtab.active{color:var(--green-dk);border-bottom-color:var(--green);font-weight:700;background:rgba(45,143,62,.07)}
 .mtab-panel{display:none}.mtab-panel.active{display:block}
 .mtab-badge{background:var(--green);color:#fff;font-size:9px;padding:1px 5px;border-radius:8px;font-family:var(--mono)}
 
 /* Section headers inside forms */
-.fsec{margin:-4px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:8px}
-.fsec-icon{width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;background:var(--green-lt);flex-shrink:0}
-.fsec-title{font-size:13px;font-weight:700;color:var(--txt)}
-.fsec-sub{font-size:11px;color:var(--txt2);margin-top:1px}
+.fsec{margin:0 0 18px;padding-bottom:12px;border-bottom:1px solid var(--bdr);display:flex;align-items:flex-start;gap:10px}
+.fsec-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;background:var(--green-lt);flex-shrink:0;margin-top:1px}
+.fsec-title{font-size:13px;font-weight:700;color:var(--txt);line-height:1.3}
+.fsec-sub{font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.4}
 
 /* Wider modal for tabbed forms */
 .modal-lg{width:780px}
@@ -503,10 +524,10 @@ tbody tr:hover td{background:var(--green-lt)}
   <button class="mob-toggle" onclick="toggleSidebar()" aria-label="Menu">
     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
   </button>
-    <div>
-      <span style="font-size:15px;font-weight:700;color:var(--txt)" id="tb-title">Dashboard</span>
-      <span style="color:var(--txt3);margin:0 4px">·</span>
-      <span style="font-size:12px;color:var(--txt2)" id="tb-sub">Executive Overview</span>
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="bc-item bc-current" id="tb-title">Dashboard</span>
+      <span class="bc-sep" id="bc-sep" style="display:none">›</span>
+      <span class="bc-item bc-current" id="tb-sub" style="display:none"></span>
     </div>
     <div class="tb-right">
       <div class="search-wrap">
@@ -546,12 +567,27 @@ tbody tr:hover td{background:var(--green-lt)}
 
 <!-- ORG PROFILE -->
 <div id="mod-org-profile" class="mod">
-  <div class="hero">
-    <div class="hero-icon" style="background:var(--green-lt)">🏛️</div>
-    <div><div class="hero-title">Organisation Profile</div><div class="hero-desc">Legal details, registered &amp; business addresses, tax registrations (PAN, CIN, TAN, GST), and banking information.</div></div>
-    <div class="hero-actions">
+  <!-- Header bar with completeness -->
+  <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+    <div style="width:42px;height:42px;border-radius:10px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏛️</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:16px;font-weight:700;color:var(--txt)">Organisation Profile</div>
+      <div style="font-size:11.5px;color:var(--txt2);margin-top:2px">Legal identity, addresses, tax registrations, banking &amp; compliance documents.</div>
+    </div>
+    <!-- Completeness indicator -->
+    <div id="org-completeness-wrap" style="flex-shrink:0;min-width:200px;display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.8px">Completeness</span>
+        <span id="org-complete-pct" style="font-size:14px;font-weight:800;font-family:var(--mono);color:var(--green-dk)">0%</span>
+      </div>
+      <div class="completeness-bar">
+        <div id="org-complete-bar" class="completeness-fill" style="width:0%"></div>
+      </div>
+      <div id="org-complete-hint" style="font-size:10px;color:var(--txt3);margin-top:5px;line-height:1.4"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-shrink:0">
       <button class="btn btn-ghost btn-sm" id="org-edit-btn" onclick="toggleOrgEdit()">✏️ Edit Profile</button>
-      <button class="btn btn-primary btn-sm" id="org-save-btn" style="display:none" onclick="saveOrgProfile()">Save Changes</button>
+      <button class="btn btn-primary btn-sm" id="org-save-btn" style="display:none" onclick="saveOrgProfile()">💾 Save Changes</button>
       <button class="btn btn-ghost btn-sm" id="org-cancel-btn" style="display:none" onclick="cancelOrgEdit()">Cancel</button>
     </div>
   </div>
@@ -583,18 +619,50 @@ tbody tr:hover td{background:var(--green-lt)}
 </div>
 
 <div id="mod-clients" class="mod">
-  <div class="hero"><div class="hero-icon" style="background:var(--blue-dim)">🤝</div><div><div class="hero-title">Clients</div><div class="hero-desc">Account management, contracts, billing rates, and relationship health scores.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-client')">+ Add Client</button></div></div>
-  <div class="kgrid k4" id="client-kpis"></div>
-  <div class="card"><div class="card-hd"><div class="card-title">Client Directory</div><div class="fc gap8">
-    <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="cl-status" onchange="loadClients()"><option value="">All Statuses</option><option>Active</option><option>At Risk</option></select>
-  </div></div><div class="tbl-wrap" id="client-tbl">Loading…</div></div>
+  <!-- LIST VIEW -->
+  <div id="cli-list-view">
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="width:42px;height:42px;border-radius:10px;background:var(--blue-dim);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🤝</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">Clients</div>
+        <div style="font-size:11.5px;color:var(--txt2);margin-top:2px">Account management · Contracts · Billing · SPOC</div>
+      </div>
+      <div class="fc gap8">
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="cl-type" onchange="loadClients()"><option value="">All Types</option><option>Direct</option><option>Vendor</option><option>Partner</option></select>
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="cl-status" onchange="loadClients()"><option value="">All Statuses</option><option>Active</option><option>At Risk</option><option>Inactive</option></select>
+        <input type="text" class="finput" style="width:160px;padding:5px 10px;font-size:11.5px" id="cl-search" placeholder="Search clients…" oninput="loadClients()">
+        <button class="btn btn-primary btn-sm" onclick="openClientForm()">+ Add Client</button>
+      </div>
+    </div>
+    <div class="kgrid k4" id="client-kpis"></div>
+    <div class="card"><div class="tbl-wrap" id="client-tbl">Loading…</div></div>
+  </div>
+  <!-- DETAIL VIEW (in-page, replaces list) -->
+  <div id="cli-detail-view" style="display:none"></div>
 </div>
 
 <!-- VENDORS -->
 <div id="mod-vendors" class="mod">
-  <div class="hero"><div class="hero-icon" style="background:var(--amber-dim)">📦</div><div><div class="hero-title">Vendors</div><div class="hero-desc">Sub-vendors, job boards, background check providers, and technology partners.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-vendor')">+ Add Vendor</button></div></div>
-  <div class="kgrid k4" id="vendor-kpis"></div>
-  <div class="card"><div class="card-hd"><div class="card-title">Vendor Registry</div></div><div class="tbl-wrap" id="vendor-tbl">Loading…</div></div>
+  <!-- LIST VIEW -->
+  <div id="vnd-list-view">
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="width:42px;height:42px;border-radius:10px;background:var(--amber-dim);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📦</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">Vendors</div>
+        <div style="font-size:11.5px;color:var(--txt2);margin-top:2px">Infrastructure · Staffing · Consulting · Payroll vendors</div>
+      </div>
+      <div class="fc gap8">
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="vnd-type" onchange="loadVendors()"><option value="">All Types</option><option>Infrastructure</option><option>Staffing</option><option>Consulting</option><option>Payroll</option><option>Technology</option><option>Other</option></select>
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="vnd-status" onchange="loadVendors()"><option value="">All Statuses</option><option>Active</option><option>Inactive</option></select>
+        <input type="text" class="finput" style="width:160px;padding:5px 10px;font-size:11.5px" id="vnd-search" placeholder="Search vendors…" oninput="loadVendors()">
+        <button class="btn btn-primary btn-sm" onclick="openVendorForm()">+ Add Vendor</button>
+      </div>
+    </div>
+    <div class="kgrid k4" id="vendor-kpis"></div>
+    <div class="card"><div class="tbl-wrap" id="vendor-tbl">Loading…</div></div>
+  </div>
+  <!-- DETAIL VIEW (in-page) -->
+  <div id="vnd-detail-view" style="display:none"></div>
 </div>
 
 <!-- EMPLOYEES -->
@@ -918,11 +986,15 @@ const pillMap={
   Active:'p-green',Approved:'p-green',Paid:'p-green',Compliant:'p-green',Placed:'p-green',
   Pending:'p-amber',Processing:'p-amber',Upcoming:'p-amber',Watch:'p-amber',Onboarding:'p-teal',
   High:'p-red','At Risk':'p-red',Overdue:'p-red',Breach:'p-red',Rejected:'p-red','SLA Breach':'p-red',
-  Medium:'p-amber',Normal:'p-gray',Draft:'p-gray',Scheduled:'p-gray','Not Started':'p-gray',
+  Medium:'p-amber',Normal:'p-gray',Draft:'p-gray',Scheduled:'p-gray','Not Started':'p-gray','On Hold':'p-gray',Inactive:'p-gray',
   Technical:'p-purple',Offer:'p-amber',Screening:'p-blue',Applied:'p-charcoal',
   'Staff Augmentation':'p-blue','Direct Hire':'p-purple','MSA':'p-teal','MSA + SOW':'p-teal',
   'Full-Time':'p-green','Contractor (C2C)':'p-amber','Contractor (W2)':'p-amber',Terminated:'p-gray',
   Admin:'p-purple','HR Manager':'p-blue',Recruiter:'p-teal',Finance:'p-amber',Employee:'p-green',Client:'p-charcoal',Vendor:'p-gray',
+  // Client types
+  Direct:'p-blue',Partner:'p-teal',
+  // Vendor types
+  Staffing:'p-amber',Infrastructure:'p-blue',Consulting:'p-teal',Payroll:'p-purple',Technology:'p-charcoal',Other:'p-gray',
 };
 function pill(t,def='p-gray'){return`<span class="pill ${pillMap[t]||def}">${t||'–'}</span>`;}
 function av(name,extra=''){return`<div class="avrow"><div class="av ${fmt.avCol(name)} ${extra}">${fmt.ini(name)}</div><div><div class="av-name">${name||'–'}</div></div></div>`;}
@@ -1084,22 +1156,24 @@ function masterOpts(key,valKey='name',labelKey='name',blank=''){
 // NAVIGATION
 // ═══════════════════════════════════════════════════
 const modCfg={
-  'dashboard':    {title:'Dashboard',         sub:'Executive Overview · Live Data'},
-  'org-profile':  {title:'Organisation Profile',sub:'McRaaN Consulting Pvt. Ltd.'},
-  'org-structure':{title:'Organisation',      sub:'Departments & Offices'},
-  'clients':      {title:'Clients',           sub:'Account Management'},
-  'vendors':      {title:'Vendors',           sub:'Vendor Registry'},
-  'employees':    {title:'Employees',         sub:'Employee Directory'},
-  'timesheets':   {title:'Timesheets',        sub:'Hours & Approvals'},
-  'payroll':      {title:'Payroll',           sub:'Processing & Compliance'},
-  'jobs':         {title:'Job Requisitions',  sub:'Open Positions'},
-  'sourcing':     {title:'Sourcing',          sub:'Talent Sourcing Analytics'},
-  'pipeline':     {title:'ATS Pipeline',      sub:'Candidate Tracking'},
-  'interviews':   {title:'Interviews',        sub:'Schedule & Scorecards'},
-  'onboarding':   {title:'Onboarding',        sub:'New Hire Workflows'},
-  'invoices':     {title:'Invoices & Billing',sub:'AR & Collections'},
-  'users':        {title:'Users & Access',    sub:'System Access Control'},
-  'reports':      {title:'Reports',           sub:'Live Analytics'},
+  'dashboard':    {title:'Dashboard',           sub:''},
+  'org-profile':  {title:'Organisation Profile',sub:'Identity · Addresses · Tax · Banking'},
+  'org-structure':{title:'Organisation',        sub:'Departments · Business Units · Offices'},
+  'clients':      {title:'Clients',             sub:'Account Management'},
+  'vendors':      {title:'Vendors',             sub:'Vendor Registry'},
+  'employees':    {title:'Employees',           sub:'People Directory'},
+  'timesheets':   {title:'Timesheets',          sub:'Hours & Approvals'},
+  'payroll':      {title:'Payroll',             sub:'Processing & Compliance'},
+  'jobs':         {title:'Job Requisitions',    sub:'Open Positions'},
+  'sourcing':     {title:'Sourcing',            sub:'Talent Pipeline Analytics'},
+  'pipeline':     {title:'ATS Pipeline',        sub:'Candidate Tracking'},
+  'interviews':   {title:'Interviews',          sub:'Schedule & Scorecards'},
+  'onboarding':   {title:'Onboarding',          sub:'New Hire Workflows'},
+  'invoices':     {title:'Invoices & Billing',  sub:'AR & Collections'},
+  'users':        {title:'Users & Access',      sub:'Roles & Permissions'},
+  'reports':      {title:'Reports',             sub:'Analytics & Exports'},
+  'bulk-upload':  {title:'Bulk Upload',         sub:'CSV Import'},
+  'emp-portal':   {title:'My Portal',           sub:'Profile · Timesheets · Leaves'},
 };
 
 function toggleSidebar(){
@@ -1156,7 +1230,15 @@ function nav(id){
   const mod=$('mod-'+id);if(mod)mod.classList.add('active');
   document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.mod===id));
   const cfg=modCfg[id]||{};
-  setHtml('tb-title',cfg.title||id);setHtml('tb-sub',cfg.sub||'');
+  // Update breadcrumb
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle){tbTitle.textContent=cfg.title||id;}
+  if(tbSub&&bcSep){
+    const sub=cfg.sub||'';
+    tbSub.textContent=sub;
+    tbSub.style.display=sub?'':'none';
+    bcSep.style.display=sub?'':'none';
+  }
   _curMod=id;
   if(window._isEmployee) setTimeout(()=>empPortalAfterNav(id),150);
   // Hide/show topbar Add New button based on module
@@ -1166,7 +1248,9 @@ function nav(id){
   const loaders={
     'dashboard':loadDashboard,
     'emp-portal':()=>loadEmployeePortal(),'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
-    'clients':loadClients,'vendors':loadVendors,'employees':loadEmployees,
+    'clients':()=>{closeClientDetail&&closeClientDetail();loadClients();},
+    'vendors':()=>{closeVendorDetail&&closeVendorDetail();loadVendors();},
+    'employees':loadEmployees,
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
@@ -1252,7 +1336,7 @@ async function loadDashboard(){
 // ORG PROFILE (editable)
 // ═══════════════════════════════════════════════════
 async function loadOrgProfile(){
-  setHtml('org-profile-content','<div style="padding:20px;color:var(--txt2)">Loading…</div>');
+  setHtml('org-profile-content','<div style="padding:40px;text-align:center;color:var(--txt3)"><div style="font-size:24px;margin-bottom:8px">⏳</div>Loading organisation profile…</div>');
   let org=null;
   try{
     const h={'Content-Type':'application/json'};
@@ -1260,275 +1344,521 @@ async function loadOrgProfile(){
     const r=await fetch('/api/organisation',{headers:h});
     const d=await r.json();
     if(d.success) org=d.data||{};
-    else { setHtml('org-profile-content','<div style="padding:20px;color:red">API error: '+( d.message||'unknown')+'</div>'); return; }
+    else{setHtml('org-profile-content','<div style="padding:20px;color:red">API error: '+(d.message||'unknown')+'</div>');return;}
   }catch(e){
-    setHtml('org-profile-content','<div style="padding:20px;color:red">Network error: '+e.message+'</div>'); return;
+    setHtml('org-profile-content','<div style="padding:20px;color:red">Network error: '+e.message+'</div>');return;
   }
   _orgData=org;
-  try{
-    renderOrgProfile(false);
-  }catch(renderErr){
-    setHtml('org-profile-content','<div style="padding:20px;color:red">Render error: '+renderErr.message+'<br><pre style="font-size:10px">'+renderErr.stack+'</pre></div>');
-  }
+  try{renderOrgProfile(false);}
+  catch(renderErr){setHtml('org-profile-content','<div style="padding:20px;color:red">Render error: '+renderErr.message+'</div>');}
+}
+
+// ── Completeness scoring ────────────────────────────────────
+function _orgCompletenessScore(d){
+  const fields=[
+    ['legal_name',10,'Legal Name'],['legal_structure',4,'Legal Structure'],['industry',4,'Industry'],['timezone',2,'Timezone'],['base_currency',2,'Currency'],['email',5,'Email'],['phone',5,'Phone'],
+    ['reg_address_line1',5,'Registered Address'],['reg_city',3,'Reg. City'],['reg_country_id',3,'Reg. Country'],
+    ['biz_address_line1',4,'Business Address'],
+    ['pan',8,'PAN'],['tan',5,'TAN'],['cin',5,'CIN'],
+    ['pf_number',5,'PF Number'],['esi_number',5,'ESI Number'],
+    ['poc_name',4,'Point of Contact'],['poc_email',3,'POC Email'],
+    ['incorporation_date',4,'Incorporation Date'],['website',3,'Website'],
+  ];
+  const subChecks=[
+    [d.bank_accounts&&d.bank_accounts.length>0,8,'Bank Account'],
+    [d.gst_registrations&&d.gst_registrations.length>0,8,'GST Registration'],
+    [d.documents&&d.documents.length>0,5,'Document'],
+  ];
+  let total=0,got=0,missing=[];
+  fields.forEach(([k,w,lbl])=>{total+=w;if(d[k]){got+=w;}else{missing.push(lbl);}});
+  subChecks.forEach(([ok,w,lbl])=>{total+=w;if(ok){got+=w;}else{missing.push(lbl);}});
+  return{pct:Math.round((got/total)*100),missing:missing.slice(0,3)};
+}
+
+function _updateOrgCompleteness(){
+  const d=_orgData||{};
+  const{pct,missing}=_orgCompletenessScore(d);
+  const wrap=$('org-completeness-wrap'),bar=$('org-complete-bar'),pctEl=$('org-complete-pct'),hint=$('org-complete-hint');
+  if(!wrap)return;
+  wrap.style.display='';
+  bar.style.width=pct+'%';
+  const color=pct>=80?'linear-gradient(90deg,var(--green),var(--green-md))':pct>=50?'linear-gradient(90deg,var(--amber),#e8960a)':'linear-gradient(90deg,var(--red),#e05a4b)';
+  bar.style.background=color;
+  pctEl.textContent=pct+'%';
+  pctEl.style.color=pct>=80?'var(--green-dk)':pct>=50?'var(--amber)':'var(--red)';
+  hint.textContent=missing.length?'Needs: '+missing.join(' · ')+(missing.length>=3?' …':''):'All key fields filled ✓';
+  hint.style.color=pct>=80?'var(--green-dk)':'var(--txt3)';
 }
 
 // ── Validation helpers ──────────────────────────────────────
-const validators = {
-  pan: v => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid PAN — format: AAAAA0000A',
-  cin: v => !v || /^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(v.toUpperCase()) ? '' : 'Invalid CIN — format: L12345AB1234ABC123456',
-  tan: v => !v || /^[A-Z]{4}[0-9]{5}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid TAN — format: ABCD01234E',
-  gstin: v => !v || /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid GSTIN — format: 36AAAAA0000A1Z5',
-  iec: v => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid IEC — format: AAGCI6265C (same as PAN format)',
-  pan_firm: v => !v || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase()) ? '' : 'Invalid PAN format',
-  ifsc: v => !v || /^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.toUpperCase()) ? '' : 'Invalid IFSC — format: HDFC0001234',
-  pincode: v => !v || /^[0-9]{6}$/.test(v) ? '' : 'Invalid PIN code — must be 6 digits',
-  phone: v => !v || /^[+]?[0-9\s\-()]{8,15}$/.test(v) ? '' : 'Invalid phone number',
-  email: v => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : 'Invalid email address',
-  pf: v => !v || /^[A-Z]{2}\/[A-Z]{3}\/[0-9]{7}\/[0-9]{3}\/[0-9]{7}$/.test(v.toUpperCase()) || v.length>=5 ? '' : 'Invalid PF number',
-  esi: v => !v || /^[0-9]{17}$/.test(v) ? '' : 'Invalid ESI number — must be 17 digits',
+const validators={
+  pan:v=>!v||/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase())?'':'Invalid PAN — format: AAAAA0000A',
+  cin:v=>!v||/^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/.test(v.toUpperCase())?'':'Invalid CIN — format: L12345AB1234ABC123456',
+  tan:v=>!v||/^[A-Z]{4}[0-9]{5}[A-Z]{1}$/.test(v.toUpperCase())?'':'Invalid TAN — format: ABCD01234E',
+  gstin:v=>!v||/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(v.toUpperCase())?'':'Invalid GSTIN — 36AAAAA0000A1Z5',
+  iec:v=>!v||/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(v.toUpperCase())?'':'Invalid IEC — same format as PAN',
+  ifsc:v=>!v||/^[A-Z]{4}0[A-Z0-9]{6}$/.test(v.toUpperCase())?'':'Invalid IFSC — format: HDFC0001234',
+  pincode:v=>!v||/^[0-9]{6}$/.test(v)?'':'Pincode must be 6 digits',
+  phone:v=>!v||/^[+]?[0-9\s\-()]{8,15}$/.test(v)?'':'Invalid phone number',
+  email:v=>!v||/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)?'':'Invalid email address',
+  pf:v=>!v||v.length>=5?'':'PF number too short',
+  esi:v=>!v||/^[0-9]{17}$/.test(v)?'':'ESI must be 17 digits',
+  url:v=>!v||/^https?:\/\/.+/.test(v)?'':'URL must start with http:// or https://',
 };
+const _validatorMap={pan:'pan',cin:'cin',tan:'tan',gstin:'gstin',iec_code:'iec',
+  pf_number:'pf',esi_number:'esi',ifsc_code:'ifsc',
+  reg_pincode:'pincode',biz_pincode:'pincode',
+  email:'email',poc_email:'email',contact_email:'email',
+  phone:'phone',poc_phone:'phone',website:'url'};
 
-function validateField(key, val) {
-  const map = {pan:'pan',cin:'cin',tan:'tan',gstin:'gstin',iec_code:'iec',
-                pf_number:'pf',esi_number:'esi',ifsc_code:'ifsc',
-                reg_pincode:'pincode',biz_pincode:'pincode',
-                email:'email',poc_email:'email',contact_email:'email'};
-  const v = map[key];
-  return v ? validators[v](val) : '';
+function validateField(key,val){
+  const v=_validatorMap[key];
+  return v&&validators[v]?validators[v](val):'';
 }
 
-function attachFieldValidation() {
-  document.querySelectorAll('#org-profile-content [data-key]').forEach(el => {
-    el.addEventListener('blur', function() {
-      const err = validateField(this.dataset.key, this.value);
-      let errEl = this.nextElementSibling;
-      if(errEl && errEl.classList.contains('field-err')) errEl.remove();
-      if(err) {
-        const e = document.createElement('div');
-        e.className='field-err';
-        e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
-        e.textContent='⚠ '+err;
-        this.after(e);
-        this.style.borderColor='var(--red)';
-      } else {
-        this.style.borderColor='';
-      }
-    });
-    // Uppercase certain fields
-    if(['pan','cin','tan','gstin','iec_code','ifsc_code'].includes(el.dataset.key)){
-      el.addEventListener('input',function(){this.value=this.value.toUpperCase();});
+function _setFieldError(el,err){
+  let errEl=el.nextElementSibling;
+  if(errEl&&errEl.classList.contains('field-err'))errEl.remove();
+  if(err){
+    const e=document.createElement('div');
+    e.className='field-err';
+    e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px;display:flex;align-items:center;gap:3px';
+    e.innerHTML='<span>⚠</span> '+err;
+    el.after(e);el.style.borderColor='var(--red)';el.style.boxShadow='0 0 0 3px rgba(192,57,43,.12)';
+  }else{el.style.borderColor='';el.style.boxShadow='';}
+}
+
+function _setFieldSuccess(el){
+  el.style.borderColor='var(--green)';el.style.boxShadow='0 0 0 3px var(--green-dim)';
+  setTimeout(()=>{el.style.borderColor='';el.style.boxShadow='';},1500);
+}
+
+function attachFieldValidation(){
+  const UC=['pan','cin','tan','gstin','iec_code','ifsc_code'];
+  document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{
+    const key=el.dataset.key;
+    if(UC.includes(key)){
+      el.addEventListener('input',function(){const p=this.selectionStart;this.value=this.value.toUpperCase();this.setSelectionRange(p,p);});
     }
+    el.addEventListener('blur',function(){
+      const err=validateField(this.dataset.key,this.value);
+      _setFieldError(this,err);
+      if(!err&&this.value)_setFieldSuccess(this);
+    });
+    el.addEventListener('input',function(){
+      let errEl=this.nextElementSibling;
+      if(errEl&&errEl.classList.contains('field-err')){errEl.remove();this.style.borderColor='';this.style.boxShadow='';}
+    });
   });
 }
+
+let _orgCurrentTab='general';
 
 function renderOrgProfile(editMode){
   _orgEditMode=editMode;
   $('org-edit-btn').style.display=editMode?'none':'';
   $('org-save-btn').style.display=editMode?'':'none';
   $('org-cancel-btn').style.display=editMode?'':'none';
-  const d=_orgData;
+  const d=_orgData||{};
+  _updateOrgCompleteness();
 
-  const fi=(key,label,type,placeholder,hint)=>{
-    type=type||'text';placeholder=placeholder||'';hint=hint||'';
+  const _parseDate=v=>{
+    if(!v)return'';const s=String(v);
+    if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
+    try{const dt=new Date(s);if(!isNaN(dt))return dt.toISOString().substring(0,10);}catch(e){}return'';
+  };
+
+  const fi=(key,label,type,placeholder,required)=>{
+    type=type||'text';placeholder=placeholder||label;
     const raw=d[key];
-    // For date inputs: value must be YYYY-MM-DD format; display must be human-readable
-    // Parse date robustly - handle ISO "2022-04-20", datetime "2022-04-20 00:00:00", 
-    // or legacy "Wed, 20 Apr 2022 00:00:00 GMT" formats
-    const _parseDate=(v)=>{if(!v)return '';const s=String(v);
-      if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.substring(0,10);
-      try{const d=new Date(s);if(!isNaN(d))return d.toISOString().substring(0,10);}catch(e){}return '';};
     const inputVal=type==='date'?_parseDate(raw):(raw||'');
     const display=type==='date'&&raw?fmt.date(raw):(raw||'—');
-    if(editMode) return '<div class="fg"><label class="flabel">'+label+'</label><input class="finput" data-key="'+key+'" type="'+type+'" value="'+inputVal+'" placeholder="'+placeholder+'"><div class="field-hint">'+hint+'</div></div>';
-    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value '+(raw?'':'empty')+'">'+ display+'</div></div>';
-  };
-  const frow=function(){
-    var items=Array.prototype.slice.call(arguments);
-    return '<div class="frow'+(items.length===3?' frow3':'')+'">'+items.join('')+'</div>';
-  };
-  const fselect=(key,label,options)=>{
-    options=options||[];
-    const val=d[key];
+    const reqMark=required?'<span style="color:var(--red);margin-left:2px">*</span>':'';
     if(editMode){
-      var opts='<option value="">Select…</option>';
-      options.forEach(function(o){opts+='<option value="'+o.id+'"'+(o.id==val?' selected':'')+'>'+o.name+'</option>';});
-      return '<div class="fg"><label class="flabel">'+label+'</label><select class="fselect" data-key="'+key+'">'+opts+'</select></div>';
+      return`<div class="fg"><label class="flabel">${label}${reqMark}</label><input class="finput" data-key="${key}" type="${type}" value="${inputVal.toString().replace(/"/g,'&quot;')}" placeholder="${placeholder}"></div>`;
     }
-    var found=options.find(function(o){return o.id==val;});
-    return '<div class="org-field"><div class="org-field-label">'+label+'</div><div class="org-field-value">'+( found?found.name:'—')+'</div></div>';
+    const isEmpty=!raw;
+    return`<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value${isEmpty?' empty':''}" style="${isEmpty?'color:var(--txt3);font-style:italic':''}'">${display}</div></div>`;
   };
+  const frow=(...items)=>`<div class="frow${items.length===3?' frow3':''}">${items.join('')}</div>`;
+  const fselect=(key,label,options,required)=>{
+    options=options||[];const val=d[key];
+    const reqMark=required?'<span style="color:var(--red);margin-left:2px">*</span>':'';
+    if(editMode){
+      let opts='<option value="">Select…</option>';
+      options.forEach(o=>{opts+=`<option value="${o.id}"${o.id==val?' selected':''}>${o.name}</option>`;});
+      return`<div class="fg"><label class="flabel">${label}${reqMark}</label><select class="fselect" data-key="${key}">${opts}</select></div>`;
+    }
+    const found=options.find(o=>o.id==val);
+    return`<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value${found?'':' empty'}">${found?found.name:'—'}</div></div>`;
+  };
+  const fsec=(icon,title,sub)=>`<div class="fsec" style="margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--bdr)"><div class="fsec-icon">${icon}</div><div><div class="fsec-title">${title}</div>${sub?`<div class="fsec-sub">${sub}</div>`:''}</div></div>`;
+
   const _states=_masters['states']||[];
   const _countries=_masters['countries']||[];
 
-  // Pre-build table rows
-  var bankRows='';
-  (d.bank_accounts||[]).forEach(function(b){
-    bankRows+='<tr><td class="tbold">'+(b.account_name||'')+'</td><td>'+(b.bank_name||'')+'</td><td>'+(b.branch||'–')+'</td>'+
-      '<td class="tmono">'+(b.account_number||'')+'</td><td class="tmono">'+(b.ifsc_code||'–')+'</td>'+
-      '<td>'+(b.account_type||'Current')+'</td><td>'+(b.currency||'INR')+'</td>'+
-      '<td>'+(b.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" onclick="editBank('+b.id+')">Edit</button> '+
-      '<button class="btn btn-danger btn-xs" onclick="removeBank('+b.id+')">Remove</button></td></tr>';
-  });
-  if(!bankRows) bankRows='<tr><td colspan="9" style="text-align:center;padding:16px;color:var(--txt2)">No bank accounts added</td></tr>';
+  // ── Table rows ──────────────────────────────────────────
+  const bankRows=(d.bank_accounts||[]).map(b=>`<tr>
+    <td><div class="av-name">${b.account_name||''}</div><div class="av-meta">${b.account_type||'Current'}</div></td>
+    <td>${b.bank_name||''}${b.branch?`<div class="av-meta">${b.branch}</div>`:''}</td>
+    <td class="tmono">${b.account_number||''}</td>
+    <td class="tmono">${b.ifsc_code||'–'}</td>
+    <td>${b.currency||'INR'}</td>
+    <td>${b.is_primary?'<span class="pill p-green">Primary</span>':'–'}</td>
+    <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="editBank(${b.id})">Edit</button><button class="btn btn-danger btn-xs" onclick="removeBank(${b.id})">Remove</button></div></td>
+  </tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--txt3)"><div style="font-size:24px;margin-bottom:8px">🏦</div>No bank accounts yet<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openModal('add-bank')">+ Add Bank Account</button></td></tr>`;
 
-  var gstRows='';
-  (d.gst_registrations||[]).forEach(function(g){
-    var regDateVal=(g.registration_date||'').split('T')[0];
-    gstRows+='<tr><td class="tbold tmono">'+(g.gstin||'')+'</td><td>'+(g.state_name||'–')+'</td>'+
-      '<td>'+(g.trade_name||'–')+'</td><td>'+fmt.date(g.registration_date)+'</td>'+
-      '<td>'+(g.is_primary?'<span class="pill p-green">Primary</span>':'–')+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" '+
-        'data-id="'+g.id+'" data-gstin="'+(g.gstin||'')+'" data-state="'+(g.state_id||'')+'" '+
-        'data-trade="'+(g.trade_name||'').replace(/"/g,'&quot;')+'" data-date="'+regDateVal+'" data-primary="'+(g.is_primary?1:0)+'" '+
-        'onclick="editGstBtn(this)">Edit</button> '+
-      '<button class="btn btn-danger btn-xs" onclick="removeGst('+g.id+')">Remove</button></td></tr>';
-  });
-  if(!gstRows) gstRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No GST registrations added</td></tr>';
+  const gstRows=(d.gst_registrations||[]).map(g=>`<tr>
+    <td class="tbold tmono">${g.gstin||''}</td>
+    <td>${g.state_name||'–'}</td><td>${g.trade_name||'–'}</td>
+    <td class="tmono">${fmt.date(g.registration_date)}</td>
+    <td>${g.is_primary?'<span class="pill p-green">Primary</span>':'–'}</td>
+    <td><div class="tact"><button class="btn btn-ghost btn-xs" data-id="${g.id}" data-gstin="${g.gstin||''}" data-state="${g.state_id||''}" data-trade="${(g.trade_name||'').replace(/"/g,'&quot;')}" data-date="${(g.registration_date||'').split('T')[0]}" data-primary="${g.is_primary?1:0}" onclick="editGstBtn(this)">Edit</button><button class="btn btn-danger btn-xs" onclick="removeGst(${g.id})">Remove</button></div></td>
+  </tr>`).join('')||`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt3)"><div style="font-size:24px;margin-bottom:8px">🧾</div>No GST registrations yet<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openModal('add-gst')">+ Add GST</button></td></tr>`;
 
-  var lcRows='';
-  (d.labour_certs||[]).forEach(function(lc){
-    var vf=(lc.valid_from||'').split('T')[0], vu=(lc.valid_until||'').split('T')[0];
-    lcRows+='<tr><td class="tbold">'+(lc.cert_number||'')+'</td><td>'+(lc.issuing_authority||'–')+'</td>'+
-      '<td>'+(lc.state_name||'–')+'</td><td>'+fmt.date(lc.valid_from)+'</td><td>'+fmt.date(lc.valid_until)+'</td>'+
-      '<td><button class="btn btn-ghost btn-xs" '+
-        'data-id="'+lc.id+'" data-cert="'+(lc.cert_number||'').replace(/"/g,'&quot;')+'" '+
-        'data-auth="'+(lc.issuing_authority||'').replace(/"/g,'&quot;')+'" data-state="'+(lc.state_id||'')+'" '+
-        'data-from="'+vf+'" data-until="'+vu+'" '+
-        'onclick="editLabourBtn(this)">Edit</button> '+
-      '<button class="btn btn-danger btn-xs" onclick="removeLabourCert('+lc.id+')">Remove</button></td></tr>';
-  });
-  if(!lcRows) lcRows='<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--txt2)">No certificates added</td></tr>';
+  const lcRows=(d.labour_certs||[]).map(lc=>{
+    const isExp=lc.valid_until&&new Date(lc.valid_until)<new Date();
+    const vf=(lc.valid_from||'').split('T')[0],vu=(lc.valid_until||'').split('T')[0];
+    return`<tr>
+    <td class="tbold">${lc.cert_number||''}</td><td>${lc.issuing_authority||'–'}</td>
+    <td>${lc.state_name||'–'}</td><td class="tmono">${fmt.date(lc.valid_from)}</td>
+    <td class="tmono" style="${isExp?'color:var(--red)':''}">${fmt.date(lc.valid_until)}${isExp?' <span class="pill p-red" style="font-size:9px;margin-left:4px">Expired</span>':''}</td>
+    <td><div class="tact"><button class="btn btn-ghost btn-xs" data-id="${lc.id}" data-cert="${(lc.cert_number||'').replace(/"/g,'&quot;')}" data-auth="${(lc.issuing_authority||'').replace(/"/g,'&quot;')}" data-state="${lc.state_id||''}" data-from="${vf}" data-until="${vu}" onclick="editLabourBtn(this)">Edit</button><button class="btn btn-danger btn-xs" onclick="removeLabourCert(${lc.id})">Remove</button></div></td>
+  </tr>`;
+  }).join('')||`<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--txt3)"><div style="font-size:24px;margin-bottom:8px">📜</div>No labour certificates yet<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openModal('add-labour')">+ Add Certificate</button></td></tr>`;
 
-  var docRows='';
-  // Store docs in a registry for download by index
   window._orgDocs=d.documents||[];
-  (d.documents||[]).forEach(function(doc,i){
-    docRows+='<tr>'+
-      '<td><span class="pill p-blue">'+(doc.doc_type||'')+'</span></td>'+
-      '<td class="tbold">'+(doc.doc_name||'')+'</td>'+
-      '<td>'+(doc.file_size||'–')+'</td>'+
-      '<td style="font-size:11px">'+fmt.dt(doc.uploaded_at)+'</td>'+
-      '<td>'+
-        '<button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc('+doc.id+')">Download</button> '+
-        '<button class="btn btn-danger btn-xs" onclick="removeDoc('+doc.id+')">Remove</button>'+
-      '</td></tr>';
-  });
-  if(!docRows) docRows='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--txt2)">No documents uploaded</td></tr>';
+  const docRows=(d.documents||[]).map(doc=>`<tr>
+    <td><span class="pill p-blue">${doc.doc_type||''}</span></td>
+    <td class="tbold">${doc.doc_name||''}</td>
+    <td class="tmono">${doc.file_size||'–'}</td>
+    <td style="font-size:11px;color:var(--txt2)">${fmt.dt(doc.uploaded_at)}</td>
+    <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadOrgDoc(${doc.id})">↓ Download</button><button class="btn btn-danger btn-xs" onclick="removeDoc(${doc.id})">Remove</button></div></td>
+  </tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txt3)"><div style="font-size:24px;margin-bottom:8px">📁</div>No documents uploaded yet<br><button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="openModal('add-org-doc')">+ Upload Document</button></td></tr>`;
 
-  // Build HTML using DOM (avoids all string escaping issues)
-  var el=$('org-profile-content');
+  // ── Tabs definition ─────────────────────────────────────
+  const tabs=[
+    {id:'general',  icon:'🏢', label:'General'},
+    {id:'legal',    icon:'📍', label:'Addresses'},
+    {id:'financial',icon:'📋', label:'Tax & Compliance'},
+    {id:'banking',  icon:'🏦', label:'Banking'},
+    {id:'gst',      icon:'🧾', label:'GST'},
+    {id:'labour',   icon:'📜', label:'Labour'},
+    {id:'branding', icon:'🎨', label:'Branding'},
+    {id:'docs',     icon:'📁', label:'Documents'},
+  ];
+
+  // ── Tab content builders ────────────────────────────────
+  const tabContents={
+    general:()=>{
+  const LEGAL_STRUCTURES=['Private Limited (Pvt. Ltd.)','Limited Liability Partnership (LLP)','Public Limited (Ltd.)','One Person Company (OPC)','Sole Proprietorship','Partnership Firm','Section 8 Company (NGO)','Other'];
+  const INDUSTRIES=['IT Services & Consulting','Staffing & Recruitment','Software Products','BPO / KPO','Engineering Services','Healthcare','Manufacturing','BFSI','E-commerce & Retail','Education','Real Estate','Logistics','Other'];
+  const SUB_DOMAINS=['Staff Augmentation','Permanent Staffing','Executive Search','Payroll Processing','HR Outsourcing','IT Consulting','Product Engineering','Other'];
+  const TIMEZONES=['Asia/Kolkata','Asia/Dubai','Asia/Singapore','Asia/Tokyo','Europe/London','Europe/Berlin','America/New_York','America/Chicago','America/Los_Angeles','America/Toronto','Australia/Sydney','UTC'];
+  const CURRENCIES=['INR','USD','GBP','EUR','SGD','AED','AUD','CAD','JPY'];
+  const selOpts=(arr,val,placeholder='Select…')=>'<option value="">'+placeholder+'</option>'+arr.map(v=>`<option value="${v}"${v==val?' selected':''}>${v}</option>`).join('');
+  const fsel2=(key,label,arr,req)=>{
+    const val=d[key]||'';
+    const reqMark=req?'<span style="color:var(--red);margin-left:2px">*</span>':'';
+    if(editMode) return `<div class="fg"><label class="flabel">${label}${reqMark}</label><select class="fselect" data-key="${key}">${selOpts(arr,val)}</select></div>`;
+    return `<div class="org-field"><div class="org-field-label">${label}</div><div class="org-field-value${val?'':' empty'}" style="${val?'':'color:var(--txt3);font-style:italic'}">${val||'—'}</div></div>`;
+  };
+  return `<div class="g2">
+    <div>
+      ${fsec('🏢','Company Identity','Core legal and contact information')}
+      ${editMode
+        ? frow(fi('legal_name','Legal Name','text','e.g. McRaaN Technologies Pvt. Ltd.',true),fi('trade_name','Trade / Brand Name','text','Optional brand name'))
+          +fsel2('legal_structure','Legal Structure',LEGAL_STRUCTURES,false)
+          +frow(fi('email','Official Email','email','contact@company.com'),fi('phone','Phone','text','+91 99999 99999'))
+          +fi('website','Website','url','https://www.company.com')
+          +frow(fi('incorporation_date','Incorporation Date','date'),fi('msme_number','MSME Number'))
+          +fi('financial_year_start','Financial Year Start (MM-DD)','text','04-01')
+        : `<div class="g2" style="gap:8px 16px">
+            ${fi('legal_name','Legal Name')}${fi('trade_name','Trade Name')}
+            ${fi('legal_structure','Legal Structure')}${fi('email','Email')}
+            ${fi('phone','Phone')}${fi('website','Website')}
+            ${fi('msme_number','MSME')}${fi('incorporation_date','Incorporated')}${fi('financial_year_start','FY Start')}
+          </div>`
+      }
+    </div>
+    <div>
+      ${fsec('🏭','Industry & Operations','Business domain and operational settings')}
+      ${editMode
+        ? fsel2('industry','Industry',INDUSTRIES)
+          +fsel2('sub_domain','Sub-domain / Specialisation',SUB_DOMAINS)
+          +fsel2('timezone','Timezone',TIMEZONES)
+          +fsel2('base_currency','Base Currency',CURRENCIES)
+        : `<div style="display:flex;flex-direction:column;gap:10px">
+            ${fi('industry','Industry')}${fi('sub_domain','Sub-domain')}
+            ${fi('timezone','Timezone')}${fi('base_currency','Currency')}
+          </div>`
+      }
+      <div style="margin-top:20px">
+        ${fsec('👤','Point of Contact','Primary liaison for official communication')}
+        ${editMode
+          ? fi('poc_name','Contact Name','text','Full name')
+            +fi('poc_email','Contact Email','email','poc@company.com')
+            +fi('poc_phone','Contact Phone','text','+91 99999 99999')
+          : `<div style="display:flex;flex-direction:column;gap:10px">${fi('poc_name','Name')}${fi('poc_email','Email')}${fi('poc_phone','Phone')}</div>`
+        }
+      </div>
+    </div>
+  </div>`;},
+
+    legal:()=>`<div class="g2">
+      <div>
+        ${fsec('📍','Registered Address','Official address as per incorporation documents')}
+        ${editMode
+          ? fi('reg_address_line1','Address Line 1')
+            +fi('reg_address_line2','Address Line 2')
+            +frow(fi('reg_city','City'),fi('reg_pincode','Pincode'))
+            +frow(fselect('reg_country_id','Country',_countries),fselect('reg_state_id','State',_states))
+          : `<div style="line-height:2">${[d.reg_address_line1,d.reg_address_line2,[d.reg_city,d.reg_pincode].filter(Boolean).join(', '),(_states.find(s=>s.id==d.reg_state_id)||{}).name,(_countries.find(c=>c.id==d.reg_country_id)||{}).name].filter(Boolean).map(l=>`<div style="font-size:13px;color:var(--txt)">${l}</div>`).join('')||'<div style="color:var(--txt3);font-style:italic;font-size:13px">Not provided</div>'}</div>`
+        }
+      </div>
+      <div>
+        ${fsec('🏬','Business Address','Primary operational office')}
+        ${editMode?`<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--txt2);cursor:pointer;margin-bottom:12px"><input type="checkbox" id="biz-same-as-reg" onchange="copyRegAddressToBiz(this.checked)" style="width:auto"> Same as Registered Address</label>`:''}
+        ${editMode
+          ? fi('biz_address_line1','Address Line 1')
+            +fi('biz_address_line2','Address Line 2')
+            +frow(fi('biz_city','City'),fi('biz_pincode','Pincode'))
+            +frow(fselect('biz_country_id','Country',_countries),fselect('biz_state_id','State',_states))
+          : `<div style="line-height:2">${[d.biz_address_line1,d.biz_address_line2,[d.biz_city,d.biz_pincode].filter(Boolean).join(', '),(_states.find(s=>s.id==d.biz_state_id)||{}).name,(_countries.find(c=>c.id==d.biz_country_id)||{}).name].filter(Boolean).map(l=>`<div style="font-size:13px;color:var(--txt)">${l}</div>`).join('')||'<div style="color:var(--txt3);font-style:italic;font-size:13px">Not provided</div>'}</div>`
+        }
+      </div>
+    </div>`,
+
+    financial:()=>`<div class="g2">
+      <div>
+        ${fsec('🪪','Identity Numbers','Tax and regulatory registration numbers')}
+        ${editMode
+          ? frow(fi('pan','PAN Number','text','AAAAA0000A'),fi('tan','TAN Number','text','ABCD01234E'))
+            +frow(fi('cin','CIN','text','L12345AB2000PLC123456'),fi('iec_code','IEC Code','text','AAGCI6265C'))
+          : frow(fi('pan','PAN'),fi('tan','TAN'))+frow(fi('cin','CIN'),fi('iec_code','IEC'))
+        }
+      </div>
+      <div>
+        ${fsec('⚖️','Labour & Social Security','PF, ESI and profession tax registrations')}
+        ${editMode
+          ? frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number','text','12345678901234567'))
+            +fi('profession_tax_number','Profession Tax Number')
+          : frow(fi('pf_number','PF No.'),fi('esi_number','ESI No.'))+fi('profession_tax_number','Profession Tax')
+        }
+      </div>
+    </div>`,
+
+    banking:()=>`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        ${fsec('🏦','Bank Accounts',`${(d.bank_accounts||[]).length} account${(d.bank_accounts||[]).length!==1?'s':''} registered`)}
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-bank')">+ Add Account</button>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Account</th><th>Bank / Branch</th><th>Account No.</th><th>IFSC</th><th>Currency</th><th>Primary</th><th>Actions</th></tr></thead>
+        <tbody>${bankRows}</tbody>
+      </table></div></div>`,
+
+    gst:()=>`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        ${fsec('🧾','GST Registrations',`${(d.gst_registrations||[]).length} registration${(d.gst_registrations||[]).length!==1?'s':''}`)}
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-gst')">+ Add GST</button>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>GSTIN</th><th>State</th><th>Trade Name</th><th>Reg. Date</th><th>Primary</th><th>Actions</th></tr></thead>
+        <tbody>${gstRows}</tbody>
+      </table></div></div>`,
+
+    labour:()=>`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        ${fsec('📜','Labour Licences & Certificates',`${(d.labour_certs||[]).length} certificate${(d.labour_certs||[]).length!==1?'s':''}`)}
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-labour')">+ Add Certificate</button>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Certificate No.</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>
+        <tbody>${lcRows}</tbody>
+      </table></div></div>`,
+
+    branding:()=>{
+  const logo=d.logo_url||'';
+  const logoPreview=logo?`<div style="margin-bottom:16px;padding:12px;background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);display:inline-block"><img src="${logo}" style="max-height:80px;max-width:240px;object-fit:contain" onerror="this.style.display='none'" /></div>`:'';
+  return `
+    ${fsec('🎨','Brand Identity','Company logo and visual identity')}
+    <div class="g2">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-hd"><div class="card-title">Company Logo</div></div>
+          <div class="card-body">
+            ${logo?logoPreview:'<div style="width:120px;height:80px;background:var(--s3);border-radius:var(--r);display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:12px;margin-bottom:12px">No logo</div>'}
+            ${editMode?`
+            <div class="fg" style="margin-top:12px">
+              <label class="flabel">Upload Logo</label>
+              <input type="file" id="org-logo-file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                style="font-size:12px;color:var(--txt2)"
+                onchange="previewOrgLogo(this)">
+              <div style="font-size:10px;color:var(--txt3);margin-top:4px">PNG, JPG, SVG or WebP · max 500KB · recommended 200×60px</div>
+            </div>
+            <div id="org-logo-preview" style="margin-top:8px"></div>
+            <div class="fg" style="margin-top:12px">
+              <label class="flabel">Or paste Logo URL</label>
+              <input class="finput" data-key="logo_url" id="org-logo-url" type="url" value="${logo}" placeholder="https://cdn.example.com/logo.png">
+            </div>`:`<div style="font-size:12px;color:var(--txt3);margin-top:8px">Switch to Edit mode to upload a logo.</div>`}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Usage Notes</div></div>
+          <div class="card-body" style="font-size:12.5px;color:var(--txt2);line-height:1.8">
+            <div style="margin-bottom:8px">• Logo appears in the sidebar and on payslips</div>
+            <div style="margin-bottom:8px">• Recommended size: <strong>200 × 60 px</strong></div>
+            <div style="margin-bottom:8px">• Formats: PNG (transparent), SVG, JPEG, WebP</div>
+            <div style="margin-bottom:8px">• Max file size: <strong>500 KB</strong></div>
+            <div>• The URL is stored — the image is served from wherever you host it</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `; },
+    docs:()=>`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        ${fsec('📁','Documents',`${(d.documents||[]).length} file${(d.documents||[]).length!==1?'s':''} uploaded`)}
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-org-doc')">+ Upload</button>
+      </div>
+      <div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+        <tbody>${docRows}</tbody>
+      </table></div></div>`,
+  };
+
+  // ── Build DOM ───────────────────────────────────────────
+  const el=$('org-profile-content');
   el.innerHTML='';
 
-  // Tab bar
-  var tabs=[['company','Company'],['address','Addresses'],['tax','Tax'],['banking','Banking'],['gst','GST'],['labour','Labour'],['docs','Documents']];
-  var tabBar=document.createElement('div');
-  tabBar.style.cssText='display:flex;border-bottom:2px solid var(--bdr);margin-bottom:20px;overflow-x:auto';
-  tabs.forEach(function(t,i){
-    var tab=document.createElement('div');
-    tab.className='tab'+(i===0?' active':'');
-    tab.id='orgtab-'+t[0];
-    tab.style.whiteSpace='nowrap';
-    tab.textContent=t[1];
-    tab.onclick=function(){switchOrgTab(t[0]);};
+  // Tab bar — using .org-tab-bar / .org-tab classes
+  const tabBar=document.createElement('div');
+  tabBar.className='org-tab-bar';
+  tabBar.style.marginBottom='0';
+  tabs.forEach((t,i)=>{
+    const isActive=t.id===_orgCurrentTab||(i===0&&!tabs.find(x=>x.id===_orgCurrentTab));
+    const tab=document.createElement('div');
+    tab.className='org-tab'+(isActive?' active':'');
+    tab.id='orgtab-'+t.id;
+    tab.innerHTML=`<span class="tab-icon">${t.icon}</span><span>${t.label}</span>`;
+    tab.onclick=()=>switchOrgTab(t.id);
     tabBar.appendChild(tab);
   });
   el.appendChild(tabBar);
+  // Content wrapper with card-like background
+  const contentOuter=document.createElement('div');
+  contentOuter.style.cssText='background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px;margin-bottom:4px';
+  el.appendChild(contentOuter);
 
   // Content panels
-  var panels={
-    company: '<div class="g2">' +
-      '<div class="org-section"><div class="org-section-title">Company Identity</div><div class="org-section-body">' +
-        frow(fi('legal_name','Legal Name *'),fi('trade_name','Trade Name / Brand')) +
-        frow(fi('email','Official Email','email'),fi('phone','Phone')) +
-        fi('website','Website','url') +
-        frow(fi('msme_number','MSME Number'),fi('incorporation_date','Incorporation Date','date')) +
-      '</div></div>' +
-      '<div class="org-section"><div class="org-section-title">Point of Contact</div><div class="org-section-body">' +
-        fi('poc_name','POC Name') + fi('poc_email','POC Email','email') + fi('poc_phone','POC Phone') +
-      '</div></div></div>',
-    address: '<div class="g2">' +
-      '<div class="org-section"><div class="org-section-title">Registered Address</div><div class="org-section-body">' +
-        fi('reg_address_line1','Address Line 1') + fi('reg_address_line2','Address Line 2') +
-        frow(fi('reg_city','City'),fi('reg_pincode','Pincode')) +
-        frow(fselect('reg_country_id','Country',_countries),fselect('reg_state_id','State',_states)) +
-      '</div></div>' +
-      '<div class="org-section"><div class="org-section-title">Business Address</div><div class="org-section-body">' +
-        fi('biz_address_line1','Address Line 1') + fi('biz_address_line2','Address Line 2') +
-        frow(fi('biz_city','City'),fi('biz_pincode','Pincode')) +
-        frow(fselect('biz_country_id','Country',_countries),fselect('biz_state_id','State',_states)) +
-      '</div></div></div>',
-    tax: '<div class="org-section"><div class="org-section-title">Tax Registrations</div><div class="org-section-body">' +
-      frow(fi('pan','PAN'),fi('tan','TAN')) +
-      frow(fi('cin','CIN'),fi('iec_code','IEC Code')) +
-      frow(fi('pf_number','PF Number'),fi('esi_number','ESI Number')) +
-      frow(fi('profession_tax_number','Profession Tax No.'),fi('financial_year_start','FY Start (MM-DD)')) +
-      '</div></div>',
-    banking: '<div class="org-section"><div class="org-section-title">Bank Accounts ' +
-      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-bank\')">+ Add Account</button>' +
-      '</div><div class="tbl-wrap"><table><thead><tr><th>Account Name</th><th>Bank</th><th>Branch</th><th>Account No.</th><th>IFSC</th><th>Type</th><th>Currency</th><th>Primary</th><th>Actions</th></tr></thead>' +
-      '<tbody>'+bankRows+'</tbody></table></div></div>',
-    gst: '<div class="org-section"><div class="org-section-title">GST Registrations ' +
-      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-gst\')">+ Add GST</button>' +
-      '</div><div class="tbl-wrap"><table><thead><tr><th>GSTIN</th><th>State</th><th>Trade Name</th><th>Reg. Date</th><th>Primary</th><th>Actions</th></tr></thead>' +
-      '<tbody>'+gstRows+'</tbody></table></div></div>',
-    labour: '<div class="org-section"><div class="org-section-title">Labour Certificates ' +
-      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-labour\')">+ Add Certificate</button>' +
-      '</div><div class="tbl-wrap"><table><thead><tr><th>Certificate No.</th><th>Issuing Authority</th><th>State</th><th>Valid From</th><th>Valid Until</th><th>Actions</th></tr></thead>' +
-      '<tbody>'+lcRows+'</tbody></table></div></div>',
-    docs: '<div class="org-section"><div class="org-section-title">Documents ' +
-      '<button class="btn btn-ghost btn-xs" onclick="openModal(\'add-org-doc\')">+ Upload Document</button>' +
-      '</div><div class="tbl-wrap"><table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>' +
-      '<tbody>'+docRows+'</tbody></table></div></div>'
-  };
-
-  tabs.forEach(function(t,i){
-    var panel=document.createElement('div');
-    panel.id='orgtab-panel-'+t[0];
-    panel.style.display=i===0?'':'none';
-    panel.innerHTML=panels[t[0]]||'';
-    el.appendChild(panel);
+  const wrap=document.createElement('div');
+  tabs.forEach((t,i)=>{
+    const panel=document.createElement('div');
+    panel.id='orgtab-panel-'+t.id;
+    const isActive=t.id===_orgCurrentTab||(i===0&&!tabs.find(x=>x.id===_orgCurrentTab));
+    panel.style.display=isActive?'':'none';
+    try{panel.innerHTML=tabContents[t.id]?tabContents[t.id]():'';}catch(e){panel.innerHTML='<div style="color:red">Error: '+e.message+'</div>';}
+    wrap.appendChild(panel);
   });
+  contentOuter.appendChild(wrap);
 
-  setTimeout(attachFieldValidation,100);
+  // Sticky save bar in edit mode
+  if(editMode){
+    const saveBar=document.createElement('div');
+    saveBar.style.cssText='position:sticky;bottom:0;background:var(--surface);border-top:2px solid var(--green-lt);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;margin-top:0;box-shadow:0 -4px 12px rgba(0,0,0,.08);z-index:10;border-radius:0 0 var(--rl) var(--rl)';
+    saveBar.innerHTML=`<div style="font-size:12px;color:var(--txt3)">Fields marked <span style="color:var(--red)">*</span> are required. Changes save to all tabs.</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" onclick="cancelOrgEdit()">Discard</button>
+        <button class="btn btn-primary" onclick="saveOrgProfile()">💾 Save All Changes</button>
+      </div>`;
+    el.appendChild(saveBar);
+    setTimeout(attachFieldValidation,50);
+  }
 }
 
+function previewOrgLogo(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>512000){toast('Logo file is too large (max 500KB)','error');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const dataUrl=e.target.result;
+    // Show preview
+    const prev=document.getElementById('org-logo-preview');
+    if(prev) prev.innerHTML=`<img src="${dataUrl}" style="max-height:80px;max-width:240px;object-fit:contain;border:1px solid var(--bdr);border-radius:var(--r);padding:6px;background:var(--surface)">`;
+    // Put data URL into the URL field so it saves with the rest of the form
+    const urlField=document.getElementById('org-logo-url');
+    if(urlField) urlField.value=dataUrl;
+    toast('Logo ready — click Save All Changes to apply','info');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Also apply logo to sidebar immediately after save
+function _applySidebarLogo(url){
+  if(!url)return;
+  const slogo=document.querySelector('.slogo img');
+  if(slogo) slogo.src=url;
+}
+
+function copyRegAddressToBiz(checked){
+  if(!checked||!_orgData)return;
+  const keys=['address_line1','address_line2','city','pincode','country_id','state_id'];
+  keys.forEach(k=>{
+    const src=document.querySelector(`[data-key="reg_${k}"]`);
+    const dst=document.querySelector(`[data-key="biz_${k}"]`);
+    if(src&&dst)dst.value=src.value;
+  });
+  toast('Business address copied from registered address','info');
+}
 
 function switchOrgTab(tab){
-  ['company','address','tax','banking','gst','labour','docs'].forEach(t=>{
+  _orgCurrentTab=tab;
+  ['general','legal','financial','banking','gst','labour','branding','docs'].forEach(t=>{
     const panel=document.getElementById('orgtab-panel-'+t);
     const tabEl=document.getElementById('orgtab-'+t);
-    if(panel) panel.style.display = t===tab ? '' : 'none';
-    if(tabEl) tabEl.classList.toggle('active', t===tab);
+    if(panel)panel.style.display=t===tab?'':'none';
+    if(tabEl){
+      tabEl.classList.toggle('active',t===tab);
+      // Scroll active tab into view on mobile
+      if(t===tab)tabEl.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+    }
   });
 }
 
-function toggleOrgEdit(){renderOrgProfile(true);setTimeout(attachFieldValidation,100);}
+function toggleOrgEdit(){renderOrgProfile(true);}
 function cancelOrgEdit(){renderOrgProfile(false);}
 
 async function saveOrgProfile(){
   const data={..._orgData};
-  let hasErr=false;
+  let hasErr=false,firstErrTab=null;
+  const keyToTab={
+    legal_name:'general',trade_name:'general',legal_structure:'general',industry:'general',sub_domain:'general',timezone:'general',base_currency:'general',email:'general',phone:'general',website:'general',
+    poc_name:'general',poc_email:'general',poc_phone:'general',incorporation_date:'general',
+    reg_address_line1:'legal',reg_city:'legal',reg_pincode:'legal',reg_country_id:'legal',reg_state_id:'legal',
+    biz_address_line1:'legal',biz_city:'legal',biz_pincode:'legal',biz_country_id:'legal',biz_state_id:'legal',
+    pan:'financial',tan:'financial',cin:'financial',iec_code:'financial',pf_number:'financial',esi_number:'financial',
+  };
   document.querySelectorAll('#org-profile-content [data-key]').forEach(el=>{
-    // Handle both inputs and selects
-    data[el.dataset.key]=el.value||null;
-    // Cast state/country IDs to integers
-    if(['reg_state_id','biz_state_id','reg_country_id','biz_country_id'].includes(el.dataset.key)&&el.value){
-      data[el.dataset.key]=parseInt(el.value)||null;
-    }
-    const err=validateField(el.dataset.key,el.value);
-    let errEl=el.nextElementSibling;
-    if(errEl&&errEl.classList.contains('field-err'))errEl.remove();
-    if(err){
-      const e=document.createElement('div');e.className='field-err';
-      e.style.cssText='font-size:10.5px;color:var(--red);margin-top:3px';
-      e.textContent='⚠ '+err;el.after(e);el.style.borderColor='var(--red)';hasErr=true;
-    }
+    const key=el.dataset.key;
+    data[key]=el.value||null;
+    if(['reg_state_id','biz_state_id','reg_country_id','biz_country_id'].includes(key)&&el.value)data[key]=parseInt(el.value)||null;
+    const err=validateField(key,el.value);
+    _setFieldError(el,err);
+    if(err){hasErr=true;if(!firstErrTab)firstErrTab=keyToTab[key]||null;}
   });
-  if(hasErr){toast('Please fix validation errors before saving','error');return;}
+  if(hasErr){
+    if(firstErrTab)switchOrgTab(firstErrTab);
+    toast('Please fix the highlighted errors before saving','error');return;
+  }
+  if(!data.legal_name?.trim()){toast('Legal Name is required','error');switchOrgTab('general');return;}
   try{
     await apiFetch('/api/organisation',{method:'PUT',body:JSON.stringify(data)});
-    toast('Organisation profile saved!','success');
+    toast('Organisation profile saved! ✓','success');
+    if(data.logo_url) _applySidebarLogo(data.logo_url);
     await loadOrgProfile();
   }catch(e){}
 }
@@ -1554,33 +1884,27 @@ async function removeDoc(id){
   toast('Document removed','success');loadOrgProfile();
 }
 
-// Edit GST inline
 function editGstBtn(btn){
-  const id=btn.dataset.id, gstin=btn.dataset.gstin||'', stateId=btn.dataset.state||'',
-        tradeName=btn.dataset.trade||'', regDate=btn.dataset.date||'', isPrimary=parseInt(btn.dataset.primary)||0;
-  editGst(id,gstin,stateId,tradeName,regDate,isPrimary);
+  editGst(btn.dataset.id,btn.dataset.gstin||'',btn.dataset.state||'',btn.dataset.trade||'',btn.dataset.date||'',parseInt(btn.dataset.primary)||0);
 }
 function editGst(id,gstin,stateId,tradeName,regDate,isPrimary){
-  gstin=gstin||''; stateId=stateId||''; tradeName=tradeName||''; regDate=regDate||''; isPrimary=isPrimary||0;
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-gst';
   $('m-title').textContent='Edit GST Registration';
   $('m-body').innerHTML=`<form id="mform">
-    <div class="fg"><label class="flabel">GSTIN *</label><input class="finput" name="gstin" required value="${gstin}" oninput="this.value=this.value.toUpperCase()">
+    <div class="fg"><label class="flabel">GSTIN *</label><input class="finput" name="gstin" required value="${gstin}" oninput="this.value=this.value.toUpperCase()" placeholder="36AAAAA0000A1Z5">
       <div style="font-size:10px;color:var(--txt3);margin-top:2px">Format: 36AAAAA0000A1Z5</div></div>
-    <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id"><option value="">Select state…</option>${stOpts}</select></div>
+    <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id"><option value="">Select…</option>${stOpts}</select></div>
       <div class="fg"><label class="flabel">Registration Date</label><input class="finput" type="date" name="registration_date" value="${regDate}"></div></div>
     <div class="frow"><div class="fg"><label class="flabel">Trade Name</label><input class="finput" name="trade_name" value="${tradeName}"></div>
-      <div class="fg"><label class="flabel">Set as Primary?</label><select class="fselect" name="is_primary"><option value="0" ${!isPrimary||isPrimary=='0'?'selected':''}>No</option><option value="1" ${isPrimary&&isPrimary!='0'?'selected':''}>Yes — Primary GST</option></select></div></div>
+      <div class="fg"><label class="flabel">Primary?</label><select class="fselect" name="is_primary"><option value="0" ${!isPrimary?'selected':''}>No</option><option value="1" ${isPrimary?'selected':''}>Yes — Primary</option></select></div></div>
   </form>`;
   $('m-submit').textContent='Save Changes';$('overlay').dataset.putUrl=`/api/organisation/gst/${id}`;
   $('overlay').classList.add('open');
 }
 
-// Edit Bank Account
 async function editBank(id){
-  const banks=_orgData.bank_accounts||[];
-  const b=banks.find(x=>x.id===id)||{};
+  const b=(_orgData.bank_accounts||[]).find(x=>x.id===id)||{};
   _curModalType='edit-bank';
   $('m-title').textContent='Edit Bank Account';
   $('m-body').innerHTML=`<form id="mform">
@@ -1589,28 +1913,27 @@ async function editBank(id){
     <div class="frow"><div class="fg"><label class="flabel">Branch</label><input class="finput" name="branch" value="${b.branch||''}"></div>
       <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="account_type"><option ${b.account_type==='Current'?'selected':''}>Current</option><option ${b.account_type==='Savings'?'selected':''}>Savings</option><option ${b.account_type==='Overdraft'?'selected':''}>Overdraft</option></select></div></div>
     <div class="frow"><div class="fg"><label class="flabel">Account Number *</label><input class="finput" name="account_number" required value="${b.account_number||''}"></div>
-      <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="ifsc_code" value="${b.ifsc_code||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+      <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="ifsc_code" value="${b.ifsc_code||''}" oninput="this.value=this.value.toUpperCase()" placeholder="HDFC0001234"></div></div>
     <div class="frow"><div class="fg"><label class="flabel">SWIFT Code</label><input class="finput" name="swift_code" value="${b.swift_code||''}"></div>
       <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency">${['INR','USD','GBP','SGD','AED','EUR'].map(c=>`<option ${b.currency===c?'selected':''}>${c}</option>`).join('')}</select></div></div>
-    <div class="fg"><label class="flabel">Set as Primary?</label><select class="fselect" name="is_primary"><option value="0" ${!b.is_primary?'selected':''}>No</option><option value="1" ${b.is_primary?'selected':''}>Yes — Primary Account</option></select></div>
+    <div class="fg"><label class="flabel">Primary Account?</label><select class="fselect" name="is_primary"><option value="0" ${!b.is_primary?'selected':''}>No</option><option value="1" ${b.is_primary?'selected':''}>Yes — Primary</option></select></div>
   </form>`;
   $('m-submit').textContent='Save Changes';$('overlay').dataset.putUrl=`/api/organisation/banks/${id}`;
   $('overlay').classList.add('open');
 }
 
-// Edit Labour Certificate
 function editLabourBtn(btn){
-  editLabourCert(btn.dataset.id, btn.dataset.cert, btn.dataset.auth, btn.dataset.state, btn.dataset.from, btn.dataset.until);
+  editLabourCert(btn.dataset.id,btn.dataset.cert,btn.dataset.auth,btn.dataset.state,btn.dataset.from,btn.dataset.until);
 }
 function editLabourCert(id,certNum,authority,stateId,validFrom,validUntil){
-  certNum=certNum||''; authority=authority||''; stateId=stateId||''; validFrom=validFrom||''; validUntil=validUntil||'';
+  certNum=certNum||'';authority=authority||'';stateId=stateId||'';validFrom=validFrom||'';validUntil=validUntil||'';
   const stOpts=(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==stateId?'selected':''}>${s.name}</option>`).join('');
   _curModalType='edit-labour';
   $('m-title').textContent='Edit Labour Certificate';
   $('m-body').innerHTML=`<form id="mform">
     <div class="fg"><label class="flabel">Certificate Number *</label><input class="finput" name="cert_number" required value="${certNum}"></div>
     <div class="fg"><label class="flabel">Issuing Authority</label><input class="finput" name="issuing_authority" value="${authority}"></div>
-    <div class="frow"><div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id"><option value="">Select…</option>${stOpts}</select></div></div>
+    <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id"><option value="">Select…</option>${stOpts}</select></div>
     <div class="frow"><div class="fg"><label class="flabel">Valid From</label><input class="finput" type="date" name="valid_from" value="${validFrom}"></div>
       <div class="fg"><label class="flabel">Valid Until</label><input class="finput" type="date" name="valid_until" value="${validUntil}"></div></div>
   </form>`;
@@ -1731,366 +2054,861 @@ async function editOrgEntry(type,id){
 // ═══════════════════════════════════════════════════
 // CLIENTS
 // ═══════════════════════════════════════════════════
+
+let _clientsCache = [];
+let _vendorsCache = [];
+
 async function loadClients(){
   const status=$('cl-status')?.value||'';
+  const type=$('cl-type')?.value||'';
+  const search=($('cl-search')?.value||'').toLowerCase();
   try{
     const rows=await apiFetch('/api/clients');
-    const filtered=status?rows.filter(c=>status==='Active'?c.health_score>50:c.health_score<=50):rows;
-    const revMtd=rows.reduce((s,c)=>s+(c.revenue_mtd||0),0);
+    _clientsCache=rows;
+    let filtered=rows;
+    if(status==='Active') filtered=filtered.filter(c=>c.health_score>50);
+    else if(status==='At Risk') filtered=filtered.filter(c=>c.health_score<=50&&c.health_score>0);
+    else if(status==='Inactive') filtered=filtered.filter(c=>c.status==='Inactive');
+    if(type) filtered=filtered.filter(c=>c.client_type===type);
+    if(search) filtered=filtered.filter(c=>(c.name||'').toLowerCase().includes(search)||(c.industry||'').toLowerCase().includes(search));
+
+    const revMtd=rows.reduce((s,c)=>s+(parseFloat(c.revenue_mtd)||0),0);
+    const revYtd=rows.reduce((s,c)=>s+(parseFloat(c.revenue_ytd)||0),0);
     setHtml('client-kpis',`
-      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Clients</div><div class="kpi-value">${rows.length}</div></div>
-      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active</div><div class="kpi-value">${rows.filter(c=>c.health_score>50).length}</div></div>
-      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(revMtd)}</div></div>
-      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">At Risk</div><div class="kpi-value">${rows.filter(c=>c.health_score<=50).length}</div></div>`);
-    setHtml('client-tbl',filtered.length===0?`<div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No clients found</div></div>`
-      :`<table><thead><tr><th>Company</th><th>Industry</th><th>Status</th><th>Rating</th><th>Currency</th><th>Account Mgr</th><th>Open Reqs</th><th>Revenue MTD</th><th>GST</th><th>Health</th><th>Actions</th></tr></thead><tbody>${
-      filtered.map(c=>`<tr>
-        <td>${avFull(c.name,c.primary_contact||'')}</td>
-        <td>${c.industry||'–'}</td>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Clients</div><div class="kpi-value">${rows.length}</div><div class="kpi-delta">${type||'All types'}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active / Healthy</div><div class="kpi-value">${rows.filter(c=>c.health_score>70).length}</div><div class="kpi-delta kpi-up">Health >70%</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(revMtd)}</div><div class="kpi-delta">YTD: ${fmt.moneyK(revYtd)}</div></div>
+      <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">At Risk</div><div class="kpi-value">${rows.filter(c=>c.health_score<=50).length}</div><div class="kpi-delta kpi-dn">Health ≤50%</div></div>`);
+
+    if(!filtered.length){
+      setHtml('client-tbl','<div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No clients match</div></div>');
+      return;
+    }
+    setHtml('client-tbl',`<table>
+      <thead><tr>
+        <th>Company</th><th>Type</th><th>Industry</th><th>Status</th>
+        <th>Currency</th><th>Account Mgr</th><th>Employees</th><th>Open Reqs</th>
+        <th>Revenue MTD</th><th>Health</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${filtered.map(c=>`<tr style="cursor:pointer" onclick="viewClient(${c.id})">
+        <td><div class="avrow"><div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(c.name)}</div><div><div class="av-name">${c.name}</div><div class="av-meta">${c.primary_contact||''}</div></div></div></td>
+        <td>${pill(c.client_type||'Direct','p-blue')}</td>
+        <td style="font-size:11.5px;color:var(--txt2)">${c.industry||'–'}</td>
         <td>${pill(c.status||'Active')}</td>
-        <td><span class="stars">${'★'.repeat(c.rating||0)}${'☆'.repeat(5-(c.rating||0))}</span></td>
         <td><span class="pill p-charcoal">${c.currency||'INR'}</span></td>
         <td style="font-size:11.5px">${c.account_manager_name||'–'}</td>
+        <td class="tmono">${c.placements||0}</td>
         <td class="tmono">${c.open_reqs||0}</td>
-        <td class="tmono tg">${fmt.moneyK(c.revenue_mtd)}</td>
-        <td class="tmono" style="font-size:10px">${c.gstin||'–'}</td>
+        <td class="tmono tg fw7">${fmt.moneyK(c.revenue_mtd)}</td>
         <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
-        <td><div class="tact">
-          <button class="btn btn-ghost btn-xs" onclick="viewClient(${c.id})">View</button>
-          <button class="btn btn-ghost btn-xs" onclick="editClient(${c.id})">Edit</button>
+        <td onclick="event.stopPropagation()"><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="viewClient(${c.id})">Open</button>
+          <button class="btn btn-danger btn-xs" onclick="archiveClient(${c.id},'${c.name}')">×</button>
         </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
 async function viewClient(id){
-  try{
-    const c=await apiFetch(`/api/clients/${id}`);
-    if(!c)return;
-    // Open profile panel for client
-    $('pp-av').textContent=fmt.ini(c.name);$('pp-av').className='av av-lg av-blue';
-    $('pp-name').textContent=c.name;
-    $('pp-meta').textContent=`${c.industry||'–'} · ${c.status||'Active'} · ${c.currency||'INR'}`;
-    $('pp-tabs').innerHTML=`<div class="ptab-item active" onclick="showClientTab('overview',this)">Overview</div>
-      <div class="ptab-item" onclick="showClientTab('contacts',this)">Contacts</div>
-      <div class="ptab-item" onclick="showClientTab('address',this)">Address</div>
-      <div class="ptab-item" onclick="showClientTab('docs',this,${id})">Documents</div>`;
-    window._curClient=c;
-    showClientTab('overview', $('pp-tabs').firstChild);
-    $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
-  }catch(e){}
+  const c=await apiFetch(`/api/clients/${id}`);
+  if(!c)return;
+  // Enrich with list-level stats if cached
+  const cached=(_clientsCache||[]).find(r=>r.id==id);
+  if(cached){c.placements=cached.placements;c.open_reqs=cached.open_reqs;c.revenue_mtd=cached.revenue_mtd;c.revenue_ytd=cached.revenue_ytd;}
+  window._curClient=c;
+  // Update breadcrumb
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.innerHTML=`<span class="bc-item bc-link" onclick="closeClientDetail()">Clients</span><span class="bc-sep">›</span><span class="bc-item bc-current">${c.name}</span>`;
+  if(tbSub){tbSub.style.display='none';if(bcSep)bcSep.style.display='none';}
+  $('cli-list-view').style.display='none';
+  $('cli-detail-view').style.display='';
+  renderClientDetail(c, 'dashboard');
 }
 
-function showClientTab(tab,el,id){
-  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const c=window._curClient||{};
-  const tabs={
-    overview:`<div class="g2 mb12">
-      ${[['Contract Type',c.contract_type||'–'],['Payment Terms',c.payment_terms||'–'],['Currency',c.currency||'INR'],['Health Score',c.health_score+'/100'],['Referred By',c.referred_by||'–'],['Rating','★'.repeat(c.rating||0)+'☆'.repeat(5-(c.rating||0))],['GST',c.gstin||'–'],['PAN',c.pan||'–']].map(([l,v])=>`<div><div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">${l}</div><div style="font-size:13px;font-weight:500;color:var(--txt)">${v}</div></div>`).join('')}
-      </div>`,
-    contacts:`<div class="mb12">
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Primary Contact</div>
-      <div class="g2">${[['Name',c.primary_contact||'–'],['Designation',c.primary_contact_designation||'–'],['Email',c.contact_email||'–'],['Phone',c.contact_phone||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>
+function closeClientDetail(){
+  window._curClient=null;
+  $('cli-detail-view').style.display='none';
+  $('cli-list-view').style.display='';
+  // Restore breadcrumb
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.textContent='Clients';
+  if(tbSub){tbSub.textContent='Account Management';tbSub.style.display='';if(bcSep)bcSep.style.display='';}
+}
+
+let _curCliTab='dashboard';
+function renderClientDetail(c, tab){
+  _curCliTab=tab;
+  const tabs=[
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
+    {id:'overview',  icon:'📋',label:'Details'},
+    {id:'contacts',  icon:'👥',label:'SPOC & Contacts'},
+    {id:'contract',  icon:'📄',label:'Contract & Billing'},
+    {id:'ratecard',  icon:'💰',label:'Rate Card'},
+    {id:'address',   icon:'📍',label:'Address & Tax'},
+    {id:'docs',      icon:'📁',label:'Documents'},
+  ];
+
+  const healthColor=c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)';
+
+  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderClientDetail(window._curClient,'${t.id}')">
+    <span class="tab-icon">${t.icon}</span><span>${t.label}</span>
+  </div>`).join('');
+
+  const field=(l,v,mono)=>v?`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${mono?' tmono':''}">${v}</div></div>`:
+    `<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value empty">—</div></div>`;
+
+  const spocCard=(n,name,desg,email,phone)=>name?`<div class="card" style="margin-bottom:12px;border-left:3px solid var(--blue)">
+    <div class="card-hd"><div class="card-title">${n}</div></div>
+    <div class="card-body"><div class="g2" style="gap:8px 20px">
+      ${field('Name',name)}${field('Designation',desg)}
+      ${field('Email',email?`<a href="mailto:${email}" style="color:var(--blue)">${email}</a>`:'')}${field('Phone',phone)}
+    </div></div></div>`:
+    `<div style="color:var(--txt3);font-size:12px;padding:10px 12px;background:var(--s2);border-radius:var(--r);border:1px dashed var(--bdr2)">No ${n} added — click <strong>Edit Contacts</strong> to add one.</div>`;
+
+  let panelHtml='';
+  if(tab==='dashboard'){
+    panelHtml=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active Employees</div><div class="kpi-value">${c.placements||0}</div><div class="kpi-delta">Placed headcount</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Open Positions</div><div class="kpi-value">${c.open_reqs||0}</div><div class="kpi-delta">Active requisitions</div></div>
+        <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Revenue MTD</div><div class="kpi-value">${fmt.moneyK(c.revenue_mtd||0)}</div><div class="kpi-delta">YTD: ${fmt.moneyK(c.revenue_ytd||0)}</div></div>
+        <div class="kpi" style="--kc:${healthColor}"><div class="kpi-label">Health Score</div><div class="kpi-value">${c.health_score||80}/100</div><div class="kpi-delta">${(c.health_score||80)>70?'🟢 Healthy':(c.health_score||80)>50?'🟡 At Risk':'🔴 Critical'}</div></div>
       </div>
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px;margin-top:12px">Billing Contact</div>
-      <div class="g2">${[['Name',c.billing_contact_name||'–'],['Designation',c.billing_contact_designation||'–'],['Email',c.billing_contact_email||'–'],['Phone',c.billing_contact_phone||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>`,
-    address:`<div class="g2">${[['Line 1',c.address_line1||'–'],['Line 2',c.address_line2||'–'],['City',c.city||'–'],['State',c.state_name||'–'],['Pincode',c.pincode||'–'],['Country',c.country_name||'–']].map(([l,v])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v}</div></div>`).join('')}</div>`,
-    docs:`<div id="client-docs-list">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-client-doc')">+ Upload Document</button></div>`,
-  };
-  setHtml('pp-content',tabs[tab]||'');
-  if(tab==='docs'&&c.id){
-    apiFetch(`/api/clients/${c.id}/documents`).then(docs=>{
-      setHtml('client-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadClientDocById(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteClientDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`
-        :`<div class="empty"><div class="empty-title">No documents uploaded</div></div>`);
-    });
+      <div class="g2">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">🏢 Client Summary</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Type',pill(c.client_type||'Direct','p-blue'))}
+              ${field('Industry',c.industry||'–')}
+              ${field('Status',pill(c.status||'Active'))}
+              ${field('Currency',c.currency||'INR')}
+              ${field('Contract Type',c.contract_type||'–')}
+              ${field('Payment Terms',c.payment_terms||'–')}
+              ${field('Billing Cycle',c.billing_cycle||'–')}
+              ${field('Account Manager',c.account_manager_name||'–')}
+              ${field('Referred By',c.referred_by||'–')}
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">📅 Contract Timeline</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px">
+              ${field('Start Date',fmt.date(c.contract_start))}
+              ${field('End Date',fmt.date(c.contract_end))}
+              ${field('PO Number',c.po_number)}
+            </div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📈 Health Score</div></div>
+            <div class="card-body">
+              <div style="text-align:center;margin-bottom:12px">
+                <div style="font-size:48px;font-weight:900;color:${healthColor};font-family:var(--mono);line-height:1">${c.health_score}</div>
+                <div style="font-size:11px;color:var(--txt3);margin-top:4px">out of 100</div>
+              </div>
+              <div class="prow"><div class="ptrack" style="height:10px"><div class="pfill" style="width:${c.health_score}%;background:${healthColor}"></div></div></div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:8px;text-align:center">${c.health_score>70?'🟢 Healthy relationship':c.health_score>50?'🟡 Needs attention':'🔴 At risk – action required'}</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">👤 Primary Contact</div></div>
+            <div class="card-body" style="padding:12px 16px">
+              <div class="avrow" style="margin-bottom:10px"><div class="av av-blue av-lg">${fmt.ini(c.primary_contact||'?')}</div><div><div class="av-name">${c.primary_contact||'–'}</div><div class="av-meta">${c.primary_contact_designation||''}</div></div></div>
+              ${c.contact_email?`<div style="font-size:12px;margin-bottom:4px"><a href="mailto:${c.contact_email}" style="color:var(--blue)">✉ ${c.contact_email}</a></div>`:''}
+              ${c.contact_phone?`<div style="font-size:12px">📞 ${c.contact_phone}</div>`:''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } else if(tab==='overview'){
+    panelHtml=`<div class="g2">
+      <div>
+        <div class="fsec"><div class="fsec-icon">🏢</div><div><div class="fsec-title">Company Info</div></div></div>
+        ${field('Legal Name',c.name)}${field('Client Type',pill(c.client_type||'Direct','p-blue'))}
+        ${field('Industry',c.industry)}${field('Status',pill(c.status||'Active'))}
+        ${field('Rating','★'.repeat(c.rating||0)+'☆'.repeat(5-(c.rating||0)))}
+        ${field('Referred By',c.referred_by)}${field('Account Manager',c.account_manager_name)}
+      </div>
+      <div>
+        <div class="fsec"><div class="fsec-icon">💳</div><div><div class="fsec-title">Billing & Tax</div></div></div>
+        ${field('Currency',c.currency||'INR')}${field('Payment Terms',c.payment_terms||'–')}
+        ${field('Billing Cycle',c.billing_cycle||'Monthly')}${field('GSTIN',c.gstin,true)}
+        ${field('PAN',c.pan,true)}
+      </div>
+    </div>`;
+  } else if(tab==='contacts'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">👥</div><div><div class="fsec-title">SPOC Management</div><div class="fsec-sub">All points of contact for this client</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="editClientInline()">✏️ Edit Contacts</button>
+      </div>
+      ${spocCard('Primary / Main SPOC',c.primary_contact,c.primary_contact_designation,c.contact_email,c.contact_phone)}
+      ${spocCard('Billing Contact',c.billing_contact_name,c.billing_contact_designation,c.billing_contact_email,c.billing_contact_phone)}
+      ${spocCard('SPOC 2',c.spoc2_name,c.spoc2_designation,c.spoc2_email,c.spoc2_phone)}
+      ${spocCard('SPOC 3',c.spoc3_name,c.spoc3_designation,c.spoc3_email,c.spoc3_phone)}`;
+  } else if(tab==='contract'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📄</div><div><div class="fsec-title">Contract & Billing Details</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="editClientInline()">✏️ Edit</button>
+      </div>
+      <div class="g2">
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-hd"><div class="card-title">Contract Info</div></div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Contract Type',c.contract_type||'–')}${field('PO Number',c.po_number)}
+            ${field('Start Date',fmt.date(c.contract_start))}${field('End Date',fmt.date(c.contract_end))}
+          </div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">Billing</div></div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Billing Cycle',c.billing_cycle||'Monthly')}${field('Currency',c.currency||'INR')}
+            ${field('Payment Terms',c.payment_terms||'–')}${field('GSTIN',c.gstin,true)}
+          </div></div>
+        </div>
+      </div>`;
+  } else if(tab==='ratecard'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">💰</div><div><div class="fsec-title">Rate Card</div><div class="fsec-sub">Agreed billing rates for this client</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="editClientRatecard()">✏️ Edit Rate Card</button>
+      </div>
+      <div id="client-ratecard-content">
+        ${c.rate_card?`<div class="card"><div class="card-body"><pre style="font-family:var(--mono);font-size:12px;color:var(--txt);white-space:pre-wrap;line-height:1.6">${c.rate_card}</pre></div></div>`:
+        `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No rate card defined</div><div class="empty-sub">Add billing rates, role-wise rates, or any rate agreement notes</div><button class="btn btn-primary" style="margin-top:16px" onclick="editClientRatecard()">+ Add Rate Card</button></div>`}
+      </div>`;
+  } else if(tab==='address'){
+    panelHtml=`<div class="g2">
+      <div>
+        <div class="fsec"><div class="fsec-icon">📍</div><div><div class="fsec-title">Office Address</div></div></div>
+        ${field('Line 1',c.address_line1)}${field('Line 2',c.address_line2)}
+        ${field('City',c.city)}${field('Pincode',c.pincode,true)}
+        ${field('State',c.state_name)}${field('Country',c.country_name)}
+      </div>
+      <div>
+        <div class="fsec"><div class="fsec-icon">🪪</div><div><div class="fsec-title">Tax Details</div></div></div>
+        ${field('GSTIN',c.gstin,true)}${field('PAN',c.pan,true)}
+      </div>
+    </div>`;
+  } else if(tab==='docs'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📁</div><div><div class="fsec-title">Documents</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('upload-client-doc')">+ Upload</button>
+      </div>
+      <div id="client-docs-list"><div style="padding:20px;text-align:center;color:var(--txt3)">Loading…</div></div>`;
+    // Load docs async
+    setTimeout(()=>{
+      apiFetch(`/api/clients/${c.id}/documents`).then(docs=>{
+        setHtml('client-docs-list',docs&&docs.length?`<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+          <tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td>
+            <td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+            <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadClientDocById(${d.id})">↓</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteClientDoc(${d.id})">×</button></div></td></tr>`).join('')}
+          </tbody></table></div></div>`:
+          `<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents yet</div></div>`);
+      });
+    },100);
   }
+
+  // Action bar
+  const actionBar=`<div class="detail-action-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeClientDetail()">← Clients</button>
+    <span class="bc-sep">›</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt)">${c.name}</span>
+    ${pill(c.client_type||'Direct','p-blue')}
+    ${pill(c.status||'Active')}
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="editClientInline()">✏️ Edit</button>
+    <button class="btn btn-danger btn-sm" onclick="archiveClient(${c.id},'${c.name.replace(/'/g,"\'") }')">Archive</button>
+  </div>`;
+
+  setHtml('cli-detail-view', actionBar+`
+    <div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">
+      ${panelHtml}
+    </div>`);
+}
+
+async function editClientInline(){
+  const c=window._curClient;
+  if(!c)return;
+  const[emps]=await Promise.all([apiFetch('/api/lookup/employees')]);
+  const amOpts='<option value="">None</option>'+(emps||[]).map(e=>`<option value="${e.id}"${e.id==c.account_manager_id?' selected':''}>${e.name}</option>`).join('');
+  const stOpts='<option value="">Select state…</option>'+(_masters['states']||[]).map(s=>`<option value="${s.id}"${s.id==c.state_id?' selected':''}>${s.name}</option>`).join('');
+  const cntOpts='<option value="">Select country…</option>'+(_masters['countries']||[]).map(co=>`<option value="${co.id}"${co.id==c.country_id?' selected':''}>${co.name}</option>`).join('');
+  const ctOpts='<option value="">Select type…</option>'+(_masters['contract-types']||[]).map(m=>`<option value="${m.id}"${m.id==c.contract_type_id?' selected':''}>${m.name}</option>`).join('');
+  const ptOpts='<option value="">Select terms…</option>'+(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}"${m.id==c.payment_terms_id?' selected':''}>${m.name}</option>`).join('');
+  const TYPES=['Direct','Vendor','Partner'];
+  const CYCLES=['Monthly','Bi-Monthly','Quarterly','Annual'];
+  const CURRENCIES=['INR','USD','GBP','EUR','SGD','AED','AUD'];
+  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+
+  _curModalType='edit-client';
+  $('m-title').textContent='Edit Client — '+c.name;
+  $('m-body').innerHTML=`<form id="mform">
+    <input type="hidden" name="_id" value="${c.id}">
+    <div class="mtabs">
+      <div class="mtab active" onclick="switchMTab('cli-t1',this)">🏢 Company</div>
+      <div class="mtab" onclick="switchMTab('cli-t2',this)">👥 Contacts</div>
+      <div class="mtab" onclick="switchMTab('cli-t3',this)">📄 Contract</div>
+      <div class="mtab" onclick="switchMTab('cli-t4',this)">📍 Address & Tax</div>
+    </div>
+    <div style="padding:4px 0 8px;overflow-y:auto;max-height:58vh">
+      <div class="mtab-panel active" id="cli-t1">
+        <div class="frow"><div class="fg"><label class="flabel">Client Name *</label><input class="finput" name="name" required value="${c.name||''}"></div>
+          <div class="fg"><label class="flabel">Client Type</label><select class="fselect" name="client_type"><option value="">Select…</option>${so(TYPES,c.client_type||'Direct')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div>
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${c.status=='Active'?'selected':''}>Active</option><option ${c.status=='At Risk'?'selected':''}>At Risk</option><option ${c.status=='Inactive'?'selected':''}>Inactive</option><option ${c.status=='On Hold'?'selected':''}>On Hold</option></select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
+          <div class="fg"><label class="flabel">Health Score (0-100)</label><input class="finput" type="number" name="health_score" min="0" max="100" value="${c.health_score||80}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[0,1,2,3,4,5].map(n=>`<option value="${n}"${n==c.rating?' selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${c.referred_by||''}"></div></div>
+      </div>
+      <div class="mtab-panel" id="cli-t2">
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--bdr)">Primary / Main SPOC</div>
+        <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${c.primary_contact_designation||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div></div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--bdr)">Billing Contact</div>
+        <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="billing_contact_name" value="${c.billing_contact_name||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="billing_contact_designation" value="${c.billing_contact_designation||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="billing_contact_email" value="${c.billing_contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="billing_contact_phone" value="${c.billing_contact_phone||''}"></div></div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--bdr)">SPOC 2</div>
+        <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="spoc2_name" value="${c.spoc2_name||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="spoc2_designation" value="${c.spoc2_designation||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="spoc2_email" value="${c.spoc2_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="spoc2_phone" value="${c.spoc2_phone||''}"></div></div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:14px 0 10px;padding-top:12px;border-top:1px solid var(--bdr)">SPOC 3</div>
+        <div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="spoc3_name" value="${c.spoc3_name||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="spoc3_designation" value="${c.spoc3_designation||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="spoc3_email" value="${c.spoc3_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="spoc3_phone" value="${c.spoc3_phone||''}"></div></div>
+      </div>
+      <div class="mtab-panel" id="cli-t3">
+        <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
+          <div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number" value="${c.po_number||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Contract Start</label><input class="finput" type="date" name="contract_start" value="${(c.contract_start||'').split('T')[0]}"></div>
+          <div class="fg"><label class="flabel">Contract End</label><input class="finput" type="date" name="contract_end" value="${(c.contract_end||'').split('T')[0]}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle">${so(CYCLES,c.billing_cycle||'Monthly')}</select></div>
+          <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency">${so(CURRENCIES,c.currency||'INR')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div></div>
+        <div class="fg"><label class="flabel">Rate Card / Notes</label><textarea class="ftextarea" name="rate_card" rows="5" placeholder="e.g. Senior Dev: ₹8000/day, Junior: ₹4500/day…">${c.rate_card||''}</textarea></div>
+      </div>
+      <div class="mtab-panel" id="cli-t4">
+        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
+        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${c.address_line2||''}"></div>
+        <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div>
+          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${c.pincode||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${cntOpts}</select></div>
+          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()" placeholder="36AAAAA0000A1Z5"></div>
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()" placeholder="AAAAA0000A"></div></div>
+      </div>
+    </div>
+  </form>`;
+  $('m-submit').textContent='Save Client';
+  $('overlay').classList.add('open');
+}
+
+function editClientRatecard(){
+  const c=window._curClient||{};
+  _curModalType='edit-client-ratecard';
+  $('m-title').textContent='Rate Card — '+c.name;
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_id" value="${c.id}">
+    <div class="finfo">💡 Enter billing rates, role-wise rates, markup percentages, or any agreed rate schedule for this client.</div>
+    <div class="fg"><label class="flabel">Rate Card</label>
+      <textarea class="ftextarea" name="rate_card" rows="12" placeholder="Example:\nSenior Developer: ₹8,000/day\nJunior Developer: ₹4,500/day\nProject Manager: ₹10,000/day\nData Analyst: ₹6,000/day\n\nOvertime: 1.5x daily rate\nHoliday: 2x daily rate">${c.rate_card||''}</textarea></div>
+  </form>`;
+  $('m-submit').textContent='Save Rate Card';
+  $('overlay').classList.add('open');
+}
+
+async function archiveClient(id,name){
+  if(!confirm(`Archive client "${name}"? This removes them from active lists.`))return;
+  await apiFetch(`/api/clients/${id}`,{method:'DELETE'});
+  toast(`${name} archived`,'success');
+  closeClientDetail();
+  loadClients();
+}
+
+function openClientForm(){
+  const TYPES=['Direct','Vendor','Partner'];
+  const CYCLES=['Monthly','Bi-Monthly','Quarterly','Annual'];
+  const amOpts='<option value="">None</option>'+(_masters['_employees']||[]).map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+  const ctOpts='<option value="">Select type…</option>'+(_masters['contract-types']||[]).map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  const ptOpts='<option value="">Select terms…</option>'+(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  apiFetch('/api/lookup/employees').then(emps=>{
+    _masters['_employees']=emps;
+    const amO='<option value="">None</option>'+(emps||[]).map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+    document.querySelectorAll('[name="account_manager_id"]').forEach(el=>el.innerHTML=amO);
+  });
+  _curModalType='add-client';
+  $('m-title').textContent='Add New Client';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="mtabs">
+      <div class="mtab active" onclick="switchMTab('nc-t1',this)">🏢 Company</div>
+      <div class="mtab" onclick="switchMTab('nc-t2',this)">👤 Contact</div>
+      <div class="mtab" onclick="switchMTab('nc-t3',this)">📄 Contract</div>
+    </div>
+    <div style="padding:4px 0 8px;overflow-y:auto;max-height:58vh">
+      <div class="mtab-panel active" id="nc-t1">
+        <div class="frow"><div class="fg"><label class="flabel">Client Name *</label><input class="finput" name="name" required placeholder="Company Pvt. Ltd."></div>
+          <div class="fg"><label class="flabel">Client Type</label><select class="fselect" name="client_type"><option value="">Select…</option>${TYPES.map(t=>`<option>${t}</option>`).join('')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" placeholder="IT Services"></div>
+          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency"><option>INR</option><option>USD</option><option>GBP</option><option>SGD</option><option>AED</option></select></div>
+          <div class="fg"><label class="flabel">Health Score</label><input class="finput" type="number" name="health_score" value="80" min="0" max="100"></div></div>
+      </div>
+      <div class="mtab-panel" id="nc-t2">
+        <div class="frow"><div class="fg"><label class="flabel">Primary Contact Name</label><input class="finput" name="primary_contact"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" placeholder="36AAAAA0000A1Z5" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" placeholder="AAAAA0000A" oninput="this.value=this.value.toUpperCase()"></div></div>
+      </div>
+      <div class="mtab-panel" id="nc-t3">
+        <div class="frow"><div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
+          <div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle">${CYCLES.map(c=>`<option>${c}</option>`).join('')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div>
+          <div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Contract Start</label><input class="finput" type="date" name="contract_start"></div>
+          <div class="fg"><label class="flabel">Contract End</label><input class="finput" type="date" name="contract_end"></div></div>
+      </div>
+    </div>
+  </form>`;
+  $('m-submit').textContent='Create Client';
+  $('overlay').classList.add('open');
 }
 
 async function downloadClientDocById(id){
   try{
     const doc=await apiFetch(`/api/clients/documents/${id}`);
-    if(!doc||!doc.file_data){toast('No file data available','error');return;}
+    if(!doc||!doc.file_data){toast('No file data','error');return;}
     const a=document.createElement('a');
     a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
     a.download=doc.doc_name||'document';a.click();
   }catch(e){toast('Download failed','error');}
 }
-async function deleteClientDoc(id){if(!confirm('Remove document?'))return;await apiFetch(`/api/clients/documents/${id}`,{method:'DELETE'});toast('Document removed','success');showClientTab('docs',$('pp-tabs').children[3],window._curClient?.id);}
+async function deleteClientDoc(id){
+  if(!confirm('Remove document?'))return;
+  await apiFetch(`/api/clients/documents/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curClient)renderClientDetail(window._curClient,'docs');
+}
 
+// ─── Compatibility shims for existing modal save handlers ───────────────
+function showClientTab(tab,el,id){
+  if(window._curClient)renderClientDetail(window._curClient,tab);
+}
 async function editClient(id){
-  try{
-    const[c,emps]=await Promise.all([apiFetch(`/api/clients/${id}`),apiFetch('/api/lookup/employees')]);
-    if(!c)return;
-    const amOpts=`<option value="">None</option>`+(emps||[]).map(e=>`<option value="${e.id}" ${e.id==c.account_manager_id?'selected':''}>${e.name}</option>`).join('');
-    const empOpts=amOpts;
-    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==c.state_id?'selected':''}>${s.name}</option>`).join('');
-    const cntOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(co=>`<option value="${co.id}" ${co.id==c.country_id?'selected':''}>${co.name}</option>`).join('');
-    const coOpts=cntOpts;
-    const ctOpts=`<option value="">Select type</option>`+(_masters['contract-types']||[]).map(m=>`<option value="${m.id}" ${m.id==c.contract_type_id?'selected':''}>${m.name}</option>`).join('');
-    const ptOpts=`<option value="">Select terms</option>`+(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}" ${m.id==c.payment_terms_id?'selected':''}>${m.name}</option>`).join('');
-    const curOpts=['INR','USD','GBP','SGD','AED','EUR','AUD'].map(cur=>`<option ${cur==c.currency?'selected':''}>${cur}</option>`).join('');
-    const stOpts2=['Active','Inactive','At Risk','On Hold'].map(s=>`<option ${s==c.status?'selected':''}>${s}</option>`).join('');
-    _curModalType='edit-client';
-    $('m-title').textContent='Edit Client — '+c.name;
-    $('m-body').innerHTML=`<form id="mform">
-      <input type="hidden" name="_id" value="${c.id}">
-      <div class="mtabs">
-        <div class="mtab active" onclick="switchMTab('cli-tab-info',this)">🏢 Company</div>
-        <div class="mtab" onclick="switchMTab('cli-tab-contacts',this)">👤 Contacts</div>
-        <div class="mtab" onclick="switchMTab('cli-tab-billing',this)">📍 Address & Tax</div>
-        <div class="mtab" onclick="switchMTab('cli-tab-settings',this)">⚙️ Settings</div>
-      </div>
-      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
-
-      <!-- TAB 1: Company -->
-      <div class="mtab-panel active" id="cli-tab-info">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Client Name *</label><input class="finput" name="name" required value="${c.name||''}"></div>
-          <div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry" value="${c.industry||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Contract Type</label><select class="fselect" name="contract_type_id">${ctOpts}</select></div>
-          <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency"><option ${c.currency=='INR'?'selected':''}>INR</option><option ${c.currency=='USD'?'selected':''}>USD</option><option ${c.currency=='GBP'?'selected':''}>GBP</option><option ${c.currency=='SGD'?'selected':''}>SGD</option><option ${c.currency=='AED'?'selected':''}>AED</option></select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div>
-          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Health Score (0-100)</label><input class="finput" type="number" name="health_score" min="0" max="100" value="${c.health_score||80}"></div>
-          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${c.referred_by||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Contacts -->
-      <div class="mtab-panel" id="cli-tab-contacts">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Primary Contact Name</label><input class="finput" name="primary_contact" value="${c.primary_contact||''}"></div>
-          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${c.primary_contact_designation||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${c.contact_email||''}"></div>
-          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${c.contact_phone||''}"></div>
-        </div>
-        <div style="margin:14px 0 8px;border-top:1px solid var(--bdr);padding-top:14px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase">Billing Contact</div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Billing Contact Name</label><input class="finput" name="billing_contact_name" value="${c.billing_contact_name||''}"></div>
-          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="billing_contact_designation" value="${c.billing_contact_designation||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Billing Email</label><input class="finput" type="email" name="billing_contact_email" value="${c.billing_contact_email||''}"></div>
-          <div class="fg"><label class="flabel">Billing Phone</label><input class="finput" name="billing_contact_phone" value="${c.billing_contact_phone||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 3: Address & Tax -->
-      <div class="mtab-panel" id="cli-tab-billing">
-        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${c.address_line1||''}"></div>
-        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${c.address_line2||''}"></div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${c.city||''}"></div>
-          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${c.pincode||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id" id="cli-country">${cntOpts}</select></div>
-          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id" id="cli-state">${stOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${c.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
-          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${c.pan||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        </div>
-      </div>
-
-      <!-- TAB 4: Settings -->
-      <div class="mtab-panel" id="cli-tab-settings">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${c.status=='Active'?'selected':''}>Active</option><option ${c.status=='At Risk'?'selected':''}>At Risk</option><option ${c.status=='Inactive'?'selected':''}>Inactive</option></select></div>
-          <div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n==c.rating?'selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div>
-        </div>
-      </div>
-      </div>
-    </form>`;
-    $('m-submit').textContent='Save Client';
-    $('overlay').classList.add('open');
-  }catch(e){console.error(e);}
+  const c=await apiFetch(`/api/clients/${id}`);
+  if(c){window._curClient=c;editClientInline();}
 }
-function setRating(n){
-  document.querySelectorAll('#rating-stars span').forEach((s,i)=>{s.textContent=i<n?'★':'☆';s.classList.toggle('on',i<n);});
-  $('rating-val').value=n;
-}
+
 // ═══════════════════════════════════════════════════
 // VENDORS
 // ═══════════════════════════════════════════════════
+
 async function loadVendors(){
+  const type=$('vnd-type')?.value||'';
+  const status=$('vnd-status')?.value||'';
+  const search=($('vnd-search')?.value||'').toLowerCase();
   try{
     const rows=await apiFetch('/api/vendors');
-    const avg=rows.length?Math.round(rows.reduce((s,v)=>s+v.sla_score,0)/rows.length):0;
+    _vendorsCache=rows;
+    let filtered=rows;
+    if(type) filtered=filtered.filter(v=>v.vendor_type===type);
+    if(status) filtered=filtered.filter(v=>v.status===status);
+    if(search) filtered=filtered.filter(v=>(v.name||'').toLowerCase().includes(search)||(v.category||'').toLowerCase().includes(search));
+
+    const avg=rows.length?Math.round(rows.reduce((s,v)=>s+(v.sla_score||0),0)/rows.length):0;
     const spend=rows.reduce((s,v)=>s+(v.spend_mtd||0),0);
     setHtml('vendor-kpis',`
       <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Active Vendors</div><div class="kpi-value">${rows.length}</div></div>
       <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Avg SLA Score</div><div class="kpi-value">${avg}%</div></div>
       <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Spend MTD</div><div class="kpi-value">${fmt.moneyK(spend)}</div></div>
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">SLA Breaches</div><div class="kpi-value">${rows.filter(v=>v.sla_score<80).length}</div></div>`);
-    setHtml('vendor-tbl',`<table><thead><tr><th>Vendor</th><th>Category</th><th>Status</th><th>Rating</th><th>Account Mgr</th><th>GST</th><th>Contract End</th><th>Spend MTD</th><th>SLA</th><th>Actions</th></tr></thead><tbody>${
-      rows.map(v=>{const sc=v.sla_score>=90?'var(--green-dk)':v.sla_score>=80?'var(--amber)':'var(--red)';return`<tr>
-        <td class="tbold">${v.name}</td>
-        <td>${pill(v.category||'–','p-blue')}</td>
-        <td>${pill(v.status||'Active')}</td>
-        <td><span class="stars">${'★'.repeat(v.rating||0)}${'☆'.repeat(5-(v.rating||0))}</span></td>
-        <td style="font-size:11.5px">${v.account_manager_name||'–'}</td>
-        <td class="tmono" style="font-size:10px">${v.gstin||'–'}</td>
-        <td class="tmono">${fmt.date(v.contract_end)}</td>
-        <td class="tmono">${fmt.moneyK(v.spend_mtd)}</td>
-        <td style="font-weight:600;color:${sc};font-family:var(--mono)">${v.sla_score}%</td>
-        <td><div class="tact">
-          <button class="btn btn-ghost btn-xs" onclick="viewVendor(${v.id})">View</button>
-          <button class="btn btn-ghost btn-xs" onclick="editVendor(${v.id})">Edit</button>
-        </div></td>
-      </tr>`;}).join('')}</tbody></table>`);
+
+    if(!filtered.length){
+      setHtml('vendor-tbl','<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No vendors match</div></div>');return;
+    }
+    setHtml('vendor-tbl',`<table>
+      <thead><tr>
+        <th>Vendor</th><th>Type</th><th>Category</th><th>Status</th><th>Rating</th>
+        <th>Account Mgr</th><th>Contract End</th><th>Spend MTD</th><th>SLA</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${filtered.map(v=>{
+        const sc=v.sla_score>=90?'var(--green-dk)':v.sla_score>=80?'var(--amber)':'var(--red)';
+        return`<tr style="cursor:pointer" onclick="viewVendor(${v.id})">
+          <td><div class="avrow"><div class="av av-amber" style="width:28px;height:28px;font-size:10px">${fmt.ini(v.name)}</div><div><div class="av-name">${v.name}</div><div class="av-meta">${v.primary_contact||''}</div></div></div></td>
+          <td>${pill(v.vendor_type||'Staffing','p-amber')}</td>
+          <td>${pill(v.category||'–','p-blue')}</td>
+          <td>${pill(v.status||'Active')}</td>
+          <td><span class="stars">${'★'.repeat(v.rating||0)}${'☆'.repeat(5-(v.rating||0))}</span></td>
+          <td style="font-size:11.5px">${v.account_manager_name||'–'}</td>
+          <td class="tmono">${fmt.date(v.contract_end)}</td>
+          <td class="tmono">${fmt.moneyK(v.spend_mtd)}</td>
+          <td style="font-weight:700;color:${sc};font-family:var(--mono)">${v.sla_score}%</td>
+          <td onclick="event.stopPropagation()"><div class="tact">
+            <button class="btn btn-ghost btn-xs" onclick="viewVendor(${v.id})">Open</button>
+            <button class="btn btn-danger btn-xs" onclick="archiveVendor(${v.id},'${v.name}')">×</button>
+          </div></td>
+        </tr>`;
+      }).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
 async function viewVendor(id){
   const v=await apiFetch(`/api/vendors/${id}`);
   if(!v)return;
-  $('pp-av').textContent=fmt.ini(v.name);$('pp-av').className='av av-lg av-amber';
-  $('pp-name').textContent=v.name;
-  $('pp-meta').textContent=`${v.category||'–'} · SLA ${v.sla_score}% · ${v.status||'Active'}`;
+  const cachedV=(_vendorsCache||[]).find(r=>r.id==id);
+  if(cachedV){v.spend_mtd=cachedV.spend_mtd;v.sla_score=cachedV.sla_score;}
   window._curVendor=v;
-  $('pp-tabs').innerHTML=`<div class="ptab-item active" onclick="showVendorTab('overview',this)">Overview</div>
-    <div class="ptab-item" onclick="showVendorTab('banking',this)">Banking</div>
-    <div class="ptab-item" onclick="showVendorTab('address',this)">Address</div>
-    <div class="ptab-item" onclick="showVendorTab('docs',this)">Documents</div>`;
-  showVendorTab('overview',$('pp-tabs').firstChild);
-  $('prof-overlay').classList.add('open');$('prof-panel').classList.add('open');
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.innerHTML=`<span class="bc-item bc-link" onclick="closeVendorDetail()">Vendors</span><span class="bc-sep">›</span><span class="bc-item bc-current">${v.name}</span>`;
+  if(tbSub){tbSub.style.display='none';if(bcSep)bcSep.style.display='none';}
+  $('vnd-list-view').style.display='none';
+  $('vnd-detail-view').style.display='';
+  renderVendorDetail(v,'dashboard');
 }
 
-function showVendorTab(tab,el){
-  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));el.classList.add('active');
-  const v=window._curVendor||{};
-  const tabs={
-    overview:`<div class="g2">${[['Contact',v.primary_contact||'–'],['Designation',v.primary_contact_designation||'–'],['Email',v.contact_email||'–'],['Phone',v.contact_phone||'–'],['GST',v.gstin||'–'],['PAN',v.pan||'–'],['Contract End',fmt.date(v.contract_end)],['Referred By',v.referred_by||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v2}</div></div>`).join('')}</div>
-      <div class="divider"></div><div><div style="font-size:11px;font-weight:600;color:var(--txt2);margin-bottom:6px">SLA</div><p style="font-size:12.5px;color:var(--txt2)">${v.sla_description||'No SLA defined'}</p></div>`,
-    banking:`<div class="g2">${[['Account Name',v.bank_account_name||'–'],['Bank',v.bank_name||'–'],['Branch',v.bank_branch||'–'],['Account Number',v.bank_account_number||'–'],['IFSC',v.bank_ifsc||'–'],['SWIFT',v.bank_swift||'–'],['Account Type',v.bank_account_type||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;font-family:var(--mono);color:var(--txt)">${v2}</div></div>`).join('')}</div>`,
-    address:`<div class="g2">${[['Line 1',v.address_line1||'–'],['Line 2',v.address_line2||'–'],['City',v.city||'–'],['State',v.state_name||'–'],['Pincode',v.pincode||'–'],['Country',v.country_name||'–']].map(([l,v2])=>`<div><div style="font-size:10px;color:var(--txt3)">${l}</div><div style="font-size:13px;color:var(--txt)">${v2}</div></div>`).join('')}</div>`,
-    docs:`<div id="vendor-docs-list">Loading…</div><div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-vendor-doc')">+ Upload Document</button></div>`,
-  };
-  setHtml('pp-content',tabs[tab]||'');
-  if(tab==='docs'&&v.id){
-    apiFetch(`/api/vendors/${v.id}/documents`).then(docs=>{
-      setHtml('vendor-docs-list',docs.length?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadVendorDocById(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteVendorDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="empty-title">No documents</div></div>`);
-    });
-  }
+function closeVendorDetail(){
+  window._curVendor=null;
+  $('vnd-detail-view').style.display='none';
+  $('vnd-list-view').style.display='';
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.textContent='Vendors';
+  if(tbSub){tbSub.textContent='Vendor Registry';tbSub.style.display='';if(bcSep)bcSep.style.display='';}
 }
+
+let _curVndTab='dashboard';
+function renderVendorDetail(v,tab){
+  _curVndTab=tab;
+  const tabs=[
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
+    {id:'overview',  icon:'📋',label:'Details'},
+    {id:'contract',  icon:'📄',label:'Contract & SLA'},
+    {id:'compliance',icon:'⚖️',label:'Compliance'},
+    {id:'banking',   icon:'🏦',label:'Banking'},
+    {id:'address',   icon:'📍',label:'Address & Tax'},
+    {id:'docs',      icon:'📁',label:'Documents'},
+  ];
+  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderVendorDetail(window._curVendor,'${t.id}')">
+    <span class="tab-icon">${t.icon}</span><span>${t.label}</span>
+  </div>`).join('');
+
+  const field=(l,v2,mono)=>v2!=null&&v2!==''?`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${mono?' tmono':''}">${v2}</div></div>`:
+    `<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value empty">—</div></div>`;
+
+  const sc=v.sla_score>=90?'var(--green)':v.sla_score>=80?'var(--amber)':'var(--red)';
+  let panelHtml='';
+
+  if(tab==='dashboard'){
+    panelHtml=`
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Vendor Type</div><div class="kpi-value" style="font-size:15px;letter-spacing:0">${v.vendor_type||'–'}</div><div class="kpi-delta">${v.category||''}</div></div>
+        <div class="kpi" style="--kc:${sc}"><div class="kpi-label">SLA Score</div><div class="kpi-value" style="color:${sc}">${v.sla_score||90}%</div><div class="kpi-delta">${(v.sla_score||90)>=90?'🟢 Excellent':(v.sla_score||90)>=80?'🟡 Good':'🔴 Breach'}</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Spend MTD</div><div class="kpi-value">${fmt.moneyK(v.spend_mtd||0)}</div><div class="kpi-delta">Current month</div></div>
+        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Rating</div><div class="kpi-value" style="font-size:16px;letter-spacing:1px">${'★'.repeat(v.rating||0)}${'☆'.repeat(5-(v.rating||0))}</div><div class="kpi-delta">${v.rating||0}/5 stars</div></div>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📦 Vendor Summary</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Type',pill(v.vendor_type||'Staffing','p-amber'))}
+              ${field('Category',pill(v.category||'–','p-blue'))}
+              ${field('Status',pill(v.status||'Active'))}
+              ${field('Account Manager',v.account_manager_name)}
+              ${field('Payment Terms',v.payment_terms_name)}
+              ${field('Referred By',v.referred_by)}
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">📅 Contract</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px">
+              ${field('Start',fmt.date(v.contract_start))}
+              ${field('End',fmt.date(v.contract_end))}
+            </div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📊 SLA Performance</div></div>
+            <div class="card-body">
+              <div style="text-align:center;margin-bottom:12px">
+                <div style="font-size:48px;font-weight:900;color:${sc};font-family:var(--mono);line-height:1">${v.sla_score}%</div>
+                <div style="font-size:11px;color:var(--txt3);margin-top:4px">${v.sla_score>=90?'🟢 Excellent SLA':v.sla_score>=80?'🟡 Good — monitor':'🔴 SLA breach — action needed'}</div>
+              </div>
+              <div class="prow"><div class="ptrack" style="height:10px"><div class="pfill" style="width:${v.sla_score}%;background:${sc}"></div></div></div>
+              ${v.sla_description?`<p style="font-size:12px;color:var(--txt2);margin-top:12px">${v.sla_description}</p>`:''}
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">👤 Primary Contact</div></div>
+            <div class="card-body" style="padding:12px 16px">
+              <div class="avrow" style="margin-bottom:10px"><div class="av av-amber av-lg">${fmt.ini(v.primary_contact||'?')}</div><div><div class="av-name">${v.primary_contact||'–'}</div><div class="av-meta">${v.primary_contact_designation||''}</div></div></div>
+              ${v.contact_email?`<div style="font-size:12px;margin-bottom:4px"><a href="mailto:${v.contact_email}" style="color:var(--blue)">✉ ${v.contact_email}</a></div>`:''}
+              ${v.contact_phone?`<div style="font-size:12px">📞 ${v.contact_phone}</div>`:''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } else if(tab==='overview'){
+    panelHtml=`<div class="g2">
+      <div>${field('Name',v.name)}${field('Type',pill(v.vendor_type||'Staffing','p-amber'))}${field('Category',pill(v.category||'–','p-blue'))}${field('Status',pill(v.status||'Active'))}${field('Rating','★'.repeat(v.rating||0)+'☆'.repeat(5-(v.rating||0)))}${field('Referred By',v.referred_by)}${field('Account Manager',v.account_manager_name)}</div>
+      <div>${field('Contact',v.primary_contact)}${field('Designation',v.primary_contact_designation)}${field('Email',v.contact_email?`<a href="mailto:${v.contact_email}" style="color:var(--blue)">${v.contact_email}</a>`:'')}${field('Phone',v.contact_phone)}</div>
+    </div>`;
+  } else if(tab==='contract'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📄</div><div><div class="fsec-title">Contract & SLA</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="editVendorInline()">✏️ Edit</button>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Contract</div></div><div class="card-body">
+          ${field('Start Date',fmt.date(v.contract_start))}${field('End Date',fmt.date(v.contract_end))}
+          ${field('Payment Terms',v.payment_terms_name)}
+        </div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">SLA</div></div><div class="card-body">
+          ${field('SLA Score',`<span style="color:${sc};font-weight:700;font-family:var(--mono)">${v.sla_score}%</span>`)}
+          ${field('SLA Notes',v.sla_description)}
+        </div></div>
+      </div>`;
+  } else if(tab==='compliance'){
+    const badge=(label,val)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--bdr)">
+      <span style="font-size:13px;color:var(--txt)">${label}</span>
+      <span class="pill ${val?'p-green':'p-gray'}">${val?'✓ Yes':'— No'}</span>
+    </div>`;
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">⚖️</div><div><div class="fsec-title">GST & Compliance</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="editVendorInline()">✏️ Edit</button>
+      </div>
+      <div class="g2">
+        <div class="card"><div class="card-hd"><div class="card-title">Registrations</div></div><div class="card-body">
+          ${badge('GST Registered',v.gst_registered)}
+          ${badge('MSME Registered',v.msme_registered)}
+          ${badge('TDS Applicable',v.tds_applicable)}
+          ${v.tds_applicable?field('TDS Rate',v.tds_rate?`${v.tds_rate}%`:''):''}
+        </div></div>
+        <div class="card"><div class="card-hd"><div class="card-title">Tax IDs</div></div><div class="card-body">
+          ${field('GSTIN',v.gstin,true)}${field('PAN',v.pan,true)}
+          ${field('Compliance Notes',v.compliance_notes)}
+        </div></div>
+      </div>`;
+  } else if(tab==='banking'){
+    panelHtml=`<div class="g2">
+      <div>${field('Account Name',v.bank_account_name)}${field('Bank',v.bank_name)}${field('Branch',v.bank_branch)}${field('Account Type',v.bank_account_type)}</div>
+      <div>${field('Account Number',v.bank_account_number,true)}${field('IFSC',v.bank_ifsc,true)}${field('SWIFT',v.bank_swift,true)}</div>
+    </div>`;
+  } else if(tab==='address'){
+    panelHtml=`<div class="g2">
+      <div>${field('Line 1',v.address_line1)}${field('Line 2',v.address_line2)}${field('City',v.city)}${field('Pincode',v.pincode,true)}${field('State',v.state_name)}${field('Country',v.country_name)}</div>
+      <div>${field('GSTIN',v.gstin,true)}${field('PAN',v.pan,true)}</div>
+    </div>`;
+  } else if(tab==='docs'){
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📁</div><div><div class="fsec-title">Documents</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('upload-vendor-doc')">+ Upload</button>
+      </div>
+      <div id="vendor-docs-list"><div style="padding:20px;text-align:center;color:var(--txt3)">Loading…</div></div>`;
+    setTimeout(()=>{
+      apiFetch(`/api/vendors/${v.id}/documents`).then(docs=>{
+        setHtml('vendor-docs-list',docs&&docs.length?`<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+          <tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td>
+            <td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+            <td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadVendorDocById(${d.id})">↓</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteVendorDoc(${d.id})">×</button></div></td></tr>`).join('')}
+          </tbody></table></div></div>`:
+          `<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents yet</div></div>`);
+      });
+    },100);
+  }
+
+  const actionBar=`<div class="detail-action-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeVendorDetail()">← Vendors</button>
+    <span class="bc-sep">›</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt)">${v.name}</span>
+    ${pill(v.vendor_type||'Staffing','p-amber')}
+    ${pill(v.status||'Active')}
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="editVendorInline()">✏️ Edit</button>
+    <button class="btn btn-danger btn-sm" onclick="archiveVendor(${v.id},'${v.name.replace(/'/g,"\'") }')">Archive</button>
+  </div>`;
+
+  setHtml('vnd-detail-view', actionBar+`
+    <div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">
+      ${panelHtml}
+    </div>`);
+}
+
+async function editVendorInline(){
+  const v=window._curVendor;
+  if(!v)return;
+  const[emps]=await Promise.all([apiFetch('/api/lookup/employees')]);
+  const amOpts='<option value="">None</option>'+(emps||[]).map(e=>`<option value="${e.id}"${e.id==v.account_manager_id?' selected':''}>${e.name}</option>`).join('');
+  const vcOpts='<option value="">Select…</option>'+(_masters['vendor-categories']||[]).map(m=>`<option value="${m.id}"${m.id==v.category_id?' selected':''}>${m.name}</option>`).join('');
+  const stOpts='<option value="">Select state…</option>'+(_masters['states']||[]).map(s=>`<option value="${s.id}"${s.id==v.state_id?' selected':''}>${s.name}</option>`).join('');
+  const cntOpts='<option value="">Select country…</option>'+(_masters['countries']||[]).map(c=>`<option value="${c.id}"${c.id==v.country_id?' selected':''}>${c.name}</option>`).join('');
+  const ptOpts='<option value="">None</option>'+(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}"${m.id==v.payment_terms_id?' selected':''}>${m.name}</option>`).join('');
+  const VTYPES=['Infrastructure','Staffing','Consulting','Payroll','Technology','Other'];
+  const so=(arr,val)=>arr.map(t=>`<option${t===val?' selected':''}>${t}</option>`).join('');
+  _curModalType='edit-vendor';
+  $('m-title').textContent='Edit Vendor — '+v.name;
+  $('m-body').innerHTML=`<form id="mform">
+    <input type="hidden" name="_id" value="${v.id}">
+    <div class="mtabs">
+      <div class="mtab active" onclick="switchMTab('vnd-t1',this)">📦 Vendor</div>
+      <div class="mtab" onclick="switchMTab('vnd-t2',this)">📄 Contract & SLA</div>
+      <div class="mtab" onclick="switchMTab('vnd-t3',this)">⚖️ Compliance</div>
+      <div class="mtab" onclick="switchMTab('vnd-t4',this)">🏦 Banking</div>
+      <div class="mtab" onclick="switchMTab('vnd-t5',this)">📍 Address</div>
+    </div>
+    <div style="padding:4px 0 8px;overflow-y:auto;max-height:56vh">
+      <div class="mtab-panel active" id="vnd-t1">
+        <div class="frow"><div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required value="${v.name||''}"></div>
+          <div class="fg"><label class="flabel">Vendor Type</label><select class="fselect" name="vendor_type"><option value="">Select…</option>${so(VTYPES,v.vendor_type||'Staffing')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${vcOpts}</select></div>
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${v.status==='Active'?'selected':''}>Active</option><option ${v.status==='Inactive'?'selected':''}>Inactive</option><option ${v.status==='On Hold'?'selected':''}>On Hold</option></select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
+          <div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[0,1,2,3,4,5].map(n=>`<option value="${n}"${n==v.rating?' selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Primary Contact</label><input class="finput" name="primary_contact" value="${v.primary_contact||''}"></div>
+          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${v.primary_contact_designation||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${v.contact_email||''}"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${v.contact_phone||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${v.referred_by||''}"></div></div>
+      </div>
+      <div class="mtab-panel" id="vnd-t2">
+        <div class="frow"><div class="fg"><label class="flabel">Contract Start</label><input class="finput" type="date" name="contract_start" value="${(v.contract_start||'').split('T')[0]}"></div>
+          <div class="fg"><label class="flabel">Contract End</label><input class="finput" type="date" name="contract_end" value="${(v.contract_end||'').split('T')[0]}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Payment Terms</label><select class="fselect" name="payment_terms_id">${ptOpts}</select></div>
+          <div class="fg"><label class="flabel">SLA Score (%)</label><input class="finput" type="number" name="sla_score" min="0" max="100" value="${v.sla_score||90}"></div></div>
+        <div class="fg"><label class="flabel">SLA Description</label><textarea class="ftextarea" name="sla_description" rows="3">${v.sla_description||''}</textarea></div>
+        <div class="fg"><label class="flabel">Spend MTD</label><input class="finput" type="number" name="spend_mtd" value="${v.spend_mtd||0}"></div>
+      </div>
+      <div class="mtab-panel" id="vnd-t3">
+        <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${v.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${v.pan||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+        <div style="display:flex;gap:24px;margin:12px 0">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" name="gst_registered" ${v.gst_registered?'checked':''} style="width:auto"> GST Registered</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" name="msme_registered" ${v.msme_registered?'checked':''} style="width:auto"> MSME Registered</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer"><input type="checkbox" name="tds_applicable" ${v.tds_applicable?'checked':''} style="width:auto"> TDS Applicable</label>
+        </div>
+        <div class="fg"><label class="flabel">TDS Rate (%)</label><input class="finput" type="number" name="tds_rate" step="0.01" value="${v.tds_rate||0}"></div>
+        <div class="fg"><label class="flabel">Compliance Notes</label><textarea class="ftextarea" name="compliance_notes" rows="3">${v.compliance_notes||''}</textarea></div>
+      </div>
+      <div class="mtab-panel" id="vnd-t4">
+        <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${v.bank_account_name||''}"></div>
+          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${v.bank_name||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${v.bank_branch||''}"></div>
+          <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type"><option ${v.bank_account_type==='Current'?'selected':''}>Current</option><option ${v.bank_account_type==='Savings'?'selected':''}>Savings</option></select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${v.bank_account_number||''}"></div>
+          <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${v.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div></div>
+        <div class="fg"><label class="flabel">SWIFT Code</label><input class="finput" name="bank_swift" value="${v.bank_swift||''}"></div>
+      </div>
+      <div class="mtab-panel" id="vnd-t5">
+        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${v.address_line1||''}"></div>
+        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${v.address_line2||''}"></div>
+        <div class="frow"><div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${v.city||''}"></div>
+          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${v.pincode||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${cntOpts}</select></div>
+          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div></div>
+      </div>
+    </div>
+  </form>`;
+  $('m-submit').textContent='Save Vendor';
+  $('overlay').classList.add('open');
+}
+
+function openVendorForm(){
+  const VTYPES=['Infrastructure','Staffing','Consulting','Payroll','Technology','Other'];
+  const vcOpts='<option value="">Select…</option>'+(_masters['vendor-categories']||[]).map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  _curModalType='add-vendor';
+  $('m-title').textContent='Add New Vendor';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="frow"><div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required placeholder="Company Name"></div>
+      <div class="fg"><label class="flabel">Vendor Type</label><select class="fselect" name="vendor_type"><option value="">Select…</option>${VTYPES.map(t=>`<option>${t}</option>`).join('')}</select></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${vcOpts}</select></div>
+      <div class="fg"><label class="flabel">SLA Score</label><input class="finput" type="number" name="sla_score" value="90" min="0" max="100"></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">Contact Name</label><input class="finput" name="primary_contact"></div>
+      <div class="fg"><label class="flabel">Contact Email</label><input class="finput" type="email" name="contact_email"></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" oninput="this.value=this.value.toUpperCase()"></div></div>
+  </form>`;
+  $('m-submit').textContent='Create Vendor';
+  $('overlay').classList.add('open');
+}
+
+async function archiveVendor(id,name){
+  if(!confirm(`Archive vendor "${name}"?`))return;
+  await apiFetch(`/api/vendors/${id}`,{method:'DELETE'});
+  toast(`${name} archived`,'success');
+  closeVendorDetail();
+  loadVendors();
+}
+
 async function downloadVendorDocById(id){
   try{
     const doc=await apiFetch(`/api/vendors/documents/${id}`);
-    if(!doc||!doc.file_data){toast('No file data available','error');return;}
+    if(!doc||!doc.file_data){toast('No file data','error');return;}
     const a=document.createElement('a');
     a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
     a.download=doc.doc_name||'document';a.click();
   }catch(e){toast('Download failed','error');}
 }
-async function deleteVendorDoc(id){if(!confirm('Remove?'))return;await apiFetch(`/api/vendors/documents/${id}`,{method:'DELETE'});toast('Removed','success');showVendorTab('docs',$('pp-tabs').children[3]);}
-
-async function editVendor(id){
-  try{
-    const[v,emps]=await Promise.all([apiFetch(`/api/vendors/${id}`),apiFetch('/api/lookup/employees')]);
-    if(!v)return;
-    const amOpts=`<option value="">None</option>`+(emps||[]).map(e=>`<option value="${e.id}" ${e.id==v.account_manager_id?'selected':''}>${e.name}</option>`).join('');
-    const empOpts=amOpts;
-    const vcOpts=`<option value="">Select category</option>`+(_masters['vendor-categories']||[]).map(m=>`<option value="${m.id}" ${m.id==v.category_id?'selected':''}>${m.name}</option>`).join('');
-    const catOpts=vcOpts;
-    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==v.state_id?'selected':''}>${s.name}</option>`).join('');
-    const cntOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(c=>`<option value="${c.id}" ${c.id==v.country_id?'selected':''}>${c.name}</option>`).join('');
-    const coOpts=cntOpts;
-    _curModalType='edit-vendor';
-    $('m-title').textContent='Edit Vendor — '+v.name;
-    $('m-body').innerHTML=`<form id="mform">
-      <input type="hidden" name="_id" value="${v.id}">
-      <div class="mtabs">
-        <div class="mtab active" onclick="switchMTab('vnd-tab-info',this)">🏭 Vendor Info</div>
-        <div class="mtab" onclick="switchMTab('vnd-tab-contacts',this)">👤 Contact</div>
-        <div class="mtab" onclick="switchMTab('vnd-tab-address',this)">📍 Address & Tax</div>
-        <div class="mtab" onclick="switchMTab('vnd-tab-bank',this)">🏦 Bank & SLA</div>
-      </div>
-      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
-
-      <!-- TAB 1: Vendor Info -->
-      <div class="mtab-panel active" id="vnd-tab-info">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Vendor Name *</label><input class="finput" name="name" required value="${v.name||''}"></div>
-          <div class="fg"><label class="flabel">Category</label><select class="fselect" name="category_id">${vcOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${v.status=='Active'?'selected':''}>Active</option><option ${v.status=='Inactive'?'selected':''}>Inactive</option><option ${v.status=='Blacklisted'?'selected':''}>Blacklisted</option></select></div>
-          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${amOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n==v.rating?'selected':''}>${'★'.repeat(n)} (${n})</option>`).join('')}</select></div>
-          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${v.referred_by||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Contact -->
-      <div class="mtab-panel" id="vnd-tab-contacts">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Primary Contact Name</label><input class="finput" name="primary_contact" value="${v.primary_contact||''}"></div>
-          <div class="fg"><label class="flabel">Designation</label><input class="finput" name="primary_contact_designation" value="${v.primary_contact_designation||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="contact_email" value="${v.contact_email||''}"></div>
-          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="contact_phone" value="${v.contact_phone||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 3: Address & Tax -->
-      <div class="mtab-panel" id="vnd-tab-address">
-        <div class="fg"><label class="flabel">Address Line 1</label><input class="finput" name="address_line1" value="${v.address_line1||''}"></div>
-        <div class="fg"><label class="flabel">Address Line 2</label><input class="finput" name="address_line2" value="${v.address_line2||''}"></div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${v.city||''}"></div>
-          <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode" value="${v.pincode||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${cntOpts}</select></div>
-          <div class="fg"><label class="flabel">State</label><select class="fselect" name="state_id">${stOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" value="${v.gstin||''}" oninput="this.value=this.value.toUpperCase()"></div>
-          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${v.pan||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        </div>
-      </div>
-
-      <!-- TAB 4: Bank & SLA -->
-      <div class="mtab-panel" id="vnd-tab-bank">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Account Holder Name</label><input class="finput" name="bank_account_name" value="${v.bank_account_name||''}"></div>
-          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${v.bank_name||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${v.bank_account_number||''}"></div>
-          <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${v.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type"><option ${v.bank_account_type=='Current'?'selected':''}>Current</option><option ${v.bank_account_type=='Savings'?'selected':''}>Savings</option></select></div>
-          <div class="fg"><label class="flabel">SWIFT Code</label><input class="finput" name="bank_swift" value="${v.bank_swift||''}"></div>
-        </div>
-        <div style="margin:14px 0 8px;border-top:1px solid var(--bdr);padding-top:14px;font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase">Contract & SLA</div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Contract End Date</label><input class="finput" type="date" name="contract_end" value="${v.contract_end?v.contract_end.substring(0,10):''}"></div>
-          <div class="fg"><label class="flabel">SLA Score (0-100)</label><input class="finput" type="number" name="sla_score" min="0" max="100" value="${v.sla_score||90}"></div>
-        </div>
-        <div class="fg"><label class="flabel">SLA Description</label><textarea class="ftextarea" name="sla_description" rows="2">${v.sla_description||''}</textarea></div>
-      </div>
-      </div>
-    </form>`;
-    $('m-submit').textContent='Save Vendor';
-    $('overlay').classList.add('open');
-  }catch(e){console.error(e);}
+async function deleteVendorDoc(id){
+  if(!confirm('Remove document?'))return;
+  await apiFetch(`/api/vendors/documents/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curVendor)renderVendorDetail(window._curVendor,'docs');
 }
+
+// Shim for old references
+function showVendorTab(tab,el){if(window._curVendor)renderVendorDetail(window._curVendor,tab);}
+async function editVendor(id){const v=await apiFetch(`/api/vendors/${id}`);if(v){window._curVendor=v;editVendorInline();}}
+
+// Modal save handlers for client/vendor
+function _saveClientFromModal(data){
+  const id=data._id;
+  // Handle checkboxes
+  delete data._id;
+  return id
+    ? apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)}).then(async()=>{
+        toast('Client updated!','success');closeModal();
+        if(window._curClient&&window._curClient.id==id){const c=await apiFetch(`/api/clients/${id}`);window._curClient=c;renderClientDetail(c,_curCliTab);}
+        loadClients();})
+    : apiFetch('/api/clients',{method:'POST',body:JSON.stringify(data)}).then(()=>{toast('Client created!','success');closeModal();loadClients();});
+}
+function _saveVendorFromModal(data){
+  const id=data._id;delete data._id;
+  // Convert checkboxes
+  data.gst_registered=data.gst_registered?1:0;
+  data.msme_registered=data.msme_registered?1:0;
+  data.tds_applicable=data.tds_applicable?1:0;
+  return id
+    ? apiFetch(`/api/vendors/${id}`,{method:'PUT',body:JSON.stringify(data)}).then(async()=>{
+        toast('Vendor updated!','success');closeModal();
+        if(window._curVendor&&window._curVendor.id==id){const v=await apiFetch(`/api/vendors/${id}`);window._curVendor=v;renderVendorDetail(v,_curVndTab);}
+        loadVendors();})
+    : apiFetch('/api/vendors',{method:'POST',body:JSON.stringify(data)}).then(()=>{toast('Vendor created!','success');closeModal();loadVendors();});
+}
+
+function setRating(n){
+  document.querySelectorAll('#rating-stars span').forEach((s,i)=>{s.textContent=i<n?'★':'☆';s.classList.toggle('on',i<n);});
+  $('rating-val').value=n;
+}
+
 // ═══════════════════════════════════════════════════
 // EMPLOYEES
 // ═══════════════════════════════════════════════════
@@ -3633,7 +4451,7 @@ const modalDefs={
         <select class="fselect" name="doc_type"><option>NDA</option><option>MSA</option><option>SOW</option><option>PO</option><option>Contract</option><option>Invoice</option><option>Other</option></select></div>
       <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="NDA - Acme Inc. 2026"></div>
       <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="cli-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'cli')"></div>`,
-    afterSave:()=>{const c=window._curClient;if(c)showClientTab('docs',$('pp-tabs').children[3],c.id);},
+    afterSave:()=>{if(window._curClient)renderClientDetail(window._curClient,'docs');},
     getEndpoint:()=>`/api/clients/${window._curClient?.id}/documents`
   },
   'upload-vendor-doc':{
@@ -3643,7 +4461,7 @@ const modalDefs={
         <select class="fselect" name="doc_type"><option>NDA</option><option>MSA</option><option>SLA Agreement</option><option>Contract</option><option>Rate Card</option><option>Other</option></select></div>
       <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="NDA - LinkedIn Talent 2026"></div>
       <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="vend-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'vend')"></div>`,
-    afterSave:()=>{if(window._curVendor)showVendorTab('docs',$('pp-tabs').children[3]);},
+    afterSave:()=>{if(window._curVendor)renderVendorDetail(window._curVendor,'docs');},
     getEndpoint:()=>`/api/vendors/${window._curVendor?.id}/documents`
   },
   'add-labour':{
@@ -3820,23 +4638,27 @@ async function submitModal(){
     }catch(e){toast('Save failed: '+e.message,'error');}
     return;
   }
-  if(_curModalType==='edit-client'){
+  if(_curModalType==='edit-client'||_curModalType==='add-client'||_curModalType==='edit-client-ratecard'){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
-    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
-    const id=data._id;delete data._id;
-    ['contract_type_id','payment_terms_id','health_score','account_manager_id','state_id','country_id','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/clients/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Client updated!','success');closeModal();loadClients();}catch(e){toast('Error: '+e.message,'error');}
-    return;
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['contract_type_id','payment_terms_id','health_score','account_manager_id','state_id','country_id','rating'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
+    });
+    await _saveClientFromModal(data);return;
   }
-  if(_curModalType==='edit-vendor'){
+  if(_curModalType==='edit-vendor'||_curModalType==='add-vendor'){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
-    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
-    const id=data._id;delete data._id;
-    ['category_id','account_manager_id','state_id','country_id','rating','sla_score'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/vendors/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Vendor updated!','success');closeModal();loadVendors();}catch(e){toast('Error: '+e.message,'error');}
-    return;
+    const data={};
+    // Collect all fields including checkboxes
+    const fd=new FormData(form);
+    form.querySelectorAll('[type="checkbox"]').forEach(cb=>{data[cb.name]=cb.checked?'1':'0';});
+    fd.forEach((v,k)=>{if(data[k]===undefined)data[k]=v||null;});
+    ['category_id','account_manager_id','state_id','country_id','rating','sla_score','payment_terms_id','tds_rate'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
+    });
+    await _saveVendorFromModal(data);return;
   }
   if(_curModalType==='edit-employee'){
     const form=$('mform');if(!form)return;

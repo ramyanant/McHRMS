@@ -43,7 +43,9 @@ CREATE TABLE IF NOT EXISTS master_relationship_types (
 -- ═══════════════════════════════════════
 CREATE TABLE IF NOT EXISTS organisation (
     id SERIAL PRIMARY KEY,
-    legal_name TEXT NOT NULL, trade_name TEXT, logo_url TEXT,
+    legal_name TEXT NOT NULL, trade_name TEXT,
+    legal_structure TEXT, industry TEXT, sub_domain TEXT,
+    logo_url TEXT, timezone TEXT DEFAULT 'Asia/Kolkata', base_currency TEXT DEFAULT 'INR',
     reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT,
     reg_state_id INTEGER REFERENCES master_states(id), reg_pincode TEXT,
     reg_country_id INTEGER REFERENCES master_countries(id),

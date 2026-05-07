@@ -83,7 +83,7 @@ CREATE TABLE master_timesheet_statuses (id SERIAL PRIMARY KEY, name TEXT UNIQUE 
 CREATE TABLE master_payroll_run_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_user_roles (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, description TEXT, is_active INTEGER DEFAULT 1);
 CREATE TABLE master_relationship_types (id SERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL, is_active INTEGER DEFAULT 1);
-CREATE TABLE organisation (id SERIAL PRIMARY KEY, legal_name TEXT NOT NULL, trade_name TEXT, reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT, reg_state_id INTEGER REFERENCES master_states(id), reg_pincode TEXT, reg_country_id INTEGER REFERENCES master_countries(id), biz_address_line1 TEXT, biz_address_line2 TEXT, biz_city TEXT, biz_state_id INTEGER REFERENCES master_states(id), biz_pincode TEXT, biz_country_id INTEGER REFERENCES master_countries(id), email TEXT, phone TEXT, website TEXT, poc_name TEXT, poc_email TEXT, poc_phone TEXT, pan TEXT, cin TEXT, tan TEXT, msme_number TEXT, iec_code TEXT, profession_tax_number TEXT, pf_number TEXT, esi_number TEXT, incorporation_date DATE, financial_year_start TEXT DEFAULT '04-01', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
+CREATE TABLE organisation (id SERIAL PRIMARY KEY, legal_name TEXT NOT NULL, trade_name TEXT, legal_structure TEXT, industry TEXT, sub_domain TEXT, logo_url TEXT, timezone TEXT DEFAULT 'Asia/Kolkata', base_currency TEXT DEFAULT 'INR', reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT, reg_state_id INTEGER REFERENCES master_states(id), reg_pincode TEXT, reg_country_id INTEGER REFERENCES master_countries(id), biz_address_line1 TEXT, biz_address_line2 TEXT, biz_city TEXT, biz_state_id INTEGER REFERENCES master_states(id), biz_pincode TEXT, biz_country_id INTEGER REFERENCES master_countries(id), email TEXT, phone TEXT, website TEXT, poc_name TEXT, poc_email TEXT, poc_phone TEXT, pan TEXT, cin TEXT, tan TEXT, msme_number TEXT, iec_code TEXT, profession_tax_number TEXT, pf_number TEXT, esi_number TEXT, incorporation_date DATE, financial_year_start TEXT DEFAULT '04-01', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_gst (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), gstin TEXT NOT NULL, state_id INTEGER REFERENCES master_states(id), trade_name TEXT, registration_date DATE, is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_bank_accounts (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), account_name TEXT NOT NULL, bank_name TEXT NOT NULL, branch TEXT, account_number TEXT NOT NULL, ifsc_code TEXT, swift_code TEXT, account_type TEXT DEFAULT 'Current', currency TEXT DEFAULT 'INR', is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE organisation_labour_certs (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), cert_number TEXT NOT NULL, issuing_authority TEXT, state_id INTEGER REFERENCES master_states(id), valid_from DATE, valid_until DATE, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW());
@@ -674,9 +674,66 @@ def masters(table):
 # ═══════════════════════════════════════════════════
 # ORGANISATION
 # ═══════════════════════════════════════════════════
+def _migrate_org_columns():
+    """Add new org columns to existing DB safely (idempotent)."""
+    new_cols = [
+        ("legal_structure", "TEXT"),
+        ("industry", "TEXT"),
+        ("sub_domain", "TEXT"),
+        ("logo_url", "TEXT"),
+        ("timezone", "TEXT DEFAULT 'Asia/Kolkata'"),
+        ("base_currency", "TEXT DEFAULT 'INR'"),
+    ]
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        for col, typ in new_cols:
+            cur.execute(f"ALTER TABLE organisation ADD COLUMN IF NOT EXISTS {col} {typ}")
+        conn.close()
+    except Exception as e:
+        print(f"Org migration warning: {e}", flush=True)
+
+def _migrate_client_vendor_columns():
+    """Add new client & vendor columns to existing DB (idempotent)."""
+    client_cols = [
+        ("client_type",     "TEXT DEFAULT 'Direct'"),
+        ("billing_cycle",   "TEXT DEFAULT 'Monthly'"),
+        ("contract_start",  "DATE"),
+        ("contract_end",    "DATE"),
+        ("rate_card",       "TEXT"),
+        ("po_number",       "TEXT"),
+        ("spoc2_name",      "TEXT"),
+        ("spoc2_email",     "TEXT"),
+        ("spoc2_phone",     "TEXT"),
+        ("spoc2_designation","TEXT"),
+        ("spoc3_name",      "TEXT"),
+        ("spoc3_email",     "TEXT"),
+        ("spoc3_phone",     "TEXT"),
+        ("spoc3_designation","TEXT"),
+    ]
+    vendor_cols = [
+        ("vendor_type",     "TEXT DEFAULT 'Staffing'"),
+        ("contract_start",  "DATE"),
+        ("payment_terms_id","INTEGER"),
+        ("gst_registered",  "INTEGER DEFAULT 0"),
+        ("msme_registered", "INTEGER DEFAULT 0"),
+        ("tds_applicable",  "INTEGER DEFAULT 0"),
+        ("tds_rate",        "NUMERIC DEFAULT 0"),
+        ("compliance_notes","TEXT"),
+    ]
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        for col, typ in client_cols:
+            cur.execute(f"ALTER TABLE clients ADD COLUMN IF NOT EXISTS {col} {typ}")
+        for col, typ in vendor_cols:
+            cur.execute(f"ALTER TABLE vendors ADD COLUMN IF NOT EXISTS {col} {typ}")
+        conn.close()
+    except Exception as e:
+        print(f"Client/Vendor migration warning: {e}", flush=True)
+
 @app.route('/api/organisation', methods=['GET','PUT'])
 @require_auth
 def organisation():
+    _migrate_org_columns()  # safe no-op if columns exist
     db=get_db()
     if request.method=='GET':
         org=row1("""SELECT o.*,s1.name as reg_state_name,s2.name as biz_state_name,
@@ -698,7 +755,8 @@ def organisation():
         return ok(org)
     d=request.get_json()
     existing=row1("SELECT id FROM organisation LIMIT 1")
-    fields=['legal_name','trade_name','email','phone','website',
+    fields=['legal_name','trade_name','legal_structure','industry','sub_domain','logo_url',
+            'timezone','base_currency','email','phone','website',
             'reg_address_line1','reg_address_line2','reg_city','reg_state_id','reg_pincode','reg_country_id',
             'biz_address_line1','biz_address_line2','biz_city','biz_state_id','biz_pincode','biz_country_id',
             'poc_name','poc_email','poc_phone','pan','cin','tan','msme_number',
@@ -930,6 +988,7 @@ def office_detail(oid):
 @app.route('/api/clients', methods=['GET','POST'])
 @require_auth
 def clients():
+    _migrate_client_vendor_columns()
     db=get_db()
     if request.method=='GET':
         return ok(rows("""SELECT c.*,ct.name as contract_type,pt.name as payment_terms,
@@ -937,7 +996,8 @@ def clients():
             e.first_name||' '||e.last_name as account_manager_name,
             (SELECT COUNT(*) FROM job_requisitions r WHERE r.client_id=c.id AND r.status='Active') as open_reqs,
             (SELECT COUNT(*) FROM employees em WHERE em.client_id=c.id AND em.status='Active') as placements,
-            (SELECT COALESCE(SUM(amount),0) FROM invoices i WHERE i.client_id=c.id AND TO_CHAR(i.created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')) as revenue_mtd
+            (SELECT COALESCE(SUM(amount),0) FROM invoices i WHERE i.client_id=c.id AND TO_CHAR(i.created_at, 'YYYY-MM')=TO_CHAR(NOW(), 'YYYY-MM')) as revenue_mtd,
+            (SELECT COALESCE(SUM(amount),0) FROM invoices i WHERE i.client_id=c.id AND EXTRACT(YEAR FROM i.created_at)=EXTRACT(YEAR FROM NOW())) as revenue_ytd
             FROM clients c
             LEFT JOIN master_contract_types ct ON ct.id=c.contract_type_id
             LEFT JOIN master_payment_terms pt ON pt.id=c.payment_terms_id
@@ -946,17 +1006,23 @@ def clients():
             LEFT JOIN employees e ON e.id=c.account_manager_id
             WHERE c.is_active=1 ORDER BY c.name"""))
     d=request.get_json()
-    cur=_cur();cur.execute("""INSERT INTO clients(name,industry,contract_type_id,currency,payment_terms_id,
+    cur=_cur();cur.execute("""INSERT INTO clients(name,industry,client_type,contract_type_id,currency,payment_terms_id,
+        billing_cycle,contract_start,contract_end,po_number,rate_card,
         status,rating,referred_by,
         primary_contact,primary_contact_designation,contact_email,contact_phone,
         billing_contact_name,billing_contact_designation,billing_contact_phone,billing_contact_email,
+        spoc2_name,spoc2_email,spoc2_phone,spoc2_designation,
+        spoc3_name,spoc3_email,spoc3_phone,spoc3_designation,
         address_line1,address_line2,city,state_id,pincode,country_id,
         gstin,pan,account_manager_id,health_score)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['name'],d.get('industry'),d.get('client_type','Direct'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
+         d.get('billing_cycle','Monthly'),d.get('contract_start') or None,d.get('contract_end') or None,d.get('po_number'),d.get('rate_card'),
          d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('billing_contact_name'),d.get('billing_contact_designation'),d.get('billing_contact_phone'),d.get('billing_contact_email'),
+         d.get('spoc2_name'),d.get('spoc2_email'),d.get('spoc2_phone'),d.get('spoc2_designation'),
+         d.get('spoc3_name'),d.get('spoc3_email'),d.get('spoc3_phone'),d.get('spoc3_designation'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),d.get('health_score',80)))
     cli_id = cur.fetchone()['id']
@@ -983,16 +1049,22 @@ def client_detail(cid):
     if request.method=='DELETE':
         _cur().execute("UPDATE clients SET is_active=0 WHERE id=%s",(cid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
-    _cur().execute("""UPDATE clients SET name=%s,industry=%s,contract_type_id=%s,currency=%s,payment_terms_id=%s,
+    _cur().execute("""UPDATE clients SET name=%s,industry=%s,client_type=%s,contract_type_id=%s,currency=%s,payment_terms_id=%s,
+        billing_cycle=%s,contract_start=%s,contract_end=%s,po_number=%s,rate_card=%s,
         status=%s,rating=%s,referred_by=%s,
         primary_contact=%s,primary_contact_designation=%s,contact_email=%s,contact_phone=%s,
         billing_contact_name=%s,billing_contact_designation=%s,billing_contact_phone=%s,billing_contact_email=%s,
+        spoc2_name=%s,spoc2_email=%s,spoc2_phone=%s,spoc2_designation=%s,
+        spoc3_name=%s,spoc3_email=%s,spoc3_phone=%s,spoc3_designation=%s,
         address_line1=%s,address_line2=%s,city=%s,state_id=%s,pincode=%s,country_id=%s,
         gstin=%s,pan=%s,account_manager_id=%s,health_score=%s,updated_at=NOW() WHERE id=%s""",
-        (d['name'],d.get('industry'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
+        (d['name'],d.get('industry'),d.get('client_type','Direct'),d.get('contract_type_id'),d.get('currency','INR'),d.get('payment_terms_id'),
+         d.get('billing_cycle','Monthly'),d.get('contract_start') or None,d.get('contract_end') or None,d.get('po_number'),d.get('rate_card'),
          d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('billing_contact_name'),d.get('billing_contact_designation'),d.get('billing_contact_phone'),d.get('billing_contact_email'),
+         d.get('spoc2_name'),d.get('spoc2_email'),d.get('spoc2_phone'),d.get('spoc2_designation'),
+         d.get('spoc3_name'),d.get('spoc3_email'),d.get('spoc3_phone'),d.get('spoc3_designation'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),d.get('health_score',80),cid))
     get_db().commit(); return ok(msg="Updated")
@@ -1023,6 +1095,7 @@ def client_doc_detail(did):
 @app.route('/api/vendors', methods=['GET','POST'])
 @require_auth
 def vendors():
+    _migrate_client_vendor_columns()
     db=get_db()
     if request.method=='GET':
         return ok(rows("""SELECT v.*,vc.name as category,
@@ -1035,18 +1108,21 @@ def vendors():
             LEFT JOIN employees e ON e.id=v.account_manager_id
             WHERE v.is_active=1 ORDER BY v.name"""))
     d=request.get_json()
-    cur=_cur();cur.execute("""INSERT INTO vendors(name,category_id,status,rating,referred_by,
+    cur=_cur();cur.execute("""INSERT INTO vendors(name,category_id,vendor_type,status,rating,referred_by,
         primary_contact,primary_contact_designation,contact_email,contact_phone,
         address_line1,address_line2,city,state_id,pincode,country_id,gstin,pan,
         account_manager_id,bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc,bank_swift,bank_account_type,
-        contract_end,sla_score,spend_mtd,sla_description)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['name'],d.get('category_id'),d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
+        contract_start,contract_end,sla_score,spend_mtd,sla_description,
+        payment_terms_id,gst_registered,msme_registered,tds_applicable,tds_rate,compliance_notes)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['name'],d.get('category_id'),d.get('vendor_type','Staffing'),d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),d.get('bank_swift'),d.get('bank_account_type','Current'),
-         d.get('contract_end') or None,d.get('sla_score',90),d.get('spend_mtd',0),d.get('sla_description')))
+         d.get('contract_start') or None,d.get('contract_end') or None,d.get('sla_score',90),d.get('spend_mtd',0),d.get('sla_description'),
+         d.get('payment_terms_id'),1 if d.get('gst_registered') else 0,1 if d.get('msme_registered') else 0,
+         1 if d.get('tds_applicable') else 0,d.get('tds_rate',0),d.get('compliance_notes')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Vendor created",201)
 
 @app.route('/api/vendors/<int:vid>', methods=['GET','PUT','DELETE'])
@@ -1055,27 +1131,34 @@ def vendor_detail(vid):
     db=get_db()
     if request.method=='GET':
         r=row1("""SELECT v.*,vc.name as category,s.name as state_name,c.name as country_name,
-            e.first_name||' '||e.last_name as account_manager_name
+            e.first_name||' '||e.last_name as account_manager_name,
+            pt.name as payment_terms_name
             FROM vendors v LEFT JOIN master_vendor_categories vc ON vc.id=v.category_id
             LEFT JOIN master_states s ON s.id=v.state_id LEFT JOIN master_countries c ON c.id=v.country_id
-            LEFT JOIN employees e ON e.id=v.account_manager_id WHERE v.id=%s""",(vid,))
+            LEFT JOIN employees e ON e.id=v.account_manager_id
+            LEFT JOIN master_payment_terms pt ON pt.id=v.payment_terms_id
+            WHERE v.id=%s""",(vid,))
         if not r: return err("Not found",404)
         r['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM vendor_documents WHERE vendor_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(vid,))
         return ok(r)
     if request.method=='DELETE':
         _cur().execute("UPDATE vendors SET is_active=0 WHERE id=%s",(vid,)); db.commit(); return ok(msg="Removed")
     d=request.get_json()
-    _cur().execute("""UPDATE vendors SET name=%s,category_id=%s,status=%s,rating=%s,referred_by=%s,
+    _cur().execute("""UPDATE vendors SET name=%s,category_id=%s,vendor_type=%s,status=%s,rating=%s,referred_by=%s,
         primary_contact=%s,primary_contact_designation=%s,contact_email=%s,contact_phone=%s,
         address_line1=%s,address_line2=%s,city=%s,state_id=%s,pincode=%s,country_id=%s,gstin=%s,pan=%s,
         account_manager_id=%s,bank_account_name=%s,bank_name=%s,bank_branch=%s,bank_account_number=%s,bank_ifsc=%s,bank_swift=%s,bank_account_type=%s,
-        contract_end=%s,sla_score=%s,sla_description=%s,updated_at=NOW() WHERE id=%s""",
-        (d['name'],d.get('category_id'),d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
+        contract_start=%s,contract_end=%s,sla_score=%s,sla_description=%s,
+        payment_terms_id=%s,gst_registered=%s,msme_registered=%s,tds_applicable=%s,tds_rate=%s,compliance_notes=%s,
+        updated_at=NOW() WHERE id=%s""",
+        (d['name'],d.get('category_id'),d.get('vendor_type','Staffing'),d.get('status','Active'),d.get('rating',0),d.get('referred_by'),
          d.get('primary_contact'),d.get('primary_contact_designation'),d.get('contact_email'),d.get('contact_phone'),
          d.get('address_line1'),d.get('address_line2'),d.get('city'),d.get('state_id'),d.get('pincode'),d.get('country_id'),
          d.get('gstin'),d.get('pan'),d.get('account_manager_id'),
          d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),d.get('bank_swift'),d.get('bank_account_type','Current'),
-         d.get('contract_end') or None,d.get('sla_score',90),d.get('sla_description'),vid))
+         d.get('contract_start') or None,d.get('contract_end') or None,d.get('sla_score',90),d.get('sla_description'),
+         d.get('payment_terms_id'),1 if d.get('gst_registered') else 0,1 if d.get('msme_registered') else 0,
+         1 if d.get('tds_applicable') else 0,d.get('tds_rate',0),d.get('compliance_notes'),vid))
     get_db().commit(); return ok(msg="Updated")
 
 @app.route('/api/vendors/<int:vid>/documents', methods=['GET','POST'])
