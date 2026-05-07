@@ -667,13 +667,27 @@ tbody tr:hover td{background:var(--green-lt)}
 
 <!-- EMPLOYEES -->
 <div id="mod-employees" class="mod">
-  <div class="hero"><div class="hero-icon" style="background:var(--green-lt)">👥</div><div><div class="hero-title">Employees</div><div class="hero-desc">Employee directory with profiles, departments, compensation, and status tracking.</div></div><div class="hero-actions"><button class="btn btn-primary btn-sm" onclick="openModal('add-emp')">+ Add Employee</button></div></div>
-  <div class="kgrid k4" id="emp-kpis"></div>
-  <div class="card"><div class="card-hd"><div class="card-title">Employee Directory</div><div class="fc gap8">
-    <input type="text" class="finput" style="width:170px;padding:5px 9px;font-size:11px" placeholder="Search name, ID…" oninput="loadEmployees(this.value)">
-    <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="emp-type" onchange="loadEmployees()"><option value="">All Types</option></select>
-    <select class="fselect" style="width:auto;padding:5px 9px;font-size:11px" id="emp-status" onchange="loadEmployees()"><option value="">All Statuses</option><option>Active</option><option>Onboarding</option><option>Terminated</option></select>
-  </div></div><div class="tbl-wrap" id="emp-tbl">Loading…</div></div>
+  <!-- LIST VIEW -->
+  <div id="emp-list-view">
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="width:42px;height:42px;border-radius:10px;background:var(--green-lt);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">👥</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">Employees</div>
+        <div style="font-size:11.5px;color:var(--txt2);margin-top:2px">People Directory · Profiles · Compensation · Documents</div>
+      </div>
+      <div class="fc gap8" style="flex-wrap:wrap">
+        <input type="text" class="finput" style="width:160px;padding:5px 10px;font-size:11.5px" id="emp-search" placeholder="Search name, ID…" oninput="loadEmployees()">
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="emp-type" onchange="loadEmployees()"><option value="">All Types</option></select>
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="emp-dept-filter" onchange="loadEmployees()"><option value="">All Departments</option></select>
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="emp-status" onchange="loadEmployees()"><option value="">All Statuses</option><option>Active</option><option>Onboarding</option><option>Terminated</option></select>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-emp')">+ Add Employee</button>
+      </div>
+    </div>
+    <div class="kgrid k4" id="emp-kpis"></div>
+    <div class="card"><div class="tbl-wrap" id="emp-tbl">Loading…</div></div>
+  </div>
+  <!-- DETAIL VIEW -->
+  <div id="emp-detail-view" style="display:none"></div>
 </div>
 
 <!-- TIMESHEETS -->
@@ -1250,7 +1264,7 @@ function nav(id){
     'emp-portal':()=>loadEmployeePortal(),'org-profile':loadOrgProfile,'org-structure':loadOrgStructure,
     'clients':()=>{closeClientDetail&&closeClientDetail();loadClients();},
     'vendors':()=>{closeVendorDetail&&closeVendorDetail();loadVendors();},
-    'employees':loadEmployees,
+    'employees':()=>{closeEmpDetail&&closeEmpDetail();loadEmployees();},
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
@@ -2878,6 +2892,161 @@ async function deleteVendorDoc(id){
 function showVendorTab(tab,el){if(window._curVendor)renderVendorDetail(window._curVendor,tab);}
 async function editVendor(id){const v=await apiFetch(`/api/vendors/${id}`);if(v){window._curVendor=v;editVendorInline();}}
 
+// ─── Edit Employee ────────────────────────────────────────────────────────────
+async function editEmployee(id){
+  if(!id)return;
+  try{
+    const[e,emps,depts,bus,ccs,clients]=await Promise.all([
+      apiFetch(`/api/employees/${id}`),
+      apiFetch('/api/lookup/employees'),
+      apiFetch('/api/lookup/departments'),
+      apiFetch('/api/lookup/business-units'),
+      apiFetch('/api/lookup/cost-centres'),
+      apiFetch('/api/lookup/clients'),
+    ]);
+    if(!e)return;
+    const empOpts='<option value="">None</option>'+(emps||[]).map(em=>`<option value="${em.id}"${em.id==e.reporting_manager_id?' selected':''}>${em.name} (${em.emp_id})</option>`).join('');
+    const deptOpts='<option value="">No department</option>'+(depts||[]).map(d=>`<option value="${d.id}"${d.id==e.department_id?' selected':''}>${d.name}</option>`).join('');
+    const buOpts='<option value="">No BU</option>'+(bus||[]).map(b=>`<option value="${b.id}"${b.id==e.business_unit_id?' selected':''}>${b.name}</option>`).join('');
+    const ccOpts='<option value="">No cost centre</option>'+(ccs||[]).map(cc=>`<option value="${cc.id}"${cc.id==e.cost_centre_id?' selected':''}>${cc.code} — ${cc.name}</option>`).join('');
+    const cliOpts='<option value="">No client</option>'+(clients||[]).map(cl=>`<option value="${cl.id}"${cl.id==e.client_id?' selected':''}>${cl.name}</option>`).join('');
+    const etOpts=(_masters['employment-types']||[]).map(et=>`<option value="${et.id}"${et.id==e.employment_type_id?' selected':''}>${et.name}</option>`).join('');
+    const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+    const GENDERS=['Male','Female','Non-binary','Prefer not to say'];
+    const STATUSES=['Single','Married','Divorced','Widowed'];
+    const BGROUPS=['A+','A-','B+','B-','O+','O-','AB+','AB-'];
+    const SAL_STRUCTS=['Fixed','Fixed + Variable','Fully Variable','CTC'];
+
+    _curModalType='edit-employee';
+    $('m-title').textContent=`Edit — ${e.first_name} ${e.last_name}`;
+    $('m-body').innerHTML=`<form id="mform">
+      <input type="hidden" name="_id" value="${e.id}">
+      <div class="mtabs">
+        <div class="mtab active" onclick="switchMTab('ee-t1',this)">👤 Profile</div>
+        <div class="mtab" onclick="switchMTab('ee-t2',this)">💼 Employment</div>
+        <div class="mtab" onclick="switchMTab('ee-t3',this)">🪪 Personal & KYC</div>
+        <div class="mtab" onclick="switchMTab('ee-t4',this)">🏛️ Statutory & Bank</div>
+      </div>
+      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+
+        <!-- Profile tab -->
+        <div class="mtab-panel active" id="ee-t1">
+          <div class="frow">
+            <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required value="${e.first_name||''}"></div>
+            <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="${e.middle_name||''}"></div>
+            <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required value="${e.last_name||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Employee ID</label><input class="finput" name="emp_id" value="${e.emp_id||''}"></div>
+            <div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${e.job_title||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Official Email</label><input class="finput" type="email" name="email" value="${e.email||''}"></div>
+            <div class="fg"><label class="flabel">Official Phone</label><input class="finput" name="phone" value="${e.phone||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
+            <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Status</label>
+              <select class="fselect" name="status"><option ${e.status==='Active'?'selected':''}>Active</option><option ${e.status==='Onboarding'?'selected':''}>Onboarding</option><option ${e.status==='Terminated'?'selected':''}>Terminated</option><option ${e.status==='On Hold'?'selected':''}>On Hold</option></select></div>
+            <div class="fg"><label class="flabel">Rating</label>
+              <select class="fselect" name="rating">${[0,1,2,3,4,5].map(n=>`<option value="${n}"${n==e.rating?' selected':''}>${'★'.repeat(n)||'No rating'} (${n})</option>`).join('')}</select></div>
+          </div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${e.referred_by||''}"></div>
+        </div>
+
+        <!-- Employment tab -->
+        <div class="mtab-panel" id="ee-t2">
+          <div class="frow">
+            <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${etOpts}</select></div>
+            <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${deptOpts}</select></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id">${buOpts}</select></div>
+            <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id">${ccOpts}</select></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id">${empOpts}</select></div>
+            <div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id">${cliOpts}</select></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Project</label><input class="finput" name="project" value="${e.project||''}"></div>
+            <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${e.location||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Salary Structure</label>
+              <select class="fselect" name="salary_structure"><option value="">Select…</option>${so(SAL_STRUCTS,e.salary_structure)}</select></div>
+            <div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="${e.notice_period||30}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${(e.start_date||'').split('T')[0]}"></div>
+            <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date" value="${(e.end_date||'').split('T')[0]}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" value="${e.salary||0}"></div>
+            <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="${e.bill_rate||0}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Billable?</label>
+              <select class="fselect" name="billable"><option value="0"${!e.billable?' selected':''}>No</option><option value="1"${e.billable?' selected':''}>Yes</option></select></div>
+            <div class="fg"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" value="${e.billable_amount||0}"></div>
+          </div>
+        </div>
+
+        <!-- Personal & KYC tab -->
+        <div class="mtab-panel" id="ee-t3">
+          <div class="frow">
+            <div class="fg"><label class="flabel">Gender</label>
+              <select class="fselect" name="gender"><option value="">Select…</option>${so(GENDERS,e.gender)}</select></div>
+            <div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob" value="${(e.dob||'').split('T')[0]}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Marital Status</label>
+              <select class="fselect" name="marital_status"><option value="">Select…</option>${so(STATUSES,e.marital_status)}</select></div>
+            <div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="${e.nationality||'Indian'}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Blood Group</label>
+              <select class="fselect" name="blood_group"><option value="">Select…</option>${so(BGROUPS,e.blood_group)}</select></div>
+          </div>
+          <div style="margin:12px 0 8px;border-top:1px solid var(--bdr);padding-top:12px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px">Statutory IDs</div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" maxlength="12" value="${e.aadhaar||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" value="${e.passport_number||''}" oninput="this.value=this.value.toUpperCase()"></div>
+            <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div>
+          </div>
+          <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div>
+        </div>
+
+        <!-- Statutory & Bank tab -->
+        <div class="mtab-panel" id="ee-t4">
+          <div class="frow">
+            <div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" value="${e.bank_account_name||''}"></div>
+            <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${e.bank_name||''}"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${e.bank_branch||''}"></div>
+            <div class="fg"><label class="flabel">Account Type</label>
+              <select class="fselect" name="bank_account_type"><option ${(e.bank_account_type||'Savings')==='Savings'?'selected':''}>Savings</option><option ${e.bank_account_type==='Current'?'selected':''}>Current</option></select></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${e.bank_account_number||''}"></div>
+            <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" value="${e.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div>
+          </div>
+        </div>
+
+      </div>
+    </form>`;
+    $('m-submit').textContent='Save Changes';
+    $('overlay').classList.add('open');
+  }catch(err){console.error(err);toast('Error loading employee','error');}
+}
+
 // Modal save handlers for client/vendor
 function _saveClientFromModal(data){
   const id=data._id;
@@ -2912,337 +3081,527 @@ function setRating(n){
 // ═══════════════════════════════════════════════════
 // EMPLOYEES
 // ═══════════════════════════════════════════════════
-async function loadEmployees(q=''){
-  const type=$('emp-type')?.value||'',status=$('emp-status')?.value||'';
+// ═══════════════════════════════════════════════════
+// EMPLOYEES
+// ═══════════════════════════════════════════════════
+let _empCache = [];
+
+async function loadEmployees(){
+  const q=$('emp-search')?.value||'';
+  const type=$('emp-type')?.value||'';
+  const dept=$('emp-dept-filter')?.value||'';
+  const status=$('emp-status')?.value||'';
   try{
     let url='/api/employees?';
     if(q)url+=`q=${encodeURIComponent(q)}&`;
     if(type)url+=`employment_type=${encodeURIComponent(type)}&`;
     if(status)url+=`status=${encodeURIComponent(status)}&`;
     const rows=await apiFetch(url);
+    _empCache=rows;
+
+    // Populate type filter dynamically
+    const typeEl=$('emp-type');
+    if(typeEl&&typeEl.options.length<=1){
+      const types=[...new Set(rows.map(e=>e.employment_type).filter(Boolean))];
+      types.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;typeEl.appendChild(o);});
+      if(type)typeEl.value=type;
+    }
+    // Populate dept filter
+    const deptEl=$('emp-dept-filter');
+    if(deptEl&&deptEl.options.length<=1){
+      const depts=[...new Set(rows.map(e=>e.department_name).filter(Boolean))].sort();
+      depts.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;deptEl.appendChild(o);});
+      if(dept)deptEl.value=dept;
+    }
+
+    let filtered=rows;
+    if(dept)filtered=filtered.filter(e=>e.department_name===dept);
+
     const fte=rows.filter(e=>e.employment_type==='Full-Time').length;
     const ctr=rows.filter(e=>e.employment_type&&e.employment_type.includes('Contractor')).length;
     const onb=rows.filter(e=>e.status==='Onboarding').length;
+    const active=rows.filter(e=>e.status==='Active').length;
     setHtml('emp-kpis',`
-      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Total Headcount</div><div class="kpi-value">${rows.length}</div></div>
-      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Full-Time</div><div class="kpi-value">${fte}</div></div>
-      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contractors</div><div class="kpi-value">${ctr}</div></div>
-      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Onboarding</div><div class="kpi-value">${onb}</div></div>`);
-    setHtml('emp-tbl',rows.length===0?`<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>`
-      :`<table><thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Type</th><th>Reporting Mgr</th><th>Client</th><th>Rating</th><th>Status</th><th>Actions</th></tr></thead><tbody>${
-      rows.map(e=>`<tr>
-        <td><div class="avrow"><div class="av ${fmt.avCol(e.first_name+' '+e.last_name)}">${fmt.ini(e.first_name+' '+e.last_name)}</div>
-          <div><div class="av-name">${e.first_name} ${e.middle_name?e.middle_name+' ':''} ${e.last_name}</div><div class="av-meta" style="font-family:var(--mono)">${e.emp_id}</div></div></div></td>
-        <td style="font-size:11.5px">${e.job_title||'–'}</td>
-        <td style="font-size:11.5px">${e.department_name||'–'}</td>
-        <td>${pill(e.employment_type==='Full-Time'?'Full-Time':e.employment_type&&e.employment_type.includes('Contractor')?'Contractor':e.employment_type||'–')}</td>
-        <td style="font-size:11.5px">${e.reporting_manager_name||'–'}</td>
-        <td>${e.client_name?`<span class="pill p-teal" style="font-size:9px">${e.client_name}</span>`:'–'}</td>
-        <td><span class="stars" style="font-size:11px">${'★'.repeat(e.rating||0)}${'☆'.repeat(5-(e.rating||0))}</span></td>
-        <td>${pill(e.status)}</td>
-        <td><div class="tact">
-          <button class="btn btn-ghost btn-xs" onclick="openEmployeeProfile(Number(${e.id}))">Profile</button>
-          <button class="btn btn-ghost btn-xs" onclick="editEmployee(${e.id})">Edit</button>
-          ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="termEmp(${e.id},'${(e.first_name+' '+e.last_name).replace(/'/g,"\\'")}')">Term.</button>`:''}
-        </div></td>
-      </tr>`).join('')}</tbody></table>`);
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Total Headcount</div><div class="kpi-value">${rows.length}</div><div class="kpi-delta kpi-up">${active} active</div></div>
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Full-Time</div><div class="kpi-value">${fte}</div><div class="kpi-delta">FTE</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contractors</div><div class="kpi-value">${ctr}</div><div class="kpi-delta">C2C / W2</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Onboarding</div><div class="kpi-value">${onb}</div><div class="kpi-delta">In progress</div></div>`);
+
+    setHtml('emp-tbl', filtered.length===0
+      ? `<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>`
+      : `<table><thead><tr>
+          <th>Employee</th><th>Title / Department</th><th>Type</th>
+          <th>Client</th><th>BU</th><th>Status</th><th>Actions</th>
+        </tr></thead><tbody>${filtered.map(e=>{
+          const name=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`;
+          const avColor=fmt.avCol(name);
+          const photoEl=e.photo_url
+            ? `<div class="av ${avColor}" style="width:32px;height:32px;overflow:hidden;padding:0"><img src="${e.photo_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`
+            : `<div class="av ${avColor}" style="width:32px;height:32px;font-size:11px">${fmt.ini(name)}</div>`;
+          return `<tr style="cursor:pointer" onclick="viewEmployee(${e.id})">
+            <td><div class="avrow">${photoEl}<div>
+              <div class="av-name">${name}</div>
+              <div class="av-meta" style="font-family:var(--mono)">${e.emp_id||'–'}</div>
+            </div></div></td>
+            <td><div style="font-size:12px;font-weight:500">${e.job_title||'–'}</div>
+                <div class="av-meta">${e.department_name||'–'}</div></td>
+            <td>${pill(e.employment_type==='Full-Time'?'Full-Time':e.employment_type?.includes('Contractor')?'Contractor':e.employment_type||'–')}</td>
+            <td>${e.client_name?`<span class="pill p-teal" style="font-size:9px">${e.client_name}</span>`:'–'}</td>
+            <td style="font-size:11px;color:var(--txt2)">${e.business_unit_name||'–'}</td>
+            <td>${pill(e.status||'Active')}</td>
+            <td onclick="event.stopPropagation()"><div class="tact">
+              <button class="btn btn-ghost btn-xs" onclick="viewEmployee(${e.id})">Open</button>
+              <button class="btn btn-ghost btn-xs" onclick="editEmployee(${e.id})">Edit</button>
+              ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="termEmp(${e.id},'${name.replace(/'/g,"\\'")}')">Term.</button>`:''}
+            </div></td>
+          </tr>`;
+        }).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
-// switchMEditTab: loads sub-entity data into edit modal tabs
-async function switchMEditTab(type,el,empId){
-  console.log('switchMEditTab called:', type, empId);
-  document.querySelectorAll('#mform .mtab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('#mform .mtab-panel').forEach(p=>p.classList.remove('active'));
-  const msub=document.getElementById('m-submit');
-  if(msub) msub.style.display='none';
-  if(el) el.classList.add('active');
-  const panelEl=document.getElementById('medit-'+type+'-panel');
-  const ct=document.getElementById('medit-'+type+'-content');
-  if(panelEl) panelEl.classList.add('active');
-  if(!ct) return;
-  ct.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3)">Loading…</div>';
-  const addBtn=(label,type2,empId2)=>'<div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="showInlineEmpForm(\''+type2+'\','+empId2+')">'+label+'</button></div>';
-  try{
-    if(type==='address'){
-      console.log('fetching addresses for empId:', empId);
-      const d=await apiFetch('/api/employees/'+empId+'/addresses');
-      console.log('addresses result:', d);
-      ct.innerHTML=renderAddresses(d||[])+addBtn('+ Add / Update Address','address',empId);
-    }else if(type==='emergency'){
-      const d=await apiFetch('/api/employees/'+empId+'/emergency-contacts');
-      ct.innerHTML=renderEmergency(d||[])+addBtn('+ Add Contact','emergency',empId);
-    }else if(type==='education'){
-      const d=await apiFetch('/api/employees/'+empId+'/education');
-      ct.innerHTML=renderEducation(d||[])+addBtn('+ Add Education','education',empId);
-    }else if(type==='experience'){
-      const d=await apiFetch('/api/employees/'+empId+'/experience');
-      ct.innerHTML=renderExperience(d||[])+addBtn('+ Add Experience','experience',empId);
-    }else if(type==='docs'){
-      const d=await apiFetch('/api/employees/'+empId+'/documents');
-      const rows=(d||[]).map(doc=>'<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--s3)"><div>'+pill(doc.doc_type,'p-blue')+' <span style="font-size:13px">'+doc.doc_name+'</span></div><div style="gap:6px;display:flex"><button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc('+doc.id+')">Download</button><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc('+doc.id+')">Remove</button></div></div>').join('');
-      ct.innerHTML=(rows||'<div style="color:var(--txt3);padding:12px 0">No documents</div>')+addBtn('+ Upload Document','docs',empId);
-    }
-  }catch(err){ct.innerHTML='<div style="color:var(--red);padding:12px">Error: '+err.message+'</div>';}
+async function viewEmployee(id){
+  const e=await apiFetch(`/api/employees/${id}`);
+  if(!e)return;
+  const cached=(_empCache||[]).find(r=>r.id==id);
+  if(cached){e.business_unit_name=cached.business_unit_name;}
+  window._curEmp=e;
+  // Breadcrumb
+  const name=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`;
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.innerHTML=`<span class="bc-item bc-link" onclick="closeEmpDetail()">Employees</span><span class="bc-sep">›</span><span class="bc-item bc-current">${name}</span>`;
+  if(tbSub){tbSub.style.display='none';if(bcSep)bcSep.style.display='none';}
+  $('emp-list-view').style.display='none';
+  $('emp-detail-view').style.display='';
+  renderEmpDetail(e,'dashboard');
 }
 
-// Show inline add form within the edit modal panel
-function showInlineEmpForm(type, empId){
-  const states = (_masters['states']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('');
-  const countries = (_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-  const forms = {
-    address: `<div class="inline-form">
-      <div class="inline-form-title">Add / Update Address</div>
-      <div class="fg"><label class="flabel">Type</label>
-        <select class="fselect" id="ief-addr-type"><option value="Current">Current</option><option value="Permanent">Permanent</option></select></div>
-      <div class="fg"><label class="flabel">Line 1</label><input class="finput" id="ief-addr-l1" placeholder="House/Flat, Street"></div>
-      <div class="fg"><label class="flabel">Line 2</label><input class="finput" id="ief-addr-l2" placeholder="Area, Landmark"></div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">City</label><input class="finput" id="ief-addr-city"></div>
-        <div class="fg"><label class="flabel">Pincode</label><input class="finput" id="ief-addr-pin"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">State</label><select class="fselect" id="ief-addr-state"><option value="">Select…</option>${states}</select></div>
-        <div class="fg"><label class="flabel">Country</label><select class="fselect" id="ief-addr-country"><option value="">Select…</option>${countries}</select></div>
-      </div>
-      <div class="frow" style="margin-top:8px">
-        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('address',${empId})">Save Address</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('address',null,${empId})">Cancel</button>
-      </div></div>`,
-    emergency: `<div class="inline-form">
-      <div class="inline-form-title">Add Emergency Contact</div>
-      <div class="fg"><label class="flabel">Full Name *</label><input class="finput" id="ief-emg-name" required placeholder="Jane Smith"></div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Phone</label><input class="finput" id="ief-emg-phone" placeholder="+91-9000000000"></div>
-        <div class="fg"><label class="flabel">Email</label><input class="finput" id="ief-emg-email" type="email"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Relationship</label>
-          <select class="fselect" id="ief-emg-rel"><option>Spouse</option><option>Parent</option><option>Sibling</option><option>Child</option><option>Friend</option><option>Other</option></select></div>
-        <div class="fg"><label class="flabel">Primary?</label>
-          <select class="fselect" id="ief-emg-primary"><option value="0">No</option><option value="1">Yes</option></select></div>
-      </div>
-      <div class="frow" style="margin-top:8px">
-        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('emergency',${empId})">Save Contact</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('emergency',null,${empId})">Cancel</button>
-      </div></div>`,
-    education: `<div class="inline-form">
-      <div class="inline-form-title">Add Education</div>
-      <div class="fg"><label class="flabel">Institution *</label><input class="finput" id="ief-edu-inst" required placeholder="IIT Hyderabad"></div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Degree</label><input class="finput" id="ief-edu-deg" placeholder="B.Tech"></div>
-        <div class="fg"><label class="flabel">Field of Study</label><input class="finput" id="ief-edu-field" placeholder="Computer Science"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Start Year</label><input class="finput" id="ief-edu-sy" type="number" placeholder="2018"></div>
-        <div class="fg"><label class="flabel">End Year</label><input class="finput" id="ief-edu-ey" type="number" placeholder="2022"></div>
-        <div class="fg"><label class="flabel">Grade/CGPA</label><input class="finput" id="ief-edu-grade" placeholder="8.5/10"></div>
-      </div>
-      <div class="frow" style="margin-top:8px">
-        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('education',${empId})">Save</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('education',null,${empId})">Cancel</button>
-      </div></div>`,
-    experience: `<div class="inline-form">
-      <div class="inline-form-title">Add Experience</div>
-      <div class="fg"><label class="flabel">Company *</label><input class="finput" id="ief-exp-co" required placeholder="Infosys"></div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Designation</label><input class="finput" id="ief-exp-desg" placeholder="Software Engineer"></div>
-        <div class="fg"><label class="flabel">Location</label><input class="finput" id="ief-exp-loc" placeholder="Hyderabad"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label class="flabel">Start Date</label><input class="finput" id="ief-exp-sd" type="date"></div>
-        <div class="fg"><label class="flabel">End Date</label><input class="finput" id="ief-exp-ed" type="date"></div>
-        <div class="fg"><label class="flabel">Current?</label><select class="fselect" id="ief-exp-cur"><option value="0">No</option><option value="1">Yes</option></select></div>
-      </div>
-      <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" id="ief-exp-desc" rows="2" placeholder="Key responsibilities…"></textarea></div>
-      <div class="frow" style="margin-top:8px">
-        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('experience',${empId})">Save</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('experience',null,${empId})">Cancel</button>
-      </div></div>`,
-    docs: `<div class="inline-form">
-      <div class="inline-form-title">Upload Document</div>
-      <div class="fg"><label class="flabel">Document Type</label>
-        <select class="fselect" id="ief-doc-type">
-          <option>Offer Letter</option><option>ID Proof</option><option>Address Proof</option>
-          <option>Educational Certificate</option><option>Experience Letter</option>
-          <option>PAN Card</option><option>Aadhaar</option><option>Passport</option><option>Other</option>
-        </select></div>
-      <div class="fg"><label class="flabel">Document Name</label><input class="finput" id="ief-doc-name" placeholder="PAN Card - ABCDE1234F"></div>
-      <div class="fg"><label class="flabel">File</label>
-        <input type="file" id="ief-doc-file" class="finput" onchange="handleIefFile(this)" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
-        <div id="ief-doc-preview" style="font-size:11px;color:var(--green-dk);margin-top:4px"></div></div>
-      <div class="frow" style="margin-top:8px">
-        <button class="btn btn-primary btn-sm" onclick="saveInlineEmpForm('docs',${empId})">Upload</button>
-        <button class="btn btn-ghost btn-sm" onclick="switchMEditTab('docs',null,${empId})">Cancel</button>
-      </div></div>`
-  };
-  const ct = document.getElementById('medit-'+type+'-content');
-  if(ct) ct.innerHTML = forms[type]||'';
+function closeEmpDetail(){
+  window._curEmp=null;
+  $('emp-detail-view').style.display='none';
+  $('emp-list-view').style.display='';
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.textContent='Employees';
+  if(tbSub){tbSub.textContent='People Directory';tbSub.style.display='';if(bcSep)bcSep.style.display='';}
 }
 
-function handleIefFile(input){
-  const file=input.files[0]; if(!file) return;
-  if(file.size>5*1024*1024){alert('File too large — max 5MB');return;}
-  const r=new FileReader();
-  r.onload=e=>{window._iefFile={data:e.target.result.split(',')[1],name:file.name,size:(file.size/1024).toFixed(0)+' KB',mime:file.type};
-    const p=document.getElementById('ief-doc-preview');if(p)p.textContent='✓ '+file.name+' ready';};
-  r.readAsDataURL(file);
-}
+let _curEmpTab='dashboard';
+function renderEmpDetail(e, tab){
+  _curEmpTab=tab;
+  const name=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`.trim();
+  const tabs=[
+    {id:'dashboard', icon:'📊', label:'Dashboard'},
+    {id:'profile',   icon:'👤', label:'Profile'},
+    {id:'employment',icon:'💼', label:'Employment'},
+    {id:'personal',  icon:'🪪', label:'Personal & KYC'},
+    {id:'addresses', icon:'📍', label:'Addresses'},
+    {id:'emergency', icon:'🚨', label:'Emergency'},
+    {id:'education', icon:'🎓', label:'Education'},
+    {id:'experience',icon:'🏢', label:'Experience'},
+    {id:'statutory', icon:'🏛️', label:'Statutory & Bank'},
+    {id:'timesheets',icon:'⏱️', label:'Timesheets'},
+    {id:'payslips',  icon:'💰', label:'Payslips'},
+    {id:'docs',      icon:'📁', label:'Documents'},
+  ];
 
-async function saveInlineEmpForm(type, empId){
-  const g=id=>document.getElementById(id);
-  let data={}, url='/api/employees/'+empId+'/';
-  try{
-    if(type==='address'){
-      url+='addresses';
-      data={address_type:g('ief-addr-type')?.value, address_line1:g('ief-addr-l1')?.value,
-        address_line2:g('ief-addr-l2')?.value, city:g('ief-addr-city')?.value,
-        pincode:g('ief-addr-pin')?.value,
-        state_id:parseInt(g('ief-addr-state')?.value)||null,
-        country_id:parseInt(g('ief-addr-country')?.value)||null};
-    } else if(type==='emergency'){
-      if(!g('ief-emg-name')?.value){alert('Name is required');return;}
-      url+='emergency-contacts';
-      data={name:g('ief-emg-name').value, phone:g('ief-emg-phone')?.value,
-        email:g('ief-emg-email')?.value, relationship:g('ief-emg-rel')?.value,
-        is_primary:parseInt(g('ief-emg-primary')?.value||0)};
-    } else if(type==='education'){
-      if(!g('ief-edu-inst')?.value){alert('Institution is required');return;}
-      url+='education';
-      data={institution:g('ief-edu-inst').value, degree:g('ief-edu-deg')?.value,
-        field_of_study:g('ief-edu-field')?.value,
-        start_year:parseInt(g('ief-edu-sy')?.value)||null,
-        end_year:parseInt(g('ief-edu-ey')?.value)||null, grade:g('ief-edu-grade')?.value};
-    } else if(type==='experience'){
-      if(!g('ief-exp-co')?.value){alert('Company is required');return;}
-      url+='experience';
-      data={company:g('ief-exp-co').value, designation:g('ief-exp-desg')?.value,
-        location:g('ief-exp-loc')?.value,
-        start_date:g('ief-exp-sd')?.value||null, end_date:g('ief-exp-ed')?.value||null,
-        is_current:parseInt(g('ief-exp-cur')?.value||0), description:g('ief-exp-desc')?.value};
-    } else if(type==='docs'){
-      if(!window._iefFile){alert('Please select a file first');return;}
-      url+='documents';
-      data={doc_type:g('ief-doc-type')?.value, doc_name:g('ief-doc-name')?.value||window._iefFile.name,
-        file_data:window._iefFile.data, file_size:window._iefFile.size, mime_type:window._iefFile.mime};
-      window._iefFile=null;
-    }
-    await apiFetch(url,{method:'POST',body:JSON.stringify(data)});
-    const el=document.querySelector('#mform .mtab.active');
-    switchMEditTab(type, el, empId);
-  } catch(e){ alert('Error: '+e.message); }
-}
+  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderEmpDetail(window._curEmp,'${t.id}')">
+    <span class="tab-icon">${t.icon}</span><span>${t.label}</span></div>`).join('');
 
+  const field=(l,v,mono)=>`<div class="org-field">
+    <div class="org-field-label">${l}</div>
+    <div class="org-field-value${mono?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
 
-async function termEmp(id,name){
-  if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
-  await apiFetch(`/api/employees/${id}`,{method:'DELETE'});
-  toast(`${name} terminated`,'success');loadEmployees();
-}
+  const avColor=fmt.avCol(name);
+  const photoHtml=e.photo_url
+    ? `<div style="width:64px;height:64px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid var(--bdr)"><img src="${e.photo_url}" style="width:100%;height:100%;object-fit:cover"></div>`
+    : `<div class="av ${avColor}" style="width:64px;height:64px;font-size:22px;flex-shrink:0">${fmt.ini(name)}</div>`;
 
-async function openEmployeeProfile(id){
-  if(!id){toast('No employee ID','error');return;}
-  try{
-    const e=await apiFetch('/api/employees/'+id);
-    if(!e){toast('Employee not found','error');return;}
-    window._curEmp=e;
-    const fullName=(e.first_name||'')+' '+(e.middle_name?e.middle_name+' ':'')+( e.last_name||'');
-    // Set header
-    const av=document.getElementById('pp-av');
-    const nm=document.getElementById('pp-name');
-    const mt=document.getElementById('pp-meta');
-    const tabs=document.getElementById('pp-tabs');
-    const overlay=document.getElementById('prof-overlay');
-    const panel=document.getElementById('prof-panel');
-    if(!panel){toast('Profile panel missing from page','error');return;}
-    if(av){av.textContent=fmt.ini(fullName);av.className='av av-lg av-green';}
-    if(nm) nm.textContent=fullName.trim();
-    if(mt) mt.textContent=(e.emp_id||'')+' · '+(e.job_title||'–')+' · '+(e.department_name||'–');
-    const tabDefs=[['overview','Overview'],['personal','Personal'],['addresses','Addresses'],
-      ['emergency','Emergency'],['education','Education'],['experience','Experience'],
-      ['statutory','Statutory & Banking'],['payslips','Payslips'],['docs','Documents']];
-    if(tabs) tabs.innerHTML=tabDefs.map((t,i)=>
-      `<div class="ptab-item${i===0?' active':''}" onclick="showEmpTab('${t[0]}',this)">${t[1]}</div>`
-    ).join('');
-    showEmpTab('overview', tabs ? tabs.firstChild : null);
-    if(overlay) overlay.classList.add('open');
-    if(panel) panel.classList.add('open');
-  }catch(err){
-    console.error('openEmployeeProfile error:',err);
-    toast('Error: '+err.message,'error');
+  let panelHtml='';
+
+  if(tab==='dashboard'){
+    panelHtml=`
+      <!-- Employee hero card -->
+      <div style="background:linear-gradient(135deg,var(--green-lt),var(--surface));border:1px solid var(--bdr);border-radius:var(--rl);padding:20px;margin-bottom:16px;display:flex;align-items:center;gap:16px">
+        ${photoHtml}
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:800;color:var(--txt)">${name}</div>
+          <div style="font-size:12.5px;color:var(--txt2);margin-top:3px">${e.job_title||'–'} · ${e.department_name||'–'}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--mono)">${e.emp_id||''}</div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            ${pill(e.employment_type||'–')}${pill(e.status||'Active')}
+            ${e.client_name?pill(e.client_name,'p-teal'):''}
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px">Rating</div>
+          <div style="font-size:20px;color:var(--amber);letter-spacing:2px;margin-top:3px">${'★'.repeat(e.rating||0)}${'☆'.repeat(5-(e.rating||0))}</div>
+          <div style="font-size:11px;color:var(--txt3);margin-top:4px">Since ${fmt.date(e.start_date)}</div>
+        </div>
+      </div>
+      <!-- KPI row -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Salary CTC</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(e.salary||0)}</div><div class="kpi-delta">Annual</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Bill Rate</div><div class="kpi-value" style="font-size:18px">${e.billable?fmt.moneyK(e.bill_rate||0):'—'}</div><div class="kpi-delta">${e.billable?'Billable':'Non-billable'}</div></div>
+        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Experience</div><div class="kpi-value" style="font-size:18px">${(e.experience||[]).length}</div><div class="kpi-delta">Roles on file</div></div>
+        <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Documents</div><div class="kpi-value" style="font-size:18px">${(e.documents||[]).length}</div><div class="kpi-delta">Uploaded</div></div>
+      </div>
+      <!-- Two column detail -->
+      <div class="g2">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">💼 Employment</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Type',e.employment_type)}${field('Department',e.department_name)}
+              ${field('Business Unit',e.business_unit_name)}${field('Client',e.client_name)}
+              ${field('Project',e.project)}${field('Location',e.location)}
+              ${field('Salary Structure',e.salary_structure)}${field('Notice Period',(e.notice_period||30)+' days')}
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">👤 Personal</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Gender',e.gender)}${field('Date of Birth',fmt.date(e.dob))}
+              ${field('Marital Status',e.marital_status)}${field('Nationality',e.nationality||'Indian')}
+              ${field('Blood Group',e.blood_group)}
+            </div></div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📞 Contact</div></div>
+            <div class="card-body"><div style="display:flex;flex-direction:column;gap:10px">
+              ${field('Official Email',e.email?`<a href="mailto:${e.email}" style="color:var(--blue)">${e.email}</a>`:'')}
+              ${field('Official Phone',e.phone)}
+              ${field('Personal Email',e.personal_email?`<a href="mailto:${e.personal_email}" style="color:var(--blue)">${e.personal_email}</a>`:'')}
+              ${field('Personal Phone',e.personal_phone)}
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">🏦 Banking</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Account Name',e.bank_account_name)}${field('Bank',e.bank_name)}
+              ${field('Account No',e.bank_account_number,true)}${field('IFSC',e.bank_ifsc,true)}
+            </div></div>
+          </div>
+        </div>
+      </div>`;
   }
-}
-
-function showEmpTab(tab,el){
-  $('pp-tabs').querySelectorAll('.ptab-item').forEach(t=>t.classList.remove('active'));
-  el.classList.add('active');
-  const e=window._curEmp||{};
-  const field=(l,v)=>`<div><div style="font-size:10px;font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px">${l}</div><div style="font-size:13px;color:var(--txt)">${v||'–'}</div></div>`;
-  const tabs={
-    overview:`<div class="g2 mb12">${[
-      ['Employee ID',e.emp_id],['Job Title',e.job_title],
-      ['Department',e.department_name],['Employment Type',e.employment_type],
-      ['Start Date',fmt.date(e.start_date)],['Status',pill(e.status)],
-      ['Reporting Manager',e.reporting_manager_name],['Client',e.client_name],
-      ['Location',e.location],['Rating','★'.repeat(e.rating||0)+'☆'.repeat(5-(e.rating||0))],
-      ['Billable',e.billable?`Yes — ${fmt.money(e.billable_amount)}/yr`:'No'],
-      ['Referred By',e.referred_by],
-    ].map(([l,v])=>field(l,v)).join('')}</div>`,
-    personal:`<div class="g2">${[
-      ['Official Email',e.email],['Official Phone',e.phone],
-      ['Personal Email',e.personal_email],['Personal Phone',e.personal_phone],
-    ].map(([l,v])=>field(l,v)).join('')}</div>`,
-    addresses:`<div id="emp-addr-content">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-address')">+ Add Address</button></div>`,
-    emergency:`<div id="emp-emg-content">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-emergency')">+ Add Contact</button></div>`,
-    education:`<div id="emp-edu-content">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-education')">+ Add Education</button></div>`,
-    experience:`<div id="emp-exp-content">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('add-experience')">+ Add Experience</button></div>`,
-    statutory:`<div class="g2 mb12">${[
-      ['PAN',`<span class="tmono">${e.pan||'–'}</span>`],
-      ['Aadhaar',`<span class="tmono">${e.aadhaar||'–'}</span>`],
-      ['Passport',`<span class="tmono">${e.passport_number||'–'}</span>`],
-      ['PF Number',`<span class="tmono">${e.pf_number||'–'}</span>`],
-      ['ESI Number',`<span class="tmono">${e.esi_number||'–'}</span>`],
-    ].map(([l,v])=>field(l,v)).join('')}</div>
-    <div class="divider"></div>
-    <div style="font-size:12px;font-weight:600;margin-bottom:8px">Banking</div>
-    <div class="g2">${[
-      ['Account Name',e.bank_account_name],['Bank',e.bank_name],
-      ['Branch',e.bank_branch],['Account Number',`<span class="tmono">${e.bank_account_number||'–'}</span>`],
-      ['IFSC',`<span class="tmono">${e.bank_ifsc||'–'}</span>`],
-    ].map(([l,v])=>field(l,v)).join('')}</div>`,
-    payslips:`<div id="emp-payslips-content">Loading…</div>`,
-    docs:`<div id="emp-docs-content">Loading…</div>
-      <div class="mt8"><button class="btn btn-primary btn-sm" onclick="openModal('upload-emp-doc')">+ Upload Document</button></div>`,
-  };
-  setHtml('pp-content',tabs[tab]||'');
-  // Load async content
-  if(tab==='addresses') apiFetch(`/api/employees/${e.id}/addresses`).then(addrs=>setHtml('emp-addr-content',renderAddresses(addrs)));
-  if(tab==='emergency') apiFetch(`/api/employees/${e.id}/emergency-contacts`).then(cs=>setHtml('emp-emg-content',renderEmergency(cs)));
-  if(tab==='education') apiFetch(`/api/employees/${e.id}/education`).then(ed=>setHtml('emp-edu-content',renderEducation(ed)));
-  if(tab==='experience') apiFetch(`/api/employees/${e.id}/experience`).then(ex=>setHtml('emp-exp-content',renderExperience(ex)));
-  if(tab==='payslips'){
+  else if(tab==='profile'){
+    panelHtml=`
+      <div style="display:flex;gap:20px;margin-bottom:20px;align-items:flex-start">
+        <div style="flex-shrink:0;text-align:center">
+          <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;border:3px solid var(--bdr);margin:0 auto 8px">
+            ${e.photo_url
+              ? `<img src="${e.photo_url}" style="width:100%;height:100%;object-fit:cover">`
+              : `<div class="av ${avColor}" style="width:100px;height:100px;font-size:36px;border-radius:50%">${fmt.ini(name)}</div>`}
+          </div>
+          <button class="btn btn-ghost btn-xs" onclick="editEmpPhoto()">📷 Change Photo</button>
+        </div>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:800;color:var(--txt);margin-bottom:4px">${name}</div>
+          <div style="font-size:13px;color:var(--txt2)">${e.job_title||'–'}</div>
+          <div style="font-size:11.5px;color:var(--txt3);font-family:var(--mono);margin-top:2px">${e.emp_id||''}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="editEmployee(${e.id})">✏️ Edit Profile</button>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="fsec"><div class="fsec-icon">📞</div><div><div class="fsec-title">Contact</div></div></div>
+          ${field('Official Email',e.email?`<a href="mailto:${e.email}" style="color:var(--blue)">${e.email}</a>`:'')}
+          ${field('Official Phone',e.phone)}
+          ${field('Personal Email',e.personal_email?`<a href="mailto:${e.personal_email}" style="color:var(--blue)">${e.personal_email}</a>`:'')}
+          ${field('Personal Phone',e.personal_phone)}
+        </div>
+        <div>
+          <div class="fsec"><div class="fsec-icon">👤</div><div><div class="fsec-title">Identity</div></div></div>
+          ${field('Gender',e.gender)}
+          ${field('Date of Birth',fmt.date(e.dob))}
+          ${field('Marital Status',e.marital_status)}
+          ${field('Nationality',e.nationality||'Indian')}
+          ${field('Blood Group',e.blood_group)}
+        </div>
+      </div>`;
+  }
+  else if(tab==='employment'){
+    const ptOpts=(_masters['payment-terms']||[]).map(m=>`<option value="${m.id}"${m.id==e.payment_terms_id?' selected':''}>${m.name}</option>`).join('');
+    panelHtml=`
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="editEmployee(${e.id})">✏️ Edit Employment</button>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="fsec"><div class="fsec-icon">💼</div><div><div class="fsec-title">Role & Organisation</div></div></div>
+          ${field('Job Title',e.job_title)}
+          ${field('Employment Type',pill(e.employment_type||'–'))}
+          ${field('Department',e.department_name)}
+          ${field('Business Unit',e.business_unit_name)}
+          ${field('Cost Centre',e.cost_centre_name||e.cost_centre_id)}
+          ${field('Reporting Manager',e.reporting_manager_name)}
+          ${field('Location',e.location)}
+        </div>
+        <div>
+          <div class="fsec"><div class="fsec-icon">📋</div><div><div class="fsec-title">Assignment & Billing</div></div></div>
+          ${field('Client',e.client_name?pill(e.client_name,'p-teal'):'')}
+          ${field('Project',e.project)}
+          ${field('Salary Structure',e.salary_structure)}
+          ${field('Salary CTC',fmt.money(e.salary))}
+          ${field('Bill Rate',e.billable?fmt.money(e.bill_rate):'Non-billable')}
+          ${field('Start Date',fmt.date(e.start_date))}
+          ${field('Notice Period',(e.notice_period||30)+' days')}
+          ${field('Status',pill(e.status||'Active'))}
+        </div>
+      </div>`;
+  }
+  else if(tab==='personal'){
+    panelHtml=`
+      <div class="g2">
+        <div>
+          <div class="fsec"><div class="fsec-icon">🪪</div><div><div class="fsec-title">Statutory IDs</div></div></div>
+          ${field('PAN',e.pan,true)}
+          ${field('Aadhaar',e.aadhaar,true)}
+          ${field('Passport',e.passport_number,true)}
+          ${field('PF Number',e.pf_number,true)}
+          ${field('ESI Number',e.esi_number,true)}
+        </div>
+        <div>
+          <div class="fsec"><div class="fsec-icon">👤</div><div><div class="fsec-title">Personal Info</div></div></div>
+          ${field('Gender',e.gender)}
+          ${field('Date of Birth',fmt.date(e.dob))}
+          ${field('Marital Status',e.marital_status)}
+          ${field('Nationality',e.nationality||'Indian')}
+          ${field('Blood Group',e.blood_group)}
+        </div>
+      </div>`;
+  }
+  else if(tab==='addresses'){
+    const addrs=e.addresses||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📍</div><div><div class="fsec-title">Addresses</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-address')">+ Add Address</button>
+      </div>
+      ${addrs.length?addrs.map(a=>`
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-hd"><div class="card-title">${a.address_type} Address</div></div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Line 1',a.address_line1)}${field('Line 2',a.address_line2)}
+            ${field('City',a.city)}${field('Pincode',a.pincode,true)}
+            ${field('State',a.state_name)}${field('Country',a.country_name)}
+          </div></div>
+        </div>`).join('')
+        :`<div class="empty"><div class="empty-icon">📍</div><div class="empty-title">No addresses on file</div></div>`}`;
+  }
+  else if(tab==='emergency'){
+    const contacts=e.emergency_contacts||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">🚨</div><div><div class="fsec-title">Emergency Contacts</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-emergency')">+ Add Contact</button>
+      </div>
+      ${contacts.length?contacts.map(c=>`
+        <div class="card" style="margin-bottom:12px;border-left:3px solid var(--red)">
+          <div class="card-hd"><div class="card-title">${c.name}${c.is_primary?'<span class="pill p-green" style="margin-left:8px;font-size:9px">Primary</span>':''}</div>
+            <button class="btn btn-danger btn-xs" onclick="deleteEmgContact(${c.id})">Remove</button>
+          </div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Relationship',c.relationship)}${field('Phone',c.phone)}
+            ${field('Email',c.email?`<a href="mailto:${c.email}" style="color:var(--blue)">${c.email}</a>`:'')}
+          </div></div>
+        </div>`).join('')
+        :`<div class="empty"><div class="empty-icon">🚨</div><div class="empty-title">No emergency contacts added</div></div>`}`;
+  }
+  else if(tab==='education'){
+    const ed=e.education||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">🎓</div><div><div class="fsec-title">Education</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-education')">+ Add Education</button>
+      </div>
+      ${ed.length?ed.map(r=>`
+        <div class="card" style="margin-bottom:12px">
+          <div class="card-hd"><div class="card-title">${r.institution}</div>
+            <button class="btn btn-danger btn-xs" onclick="deleteEdu(${r.id})">Remove</button>
+          </div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Degree',r.degree)}${field('Field',r.field_of_study)}
+            ${field('Years',`${r.start_year||'–'} – ${r.end_year||'Present'}`)}${field('Grade / CGPA',r.grade)}
+          </div></div>
+        </div>`).join('')
+        :`<div class="empty"><div class="empty-icon">🎓</div><div class="empty-title">No education records</div></div>`}`;
+  }
+  else if(tab==='experience'){
+    const ex=e.experience||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">🏢</div><div><div class="fsec-title">Work Experience</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-experience')">+ Add Experience</button>
+      </div>
+      ${ex.length?ex.map(r=>`
+        <div class="card" style="margin-bottom:12px;border-left:3px solid var(--blue)">
+          <div class="card-hd">
+            <div><div class="card-title">${r.company}</div><div style="font-size:11px;color:var(--txt2)">${r.designation||''}</div></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:11px;color:var(--txt3);font-family:var(--mono)">${fmt.date(r.start_date)} – ${r.is_current?'<span class="pill p-green" style="font-size:9px">Current</span>':fmt.date(r.end_date)}</span>
+              <button class="btn btn-danger btn-xs" onclick="deleteExp(${r.id})">Remove</button>
+            </div>
+          </div>
+          ${r.description?`<div class="card-body" style="font-size:12px;color:var(--txt2)">${r.description}</div>`:''}
+        </div>`).join('')
+        :`<div class="empty"><div class="empty-icon">🏢</div><div class="empty-title">No experience records</div></div>`}`;
+  }
+  else if(tab==='statutory'){
+    panelHtml=`
+      <div class="g2">
+        <div>
+          <div class="fsec"><div class="fsec-icon">🏛️</div><div><div class="fsec-title">Statutory IDs</div></div></div>
+          ${field('PAN',e.pan,true)}${field('Aadhaar',e.aadhaar,true)}
+          ${field('Passport',e.passport_number,true)}
+          ${field('PF Number',e.pf_number,true)}${field('ESI Number',e.esi_number,true)}
+        </div>
+        <div>
+          <div class="fsec"><div class="fsec-icon">🏦</div><div><div class="fsec-title">Banking Details</div></div></div>
+          ${field('Account Name',e.bank_account_name)}
+          ${field('Bank',e.bank_name)}${field('Branch',e.bank_branch)}
+          ${field('Account Number',e.bank_account_number,true)}
+          ${field('IFSC',e.bank_ifsc,true)}${field('Account Type',e.bank_account_type||'Savings')}
+        </div>
+      </div>`;
+  }
+  else if(tab==='timesheets'){
+    panelHtml=`<div id="emp-ts-content"><div style="padding:30px;text-align:center;color:var(--txt3)">Loading timesheets…</div></div>`;
+    setTimeout(()=>{
+      apiFetch(`/api/timesheets?employee_id=${e.id}`).then(data=>{
+        const entries=data?.entries||data||[];
+        setHtml('emp-ts-content',entries.length
+          ? `<div class="card"><div class="tbl-wrap"><table>
+              <thead><tr><th>Week</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Sat</th><th>Total</th><th>Status</th></tr></thead>
+              <tbody>${entries.slice(0,12).map(t=>`<tr>
+                <td class="tmono" style="font-size:11px">${t.week_start_date||t.week||'–'}</td>
+                ${['mon','tue','wed','thu','fri','sat'].map(d=>`<td class="tmono">${t[d+'_hours']||t[d]||0}</td>`).join('')}
+                <td class="tmono fw7">${t.total_hours||0}h</td>
+                <td>${pill(t.status||'Draft')}</td>
+              </tr>`).join('')}</tbody>
+            </table></div></div>`
+          : `<div class="empty"><div class="empty-icon">⏱️</div><div class="empty-title">No timesheet entries</div></div>`);
+      }).catch(()=>setHtml('emp-ts-content','<div class="empty"><div class="empty-title">Could not load timesheets</div></div>'));
+    },100);
+  }
+  else if(tab==='payslips'){
     const slips=e.payslips||[];
-    setHtml('emp-payslips-content',slips.length?`<table><thead><tr><th>Month</th><th>CTC</th><th>Earnings</th><th>Deductions</th><th>Net Salary</th><th>Actions</th></tr></thead><tbody>${
-      slips.map(s=>`<tr><td class="tbold">${s.month}</td><td class="tmono">${fmt.money(s.ctc)}</td><td class="tmono tg">${fmt.money(s.total_earnings)}</td><td class="tmono tr2">${fmt.money(s.total_deductions)}</td><td class="tmono fw7">${fmt.money(s.net_salary)}</td>
-        <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.id},'${s.month}')">Payslip</button></td></tr>`).join('')}</tbody></table>`
-      :`<div class="empty"><div class="empty-title">No payroll entries found</div></div>`);
+    panelHtml=slips.length
+      ? `<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Month</th><th>CTC</th><th>Earnings</th><th>Deductions</th><th>Net Pay</th><th>Actions</th></tr></thead>
+          <tbody>${slips.map(s=>`<tr>
+            <td class="tbold">${s.month}</td>
+            <td class="tmono">${fmt.money(s.ctc)}</td>
+            <td class="tmono tg">${fmt.money(s.total_earnings)}</td>
+            <td class="tmono" style="color:var(--red)">${fmt.money(s.total_deductions)}</td>
+            <td class="tmono fw7">${fmt.money(s.net_salary)}</td>
+            <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.id},'${s.month}')">View</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div></div>`
+      : `<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payroll entries</div></div>`;
   }
-  if(tab==='docs') apiFetch(`/api/employees/${e.id}/documents`).then(docs=>{
-    setHtml('emp-docs-content',docs.length
-      ?`<table><thead><tr><th>Type</th><th>Name</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead><tbody>${docs.map(d=>`<tr><td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td><td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td><td><div class="tact"><button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc(${d.id})">Download</button><button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">Remove</button></div></td></tr>`).join('')}</tbody></table>`
-      :'<div class="empty"><div class="empty-title">No documents uploaded yet</div></div>');
-    const hd=document.getElementById('emp-docs-content');
-    if(hd){const b=document.createElement('div');b.style.marginBottom='12px';
-      b.innerHTML='<button class="btn btn-primary btn-sm" onclick="openEmpDocUpload()">+ Upload Document</button>';
-      hd.prepend(b);}
-  });
+  else if(tab==='docs'){
+    const docs=e.documents||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📁</div><div><div class="fsec-title">Documents</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openEmpDocUpload()">+ Upload</button>
+      </div>
+      ${docs.length
+        ? `<div class="card"><div class="tbl-wrap"><table>
+            <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+            <tbody>${docs.map(d=>`<tr>
+              <td>${pill(d.doc_type,'p-blue')}</td>
+              <td class="tbold">${d.doc_name}</td>
+              <td style="font-size:11px">${d.file_size||'–'}</td>
+              <td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+              <td><div class="tact">
+                <button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc(${d.id})">↓</button>
+                <button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">×</button>
+              </div></td>
+            </tr>`).join('')}</tbody>
+          </table></div></div>`
+        : `<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}`;
+  }
 
+  // Action bar
+  const actionBar=`<div class="detail-action-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeEmpDetail()">← Employees</button>
+    <span class="bc-sep">›</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt)">${name}</span>
+    ${pill(e.employment_type||'–')}${pill(e.status||'Active')}
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="editEmployee(${e.id})">✏️ Edit</button>
+    ${e.status==='Active'?`<button class="btn btn-danger btn-sm" onclick="termEmp(${e.id},'${name.replace(/'/g,"\\'")}')">Terminate</button>`:''}
+  </div>`;
+
+  setHtml('emp-detail-view', actionBar+`
+    <div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">
+      ${panelHtml}
+    </div>`);
 }
 
+// ── Photo upload helper ──────────────────────────────────────────────────────
+function editEmpPhoto(){
+  const e=window._curEmp;if(!e)return;
+  const input=document.createElement('input');
+  input.type='file';input.accept='image/jpeg,image/png,image/webp';
+  input.onchange=()=>{
+    const file=input.files[0];if(!file)return;
+    if(file.size>1024*512){toast('Photo must be under 500KB','error');return;}
+    const r=new FileReader();
+    r.onload=async ev=>{
+      const dataUrl=ev.target.result;
+      await apiFetch(`/api/employees/${e.id}`,{method:'PUT',body:JSON.stringify({...e,photo_url:dataUrl})});
+      e.photo_url=dataUrl;window._curEmp=e;
+      toast('Photo updated!','success');renderEmpDetail(e,_curEmpTab);
+    };r.readAsDataURL(file);
+  };input.click();
+}
+
+// ── Compatibility shims ──────────────────────────────────────────────────────
+async function openEmployeeProfile(id){ await viewEmployee(id); }
+function showEmpTab(tab,el){ if(window._curEmp) renderEmpDetail(window._curEmp,tab); }
+
+function openEmpDocUpload(){
+  const e=window._curEmp;if(!e)return;
+  window._uploadEmpId=e.id;
+  openModal('upload-emp-doc');
+}
+async function downloadEmpDoc(id){
+  try{
+    const doc=await apiFetch(`/api/employees/documents/${id}`);
+    if(!doc||!doc.file_data){toast('No file data','error');return;}
+    const a=document.createElement('a');
+    a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
+    a.download=doc.doc_name||'document';a.click();
+  }catch(e){toast('Download failed','error');}
+}
+async function deleteEmpDoc(id){
+  if(!confirm('Remove document?'))return;
+  await apiFetch(`/api/employees/documents/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curEmp){const fresh=await apiFetch(`/api/employees/${window._curEmp.id}`);window._curEmp=fresh;renderEmpDetail(fresh,'docs');}
+}
+async function deleteEmgContact(id){
+  await apiFetch(`/api/employees/emergency-contacts/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curEmp){const fresh=await apiFetch(`/api/employees/${window._curEmp.id}`);window._curEmp=fresh;renderEmpDetail(fresh,'emergency');}
+}
+async function deleteEdu(id){
+  await apiFetch(`/api/employees/education/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curEmp){const fresh=await apiFetch(`/api/employees/${window._curEmp.id}`);window._curEmp=fresh;renderEmpDetail(fresh,'education');}
+}
+async function deleteExp(id){
+  await apiFetch(`/api/employees/experience/${id}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curEmp){const fresh=await apiFetch(`/api/employees/${window._curEmp.id}`);window._curEmp=fresh;renderEmpDetail(fresh,'experience');}
+}
+
+// These are used by inline forms in the old modal path — keep as-is
 function renderAddresses(addrs){
   if(!addrs||!addrs.length) return '<div class="empty"><div class="empty-title">No addresses on file</div></div>';
   return addrs.map(a=>`<div class="mb12"><div style="font-size:12px;font-weight:600;margin-bottom:6px">${a.address_type} Address</div>
@@ -3269,210 +3628,16 @@ function renderExperience(ex){
       <td class="tmono" style="font-size:11px">${fmt.date(e.start_date)} – ${e.is_current?'Present':fmt.date(e.end_date)}</td>
       <td><button class="btn btn-danger btn-xs" onclick="deleteExp(${e.id})">Remove</button></td></tr>`).join('')}</tbody></table>`;
 }
-async function deleteEmgContact(id){await apiFetch(`/api/employees/emergency-contacts/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('emergency',$('pp-tabs').children[3]);}
-async function deleteEdu(id){await apiFetch(`/api/employees/education/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('education',$('pp-tabs').children[4]);}
-async function deleteExp(id){await apiFetch(`/api/employees/experience/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('experience',$('pp-tabs').children[5]);}
-function openEmpDocUpload(){
-  const e=window._curEmp;if(!e)return;
-  window._uploadEmpId=e.id;
-  openModal('upload-emp-doc');
-}
-async function downloadEmpDoc(id){
-  try{
-    const doc=await apiFetch(`/api/employees/documents/${id}`);
-    if(!doc||!doc.file_data){toast('No file data','error');return;}
-    const a=document.createElement('a');
-    a.href=`data:${doc.mime_type||'application/octet-stream'};base64,${doc.file_data}`;
-    a.download=doc.doc_name||'document';a.click();
-  }catch(e){toast('Download failed','error');}
-}
-async function deleteEmpDoc(id){await apiFetch(`/api/employees/documents/${id}`,{method:'DELETE'});toast('Removed','success');showEmpTab('docs',$('pp-tabs').children[8]);}
 
-async function viewPayslip(empId, month){
-  const entries=await apiFetch(`/api/payroll/entries?month=${month}`);
-  const entry=entries?.entries?.find(e=>e.employee_id===empId);
-  if(!entry){toast('No payslip found for this month','error');return;}
-  _curModalType='payslip';
-  $('m-title').textContent=`Payslip — ${entry.employee_name} · ${month}`;
-  $('m-body').innerHTML=`<div class="payslip-modal">
-    <div class="fb mb12">
-      <div><div style="font-size:14px;font-weight:700">${entry.employee_name}</div>
-        <div style="font-size:12px;color:var(--txt2)">${entry.emp_id} · ${entry.job_title||'–'} · ${entry.department_name||'–'}</div></div>
-      <div style="text-align:right"><div style="font-size:12px;color:var(--txt2)">Pay Period</div><div style="font-weight:700">${month}</div></div>
-    </div>
-    <div class="divider"></div>
-    <div class="g2">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin:10px 0 6px;text-transform:uppercase">Earnings</div>
-        <table style="font-size:12px;width:100%">
-          <tr><td>Basic Salary</td><td class="tr tmono">${fmt.money(entry.basic)}</td></tr>
-          <tr><td>HRA</td><td class="tr tmono">${fmt.money(entry.hra)}</td></tr>
-          <tr><td>Medical Allowance</td><td class="tr tmono">${fmt.money(entry.medical_allowance)}</td></tr>
-          <tr><td>Special Allowance</td><td class="tr tmono">${fmt.money(entry.special_allowance)}</td></tr>
-          <tr><td>Other Allowances</td><td class="tr tmono">${fmt.money(entry.other_allowances)}</td></tr>
-          <tr><td>Incentive</td><td class="tr tmono tg">${fmt.money(entry.incentive)}</td></tr>
-          ${entry.lop_amount>0?`<tr style="color:var(--red)"><td>Less: LOP (${entry.lop_days} days)</td><td class="tr tmono">–${fmt.money(entry.lop_amount)}</td></tr>`:''}
-          <tr style="font-weight:700;border-top:2px solid var(--bdr)"><td>Gross Earnings</td><td class="tr tmono tg">${fmt.money(entry.total_earnings)}</td></tr>
-        </table>
-      </div>
-      <div>
-        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin:10px 0 6px;text-transform:uppercase">Deductions</div>
-        <table style="font-size:12px;width:100%">
-          <tr><td>Profession Tax</td><td class="tr tmono">${fmt.money(entry.profession_tax)}</td></tr>
-          <tr><td>PF (Employee)</td><td class="tr tmono">${fmt.money(entry.pf_employee)}</td></tr>
-          <tr><td>PF (Employer)</td><td class="tr tmono t2">${fmt.money(entry.pf_employer)}</td></tr>
-          <tr><td>Medical Insurance</td><td class="tr tmono">${fmt.money(entry.medical_insurance)}</td></tr>
-          <tr><td>TDS</td><td class="tr tmono">${fmt.money(entry.tds)}</td></tr>
-          <tr><td>ESI (Employee)</td><td class="tr tmono">${fmt.money(entry.esi_employee)}</td></tr>
-          <tr><td>ESI (Employer)</td><td class="tr tmono t2">${fmt.money(entry.esi_employer)}</td></tr>
-          <tr><td>Other Deductions</td><td class="tr tmono">${fmt.money(entry.other_deductions)}</td></tr>
-          <tr style="font-weight:700;border-top:2px solid var(--bdr)"><td>Total Deductions</td><td class="tr tmono tr2">${fmt.money(entry.total_deductions)}</td></tr>
-        </table>
-      </div>
-    </div>
-    <div class="divider"></div>
-    <div class="fb" style="background:var(--green-lt);padding:12px 16px;border-radius:var(--r);border:1px solid rgba(45,143,62,.2)">
-      <span style="font-size:14px;font-weight:700">Net Salary</span>
-      <span style="font-size:20px;font-weight:700;color:var(--green-dk);font-family:var(--mono)">${fmt.money(entry.net_salary)}</span>
-    </div>
-    <div class="divider"></div>
-    <div style="font-size:12px;color:var(--txt2)">CTC: ${fmt.money(entry.ctc)}/yr</div>
-  </div>`;
-  $('m-submit').style.display='none';
-  $('overlay').classList.add('open');
+async function termEmp(id,name){
+  if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
+  await apiFetch(`/api/employees/${id}`,{method:'DELETE'});
+  toast(`${name} terminated`,'success');
+  if(window._curEmp&&window._curEmp.id==id)closeEmpDetail();
+  loadEmployees();
 }
 
-async function editEmployee(id){
-  try{
-    const[e,emps,depts]=await Promise.all([apiFetch(`/api/employees/${id}`),apiFetch('/api/lookup/employees'),apiFetch('/api/lookup/departments')]);
-    if(!e)return;
-    const empOpts=`<option value="">None</option>`+(emps||[]).filter(em=>em.id!==id).map(em=>`<option value="${em.id}" ${em.id==e.reporting_manager_id?'selected':''}>${em.name}</option>`).join('');
-    const deptOpts=`<option value="">None</option>`+(depts||[]).map(d=>`<option value="${d.id}" ${d.id==e.department_id?'selected':''}>${d.name}</option>`).join('');
-    const etOpts=(_masters['employment-types']||[]).map(m=>`<option value="${m.id}" ${m.id==e.employment_type_id?'selected':''}>${m.name}</option>`).join('');
-    const stOpts=`<option value="">Select state</option>`+(_masters['states']||[]).map(s=>`<option value="${s.id}" ${s.id==e.state_id?'selected':''}>${s.name}</option>`).join('');
-    const coOpts=`<option value="">Select country</option>`+(_masters['countries']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-    _curModalType='edit-employee';
-    $('m-title').textContent=`Edit — ${e.first_name} ${e.last_name}`;
-    $('m-body').innerHTML=`<form id="mform">
-      <input type="hidden" name="_id" value="${e.id}">
-      <div class="mtabs">
-        <div class="mtab active" onclick="switchMTab('emp-tab-identity',this)">👤 Identity</div>
-        <div class="mtab" onclick="switchMTab('emp-tab-role',this)">🏢 Role & Pay</div>
-        <div class="mtab" onclick="switchMTab('emp-tab-contact',this)">📞 Contact</div>
-        <div class="mtab" onclick="switchMTab('emp-tab-statutory',this)">📋 Statutory</div>
-        <div class="mtab" onclick="switchMTab('emp-tab-bank',this)">🏦 Bank</div>
-        <div class="mtab" onclick="switchMEditTab('address',this,${e.id})">📍 Address</div>
-        <div class="mtab" onclick="switchMEditTab('emergency',this,${e.id})">🆘 Emergency</div>
-        <div class="mtab" onclick="switchMEditTab('education',this,${e.id})">🎓 Education</div>
-        <div class="mtab" onclick="switchMEditTab('experience',this,${e.id})">💼 Experience</div>
-        <div class="mtab" onclick="switchMEditTab('docs',this,${e.id})">📄 Documents</div>
-      </div>
 
-      <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
-      <!-- TAB 1: Identity -->
-      <div class="mtab-panel active" id="emp-tab-identity">
-        <div class="frow3">
-          <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required value="${e.first_name||''}"></div>
-          <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="${e.middle_name||''}"></div>
-          <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required value="${e.last_name||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" value="${e.emp_id||''}" placeholder="Auto-generated if blank"></div>
-          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${['Active','Onboarding','On Leave','Terminated'].map(s=>`<option ${s==e.status?'selected':''}>${s}</option>`).join('')}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Rating</label>
-            <div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span class="${n<=(e.rating||0)?'on':''}" onclick="setRating(${n})">${n<=(e.rating||0)?'★':'☆'}</span>`).join('')}</div>
-            <input type="hidden" name="rating" id="rating-val" value="${e.rating||0}">
-          </div>
-          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" value="${e.referred_by||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Role & Pay -->
-      <div class="mtab-panel" id="emp-tab-role">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${e.job_title||''}"></div>
-          <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${etOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${deptOpts}</select></div>
-          <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id">${empOpts}</select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${e.location||''}"></div>
-          <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${e.start_date?e.start_date.substring(0,10):''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" value="${e.salary||0}"></div>
-          <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="${e.bill_rate||0}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="document.getElementById('billable-amt').style.display=this.value=='1'?'block':'none'"><option value="0" ${!e.billable?'selected':''}>No</option><option value="1" ${e.billable?'selected':''}>Yes</option></select></div>
-          <div class="fg" id="billable-amt" style="display:${e.billable?'block':'none'}"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" value="${e.billable_amount||0}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 3: Contact -->
-      <div class="mtab-panel" id="emp-tab-contact">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Work Email</label><input class="finput" type="email" name="email" value="${e.email||''}"></div>
-          <div class="fg"><label class="flabel">Work Phone</label><input class="finput" name="phone" value="${e.phone||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
-          <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>
-        </div>
-
-      </div>
-
-      <!-- TAB 4: Statutory -->
-      <div class="mtab-panel" id="emp-tab-statutory">
-        <div class="frow">
-          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}" oninput="this.value=this.value.toUpperCase()" placeholder="AAAAA0000A" maxlength="10"></div>
-          <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}" placeholder="12-digit number" maxlength="12"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Passport Number</label><input class="finput" name="passport_number" value="${e.passport_number||''}" oninput="this.value=this.value.toUpperCase()"></div>
-          <div class="fg"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div>
-          <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div>
-        </div>
-      </div>
-
-      <!-- TAB 5: Bank -->
-      <div class="mtab-panel" id="emp-tab-bank">
-        <div class="frow">
-          <div class="fg"><label class="flabel">Account Holder Name</label><input class="finput" name="bank_account_name" value="${e.bank_account_name||''}"></div>
-          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" value="${e.bank_name||''}"></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Branch</label><input class="finput" name="bank_branch" value="${e.bank_branch||''}"></div>
-          <div class="fg"><label class="flabel">Account Type</label><select class="fselect" name="bank_account_type"><option>Savings</option><option>Current</option></select></div>
-        </div>
-        <div class="frow">
-          <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" value="${e.bank_account_number||''}"></div>
-          <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" value="${e.bank_ifsc||''}" oninput="this.value=this.value.toUpperCase()"></div>
-        </div>
-      </div>
-      </div>
-    
-      <!-- Sub-entity panels (loaded by switchMEditTab) -->
-      <div class="mtab-panel" id="medit-address-panel"><div id="medit-address-content" style="padding:8px 0;min-height:100px"></div></div>
-      <div class="mtab-panel" id="medit-emergency-panel"><div id="medit-emergency-content" style="padding:8px 0;min-height:100px"></div></div>
-      <div class="mtab-panel" id="medit-education-panel"><div id="medit-education-content" style="padding:8px 0;min-height:100px"></div></div>
-      <div class="mtab-panel" id="medit-experience-panel"><div id="medit-experience-content" style="padding:8px 0;min-height:100px"></div></div>
-      <div class="mtab-panel" id="medit-docs-panel"><div id="medit-docs-content" style="padding:8px 0;min-height:100px"></div></div>
-</form>`;
-    $('m-submit').style.display='';$('m-submit').textContent='Save Employee';
-    $('overlay').classList.add('open');
-  }catch(err){console.error(err);}
-}
-async function termEmp(id,name){if(!confirm(`Terminate "${name}"?`))return;await apiFetch(`/api/employees/${id}`,{method:'DELETE'});toast(`${name} terminated`,'success');loadEmployees();}
-
-// ═══════════════════════════════════════════════════
 // TIMESHEETS
 // ═══════════════════════════════════════════════════
 async function loadTsKpis(){
@@ -4185,6 +4350,13 @@ const modalDefs={
         <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${masterOpts('employment-types','id','name')}</select></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id" id="emp-dept-sel"><option value="">Loading…</option></select></div>
         <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id" id="emp-rm-sel"><option value="">Loading…</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id" id="emp-bu-sel"><option value="">No BU</option></select></div>
+        <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id" id="emp-cc-sel"><option value="">No cost centre</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id" id="emp-cli-sel"><option value="">No client</option></select></div>
+        <div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name / code"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Salary Structure</label>
+          <select class="fselect" name="salary_structure"><option value="">Select…</option><option>Fixed</option><option>Fixed + Variable</option><option>Fully Variable</option><option>CTC</option></select></div>
+        <div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="30"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Location / City</label><input class="finput" name="location" placeholder="Hyderabad / Remote"></div>
         <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div></div>
       <div class="divider"></div>
@@ -4193,6 +4365,16 @@ const modalDefs={
         <div class="fg"><label class="flabel">Bill Rate (₹/hr, if contractor)</label><input class="finput" type="number" name="bill_rate" placeholder="1200"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="$('new-billable-amt').style.display=this.value=='1'?'':'none'"><option value="0">No</option><option value="1">Yes</option></select></div>
         <div class="fg" id="new-billable-amt" style="display:none"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" placeholder="0"></div></div>
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Personal</div>
+      <div class="frow"><div class="fg"><label class="flabel">Gender</label>
+          <select class="fselect" name="gender"><option value="">Select…</option><option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option></select></div>
+        <div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Marital Status</label>
+          <select class="fselect" name="marital_status"><option value="">Select…</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></div>
+        <div class="fg"><label class="flabel">Blood Group</label>
+          <select class="fselect" name="blood_group"><option value="">Select…</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="Indian"></div></div>
       <div class="divider"></div>
       <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Contact</div>
       <div class="frow"><div class="fg"><label class="flabel">Official Email</label><input class="finput" type="email" name="email" placeholder="jane@mcraan.com"></div>
@@ -4214,9 +4396,15 @@ const modalDefs={
         <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" placeholder="HDFC0001234" oninput="this.value=this.value.toUpperCase()"></div></div>`,
     afterSave:loadEmployees,
     afterRender:async()=>{
-      const[depts,emps]=await Promise.all([apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/employees')]);
+      const[depts,emps,bus,ccs,clients]=await Promise.all([
+        apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/employees'),
+        apiFetch('/api/lookup/business-units'),apiFetch('/api/lookup/cost-centres'),
+        apiFetch('/api/lookup/clients')]);
       const ds=$('emp-dept-sel');if(ds)ds.innerHTML='<option value="">No department</option>'+(depts||[]).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
       const rs=$('emp-rm-sel');if(rs)rs.innerHTML='<option value="">None</option>'+(emps||[]).map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})</option>`).join('');
+      const bs=$('emp-bu-sel');if(bs)bs.innerHTML='<option value="">No BU</option>'+(bus||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+      const cs=$('emp-cc-sel');if(cs)cs.innerHTML='<option value="">No cost centre</option>'+(ccs||[]).map(cc=>`<option value="${cc.id}">${cc.code} — ${cc.name}</option>`).join('');
+      const cl=$('emp-cli-sel');if(cl)cl.innerHTML='<option value="">No client</option>'+(clients||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
     }
   },
 
@@ -4394,7 +4582,7 @@ const modalDefs={
           <div class="fg"><label class="flabel">Country</label><select class="fselect" name="country_id">${coOpts}</select></div>
         </div>`;
     },
-    afterSave:()=>{if(window._curEmp)showEmpTab('addresses',document.querySelector('#pp-tabs .ptab-item:nth-child(3)'));},
+    afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'addresses');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/addresses`,
     numericFields:['state_id','country_id'],
   },
@@ -4406,7 +4594,7 @@ const modalDefs={
         <div class="fg"><label class="flabel">Primary Contact?</label><select class="fselect" name="is_primary"><option value="0">No</option><option value="1">Yes</option></select></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div>
         <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane@email.com"></div></div>`,
-    afterSave:()=>{const e=window._curEmp;if(e)showEmpTab('emergency',$('pp-tabs').children[3]);},
+    afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'emergency');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/emergency-contacts`
   },
   'add-education':{
@@ -4418,7 +4606,7 @@ const modalDefs={
       <div class="frow"><div class="fg"><label class="flabel">Start Year</label><input class="finput" type="number" name="start_year" placeholder="2011"></div>
         <div class="fg"><label class="flabel">End Year</label><input class="finput" type="number" name="end_year" placeholder="2015"></div></div>
       <div class="fg"><label class="flabel">Grade / CGPA</label><input class="finput" name="grade" placeholder="8.5 / 10"></div>`,
-    afterSave:()=>{if(window._curEmp)showEmpTab('education',$('pp-tabs').children[4]);},
+    afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'education');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/education`
   },
   'add-experience':{
@@ -4430,7 +4618,7 @@ const modalDefs={
       <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
         <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date"></div></div>
       <div class="fg"><label class="flabel">Currently Working Here?</label><select class="fselect" name="is_current"><option value="0">No</option><option value="1">Yes</option></select></div>`,
-    afterSave:()=>{if(window._curEmp)showEmpTab('experience',$('pp-tabs').children[5]);},
+    afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'experience');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/experience`
   },
   'upload-emp-doc':{
@@ -4441,7 +4629,7 @@ const modalDefs={
       <div class="fg"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="PAN Card - John Doe"></div>
       <div class="fg"><label class="flabel">Upload File</label><input class="finput" type="file" id="emp-doc-file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'emp')"></div>
       <div class="fg" id="emp-file-info"></div>`,
-    afterSave:()=>{if(window._curEmp)showEmpTab('docs',$('pp-tabs').children[8]);},
+    afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'docs');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/documents`
   },
   'upload-client-doc':{
@@ -4663,10 +4851,22 @@ async function submitModal(){
   if(_curModalType==='edit-employee'){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
-    const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
     const id=data._id;delete data._id;
-    ['department_id','employment_type_id','reporting_manager_id','manager_id','client_id','office_location_id','salary','bill_rate','billable','billable_amount','rating'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;});
-    try{await apiFetch(`/api/employees/${id}`,{method:'PUT',body:JSON.stringify(data)});toast('Employee updated!','success');closeModal();loadEmployees();}catch(e){toast('Error: '+e.message,'error');}
+    ['department_id','employment_type_id','reporting_manager_id','manager_id','client_id','office_location_id',
+     'cost_centre_id','business_unit_id',
+     'salary','bill_rate','billable','billable_amount','rating','notice_period'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
+    });
+    try{
+      await apiFetch(`/api/employees/${id}`,{method:'PUT',body:JSON.stringify(data)});
+      toast('Employee updated!','success');closeModal();
+      loadEmployees();
+      if(window._curEmp&&window._curEmp.id==id){
+        const fr=await apiFetch('/api/employees/'+id);
+        window._curEmp=fr;renderEmpDetail(fr,_curEmpTab);
+      }
+    }catch(e){toast('Error: '+e.message,'error');}
     return;
   }
   if(_curModalType==='payslip'){closeModal();return;}

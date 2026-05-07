@@ -674,6 +674,30 @@ def masters(table):
 # ═══════════════════════════════════════════════════
 # ORGANISATION
 # ═══════════════════════════════════════════════════
+def _migrate_employee_columns():
+    """Add new employee columns (idempotent)."""
+    new_cols = [
+        ("gender",           "TEXT"),
+        ("dob",              "DATE"),
+        ("marital_status",   "TEXT"),
+        ("nationality",      "TEXT DEFAULT 'Indian'"),
+        ("blood_group",      "TEXT"),
+        ("photo_url",        "TEXT"),
+        ("cost_centre_id",   "INTEGER"),
+        ("business_unit_id", "INTEGER"),
+        ("salary_structure", "TEXT"),
+        ("project",          "TEXT"),
+        ("end_date",         "DATE"),
+        ("notice_period",    "INTEGER DEFAULT 30"),
+    ]
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        for col, typ in new_cols:
+            cur.execute(f"ALTER TABLE employees ADD COLUMN IF NOT EXISTS {col} {typ}")
+        conn.close()
+    except Exception as e:
+        print(f"Employee migration warning: {e}", flush=True)
+
 def _migrate_org_columns():
     """Add new org columns to existing DB safely (idempotent)."""
     new_cols = [
@@ -1188,19 +1212,22 @@ def vendor_doc_detail(did):
 @app.route('/api/employees', methods=['GET','POST'])
 @require_auth
 def employees():
+    _migrate_employee_columns()
     db=get_db()
     if request.method=='GET':
         q=request.args.get('q',''); status=request.args.get('status',''); et=request.args.get('employment_type','')
         sql="""SELECT e.*,d.name as department_name,et.name as employment_type,
             c.name as client_name,
             m.first_name||' '||m.last_name as manager_name,
-            rm.first_name||' '||rm.last_name as reporting_manager_name
+            rm.first_name||' '||rm.last_name as reporting_manager_name,
+            b.name as business_unit_name
             FROM employees e
             LEFT JOIN departments d ON d.id=e.department_id
             LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
             LEFT JOIN clients c ON c.id=e.client_id
             LEFT JOIN employees m ON m.id=e.manager_id
             LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
+            LEFT JOIN business_units b ON b.id=e.business_unit_id
             WHERE e.is_active=1"""
         params=[]
         if status: sql+=" AND e.status=%s"; params.append(status)
@@ -1209,7 +1236,6 @@ def employees():
         sql+=" ORDER BY e.last_name,e.first_name"
         return ok(rows(sql,params))
     d=request.get_json()
-    # Auto-generate emp_id if not provided or check uniqueness
     emp_id = d.get('emp_id','').strip()
     if not emp_id:
         et_row = row1("SELECT name FROM master_employment_types WHERE id=%s",(d.get('employment_type_id',1),))
@@ -1220,31 +1246,32 @@ def employees():
             n+=1; emp_id=f"{prefix}-{n+1:04d}"
     else:
         if row1("SELECT id FROM employees WHERE emp_id=%s",(emp_id,)):
-            return err(f"Employee code '{emp_id}' already exists. Please use a different code.")
+            return err(f"Employee code '{emp_id}' already exists.")
     cur=_cur();cur.execute("""INSERT INTO employees(emp_id,first_name,middle_name,last_name,email,phone,
         personal_email,personal_phone,job_title,department_id,employment_type_id,
         location,office_location_id,manager_id,reporting_manager_id,client_id,
         salary,bill_rate,billable,billable_amount,start_date,status,referred_by,rating,
         pan,aadhaar,passport_number,pf_number,esi_number,
-        bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc)
-        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        bank_account_name,bank_name,bank_branch,bank_account_number,bank_ifsc,
+        gender,dob,marital_status,nationality,blood_group,photo_url,
+        cost_centre_id,business_unit_id,salary_structure,project,notice_period)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (emp_id,d.get('first_name',''),d.get('middle_name'),d.get('last_name',''),d.get('email'),d.get('phone'),
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
          d.get('start_date') or None,d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
          d.get('pan'),d.get('aadhaar'),d.get('passport_number'),d.get('pf_number'),d.get('esi_number'),
-         d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc')))
+         d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),
+         d.get('gender'),d.get('dob') or None,d.get('marital_status'),d.get('nationality','Indian'),d.get('blood_group'),d.get('photo_url'),
+         d.get('cost_centre_id'),d.get('business_unit_id'),d.get('salary_structure'),d.get('project'),d.get('notice_period',30)))
     emp_db_id=cur.fetchone()['id']
-    # Save addresses
     for atype in ['Current','Permanent']:
         key=atype.lower()
         if d.get(f'{key}_address_line1') or d.get(f'{key}_city'):
             _cur().execute("INSERT INTO employee_addresses(employee_id,address_type,address_line1,address_line2,city,state_id,pincode,country_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
                 (emp_db_id,atype,d.get(f'{key}_address_line1'),d.get(f'{key}_address_line2'),d.get(f'{key}_city'),d.get(f'{key}_state_id'),d.get(f'{key}_pincode'),d.get(f'{key}_country_id')))
-
     log("employees",emp_db_id,"hired",f"{d.get('first_name','')} {d.get('last_name','')} ({emp_id}) added",g.user.get('username','System')); db.commit()
-    # Auto-create user login for new employee
     try:
         import hashlib
         default_pwd = hashlib.sha256(b"Employee@123").hexdigest()
@@ -1254,11 +1281,10 @@ def employees():
             existing = row1("SELECT id FROM users WHERE username=%s OR (employee_id=%s AND employee_id IS NOT NULL)",(uname,emp_db_id))
             if not existing:
                 _cur().execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,1) RETURNING id",
-                    (uname,d.get('email'),default_pwd,emp_role['id'],emp_db_id,
-                     f"{d.get('first_name','')} {d.get('last_name','')}".strip()))
+                    (uname,d.get('email'),default_pwd,emp_role['id'],emp_db_id,f"{d.get('first_name','')} {d.get('last_name','')}".strip()))
         db.commit()
     except Exception as ue:
-        print(f"Warning: Could not create user for employee: {ue}", flush=True)
+        print(f"Warning: Could not create user: {ue}", flush=True)
     return ok({"id":emp_db_id,"emp_id":emp_id},"Employee created",201)
 
 @app.route('/api/employees/<int:eid>', methods=['GET','PUT','DELETE'])
@@ -1268,12 +1294,15 @@ def employee_detail(eid):
     if request.method=='GET':
         r=row1("""SELECT e.*,d.name as department_name,et.name as employment_type,
             c.name as client_name,m.first_name||' '||m.last_name as manager_name,
-            rm.first_name||' '||rm.last_name as reporting_manager_name
+            rm.first_name||' '||rm.last_name as reporting_manager_name,
+            b.name as business_unit_name, cc.name as cost_centre_name, cc.code as cost_centre_code
             FROM employees e LEFT JOIN departments d ON d.id=e.department_id
             LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
             LEFT JOIN clients c ON c.id=e.client_id
             LEFT JOIN employees m ON m.id=e.manager_id
             LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
+            LEFT JOIN business_units b ON b.id=e.business_unit_id
+            LEFT JOIN cost_centres cc ON cc.id=e.cost_centre_id
             WHERE e.id=%s""",(eid,))
         if not r: return err("Not found",404)
         r['addresses']=rows("SELECT * FROM employee_addresses WHERE employee_id=%s",(eid,))
@@ -1297,14 +1326,19 @@ def employee_detail(eid):
         location=%s,office_location_id=%s,manager_id=%s,reporting_manager_id=%s,client_id=%s,
         salary=%s,bill_rate=%s,billable=%s,billable_amount=%s,start_date=%s,status=%s,referred_by=%s,rating=%s,
         pan=%s,aadhaar=%s,passport_number=%s,pf_number=%s,esi_number=%s,
-        bank_account_name=%s,bank_name=%s,bank_branch=%s,bank_account_number=%s,bank_ifsc=%s,updated_at=NOW() WHERE id=%s""",
+        bank_account_name=%s,bank_name=%s,bank_branch=%s,bank_account_number=%s,bank_ifsc=%s,
+        gender=%s,dob=%s,marital_status=%s,nationality=%s,blood_group=%s,photo_url=%s,
+        cost_centre_id=%s,business_unit_id=%s,salary_structure=%s,project=%s,notice_period=%s,
+        updated_at=NOW() WHERE id=%s""",
         (new_emp_id,d.get('first_name',''),d.get('middle_name'),d.get('last_name',''),d.get('email'),d.get('phone'),
          d.get('personal_email'),d.get('personal_phone'),d.get('job_title'),d.get('department_id'),d.get('employment_type_id'),
          d.get('location'),d.get('office_location_id'),d.get('manager_id'),d.get('reporting_manager_id'),d.get('client_id'),
          d.get('salary',0),d.get('bill_rate',0),d.get('billable',0),d.get('billable_amount',0),
          d.get('start_date') or None,d.get('status','Active'),d.get('referred_by'),d.get('rating',0),
          d.get('pan'),d.get('aadhaar'),d.get('passport_number'),d.get('pf_number'),d.get('esi_number'),
-         d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),eid))
+         d.get('bank_account_name'),d.get('bank_name'),d.get('bank_branch'),d.get('bank_account_number'),d.get('bank_ifsc'),
+         d.get('gender'),d.get('dob') or None,d.get('marital_status'),d.get('nationality','Indian'),d.get('blood_group'),d.get('photo_url'),
+         d.get('cost_centre_id'),d.get('business_unit_id'),d.get('salary_structure'),d.get('project'),d.get('notice_period',30),eid))
     get_db().commit(); return ok(msg="Updated")
 
 # Employee sub-resources
