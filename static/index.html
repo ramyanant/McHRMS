@@ -78,6 +78,7 @@ button{font-family:var(--font);cursor:pointer}input,select,textarea{font-family:
 .btn-ghost{background:var(--surface);color:var(--txt2);border:1px solid var(--bdr)}.btn-ghost:hover{color:var(--txt);background:var(--s2)}
 .btn-success{background:var(--green-lt);color:var(--green-dk);border:1px solid rgba(45,143,62,.25)}
 .btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(192,57,43,.2)}
+.btn-warning{background:#fff8e1;color:#b45309;border:1px solid rgba(180,83,9,.25)}.btn-warning:hover{background:#fef3c7}
 .btn-sm{padding:5px 10px;font-size:11px}.btn-xs{padding:3px 8px;font-size:10px}
 .card{background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .card-hd{padding:12px 16px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -3189,18 +3190,12 @@ function renderEmpDetail(e, tab){
   _curEmpTab=tab;
   const name=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`.trim();
   const tabs=[
-    {id:'dashboard', icon:'📊', label:'Dashboard'},
-    {id:'profile',   icon:'👤', label:'Profile'},
-    {id:'employment',icon:'💼', label:'Employment'},
-    {id:'personal',  icon:'🪪', label:'Personal & KYC'},
-    {id:'addresses', icon:'📍', label:'Addresses'},
-    {id:'emergency', icon:'🚨', label:'Emergency'},
-    {id:'education', icon:'🎓', label:'Education'},
-    {id:'experience',icon:'🏢', label:'Experience'},
-    {id:'statutory', icon:'🏛️', label:'Statutory & Bank'},
-    {id:'timesheets',icon:'⏱️', label:'Timesheets'},
-    {id:'payslips',  icon:'💰', label:'Payslips'},
-    {id:'docs',      icon:'📁', label:'Documents'},
+    {id:'dashboard',  icon:'📊', label:'Dashboard'},
+    {id:'profile',    icon:'👤', label:'Profile & Contact'},
+    {id:'employment', icon:'💼', label:'Employment'},
+    {id:'background', icon:'🎓', label:'Background'},
+    {id:'timesheets', icon:'⏱️', label:'Timesheets'},
+    {id:'docs',       icon:'📁', label:'Documents & Pay'},
   ];
 
   const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderEmpDetail(window._curEmp,'${t.id}')">
@@ -3287,37 +3282,37 @@ function renderEmpDetail(e, tab){
   }
   else if(tab==='profile'){
     panelHtml=`
-      <div style="display:flex;gap:20px;margin-bottom:20px;align-items:flex-start">
+      <div style="display:flex;align-items:flex-start;gap:20px;margin-bottom:20px">
         <div style="flex-shrink:0;text-align:center">
-          <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;border:3px solid var(--bdr);margin:0 auto 8px">
-            ${e.photo_url
-              ? `<img src="${e.photo_url}" style="width:100%;height:100%;object-fit:cover">`
-              : `<div class="av ${avColor}" style="width:100px;height:100px;font-size:36px;border-radius:50%">${fmt.ini(name)}</div>`}
+          <div style="width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid var(--bdr);margin:0 auto 8px">
+            ${e.photo_url?`<img src="${e.photo_url}" style="width:100%;height:100%;object-fit:cover">`
+              :`<div class="av ${avColor}" style="width:96px;height:96px;font-size:32px;border-radius:50%">${fmt.ini(name)}</div>`}
           </div>
-          <button class="btn btn-ghost btn-xs" onclick="editEmpPhoto()">📷 Change Photo</button>
+          <button class="btn btn-ghost btn-xs" onclick="editEmpPhoto()">📷 Change</button>
         </div>
         <div style="flex:1">
-          <div style="font-size:20px;font-weight:800;color:var(--txt);margin-bottom:4px">${name}</div>
-          <div style="font-size:13px;color:var(--txt2)">${e.job_title||'–'}</div>
-          <div style="font-size:11.5px;color:var(--txt3);font-family:var(--mono);margin-top:2px">${e.emp_id||''}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--txt)">${name}</div>
+          <div style="font-size:13px;color:var(--txt2);margin-top:2px">${e.job_title||'–'} · ${e.department_name||'–'}</div>
+          <div style="font-size:11px;color:var(--txt3);font-family:var(--mono);margin-top:2px">${e.emp_id||''}</div>
+          <div style="display:flex;gap:6px;margin-top:8px">${pill(e.employment_type||'–')}${pill(e.status||'Active')}</div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="editEmployee(${e.id})">✏️ Edit Profile</button>
+        <button class="btn btn-primary btn-sm" onclick="editEmployee(${e.id})">✏️ Edit</button>
       </div>
       <div class="g2">
         <div>
-          <div class="fsec"><div class="fsec-icon">📞</div><div><div class="fsec-title">Contact</div></div></div>
+          <div class="fsec"><div class="fsec-icon">📞</div><div><div class="fsec-title">Contact Information</div></div></div>
           ${field('Official Email',e.email?`<a href="mailto:${e.email}" style="color:var(--blue)">${e.email}</a>`:'')}
           ${field('Official Phone',e.phone)}
           ${field('Personal Email',e.personal_email?`<a href="mailto:${e.personal_email}" style="color:var(--blue)">${e.personal_email}</a>`:'')}
           ${field('Personal Phone',e.personal_phone)}
         </div>
         <div>
-          <div class="fsec"><div class="fsec-icon">👤</div><div><div class="fsec-title">Identity</div></div></div>
-          ${field('Gender',e.gender)}
-          ${field('Date of Birth',fmt.date(e.dob))}
-          ${field('Marital Status',e.marital_status)}
-          ${field('Nationality',e.nationality||'Indian')}
+          <div class="fsec"><div class="fsec-icon">👤</div><div><div class="fsec-title">Personal Details</div></div></div>
+          ${field('Gender',e.gender)}${field('Date of Birth',fmt.date(e.dob))}
+          ${field('Marital Status',e.marital_status)}${field('Nationality',e.nationality||'Indian')}
           ${field('Blood Group',e.blood_group)}
+          <div class="fsec" style="margin-top:16px"><div class="fsec-icon">📍</div><div><div class="fsec-title">Primary Address</div></div></div>
+          ${(e.addresses&&e.addresses[0])?`<div style="font-size:12px;color:var(--txt)">${[e.addresses[0].address_line1,e.addresses[0].city,e.addresses[0].state_name,e.addresses[0].pincode].filter(Boolean).join(', ')}</div>`:'<div style="font-size:12px;color:var(--txt3)">Not on file — add in Background tab</div>'}
         </div>
       </div>`;
   }
@@ -3503,26 +3498,38 @@ function renderEmpDetail(e, tab){
   }
   else if(tab==='docs'){
     const docs=e.documents||[];
+    const slips=e.payslips||[];
     panelHtml=`
-      <div style="display:flex;justify-content:space-between;margin-bottom:14px">
+      <!-- DOCUMENTS -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📁</div><div><div class="fsec-title">Documents</div></div></div>
         <button class="btn btn-primary btn-sm" onclick="openEmpDocUpload()">+ Upload</button>
       </div>
-      ${docs.length
-        ? `<div class="card"><div class="tbl-wrap"><table>
-            <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
-            <tbody>${docs.map(d=>`<tr>
-              <td>${pill(d.doc_type,'p-blue')}</td>
-              <td class="tbold">${d.doc_name}</td>
-              <td style="font-size:11px">${d.file_size||'–'}</td>
-              <td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
-              <td><div class="tact">
-                <button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc(${d.id})">↓</button>
-                <button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">×</button>
-              </div></td>
-            </tr>`).join('')}</tbody>
-          </table></div></div>`
-        : `<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}`;
+      ${docs.length?`<div class="card" style="margin-bottom:20px"><div class="tbl-wrap"><table>
+          <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
+          <tbody>${docs.map(d=>`<tr>
+            <td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td>
+            <td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+            <td><div class="tact">
+              <button class="btn btn-ghost btn-xs" onclick="downloadEmpDoc(${d.id})">↓</button>
+              <button class="btn btn-danger btn-xs" onclick="deleteEmpDoc(${d.id})">×</button>
+            </div></td></tr>`).join('')}</tbody>
+        </table></div></div>`
+        :`<div class="empty" style="margin-bottom:20px"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}
+      <!-- PAYSLIPS -->
+      <div class="fsec"><div class="fsec-icon">💰</div><div><div class="fsec-title">Payslips</div></div></div>
+      ${slips.length?`<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Month</th><th>CTC</th><th>Earnings</th><th>Deductions</th><th>Net Pay</th><th></th></tr></thead>
+          <tbody>${slips.map(s=>`<tr>
+            <td class="tbold">${s.month}</td>
+            <td class="tmono">${fmt.money(s.ctc)}</td>
+            <td class="tmono tg">${fmt.money(s.total_earnings)}</td>
+            <td class="tmono" style="color:var(--red)">${fmt.money(s.total_deductions)}</td>
+            <td class="tmono fw7">${fmt.money(s.net_salary)}</td>
+            <td><button class="btn btn-ghost btn-xs" onclick="viewPayslip(${e.id},'${s.month}')">View</button></td>
+          </tr>`).join('')}</tbody>
+        </table></div></div>`
+        :`<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div></div>`}`;
   }
 
   // Action bar
@@ -3564,6 +3571,44 @@ function editEmpPhoto(){
 // ── Compatibility shims ──────────────────────────────────────────────────────
 async function openEmployeeProfile(id){ await viewEmployee(id); }
 function showEmpTab(tab,el){ if(window._curEmp) renderEmpDetail(window._curEmp,tab); }
+
+// ── Manager approve/return from employee timesheets tab ──────────────────────
+async function mgr_approveTs(id){
+  if(!confirm('Approve this timesheet?'))return;
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
+  toast('Timesheet approved!','success');
+  if(window._curEmp) renderEmpDetail(window._curEmp,'timesheets');
+}
+function mgr_returnTs(id){
+  const reason=prompt('Return reason (shown to employee):');
+  if(reason===null)return;
+  apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Returned',notes:reason})})
+    .then(()=>{toast('Returned to employee','info');if(window._curEmp) renderEmpDetail(window._curEmp,'timesheets');})
+    .catch(e=>toast('Error: '+e.message,'error'));
+}
+
+// ── Add timesheet form from employee detail ──────────────────────────────────
+async function openEmpTimesheetForm(empId){
+  const clients=await apiFetch('/api/lookup/clients')||[];
+  const cOpts='<option value="">Internal / No Client</option>'+clients.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  _curModalType='add-emp-ts';
+  $('m-title').textContent='Add Timesheet';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="employee_id" value="${empId}">
+    <div class="frow">
+      <div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" name="week_ending" required></div>
+      <div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id">${cOpts}</select></div>
+    </div>
+    <div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project or task"></div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" required value="40" min="0" max="80" step="0.5"></div>
+      <div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" name="overtime_hours" value="0" min="0" step="0.5"></div>
+    </div>
+    <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="0"></div>
+    <div class="fg"><label class="flabel">Notes</label><textarea class="ftextarea" name="notes" rows="2" placeholder="Notes for manager…"></textarea></div>
+  </form>`;
+  $('m-submit').textContent='Submit Timesheet';
+  $('overlay').classList.add('open');
+}
 
 function openEmpDocUpload(){
   const e=window._curEmp;if(!e)return;
@@ -4334,77 +4379,129 @@ const modalDefs={
   },
 
   'add-emp':{
-    title:'Add Employee / Contractor',submit:'Create Profile',endpoint:'/api/employees',method:'POST',
+    title:'Add Employee',submit:'Create Employee',
+    endpoint:'/api/employees',method:'POST',
     fields:()=>`
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Identity</div>
-      <div class="frow frow3"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Jane"></div>
-        <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" placeholder="Mary"></div>
-        <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Smith"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" placeholder="Auto-generated if blank (e.g. EMP-0007)"></div>
-        <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option>Active</option><option>Onboarding</option></select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Rating</label><div class="rating-input" id="rating-stars">${[1,2,3,4,5].map(n=>`<span onclick="setRating(${n})">☆</span>`).join('')}</div><input type="hidden" name="rating" id="rating-val" value="0"></div>
-        <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" placeholder="Name or source"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Role & Organisation</div>
-      <div class="frow"><div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" placeholder="Software Engineer"></div>
-        <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${masterOpts('employment-types','id','name')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id" id="emp-dept-sel"><option value="">Loading…</option></select></div>
-        <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id" id="emp-rm-sel"><option value="">Loading…</option></select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id" id="emp-bu-sel"><option value="">No BU</option></select></div>
-        <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id" id="emp-cc-sel"><option value="">No cost centre</option></select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id" id="emp-cli-sel"><option value="">No client</option></select></div>
-        <div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name / code"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Salary Structure</label>
-          <select class="fselect" name="salary_structure"><option value="">Select…</option><option>Fixed</option><option>Fixed + Variable</option><option>Fully Variable</option><option>CTC</option></select></div>
-        <div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="30"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Location / City</label><input class="finput" name="location" placeholder="Hyderabad / Remote"></div>
-        <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Compensation</div>
-      <div class="frow"><div class="fg"><label class="flabel">Annual Salary (₹)</label><input class="finput" type="number" name="salary" placeholder="1200000"></div>
-        <div class="fg"><label class="flabel">Bill Rate (₹/hr, if contractor)</label><input class="finput" type="number" name="bill_rate" placeholder="1200"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Billable?</label><select class="fselect" name="billable" onchange="$('new-billable-amt').style.display=this.value=='1'?'':'none'"><option value="0">No</option><option value="1">Yes</option></select></div>
-        <div class="fg" id="new-billable-amt" style="display:none"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" placeholder="0"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Personal</div>
-      <div class="frow"><div class="fg"><label class="flabel">Gender</label>
-          <select class="fselect" name="gender"><option value="">Select…</option><option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option></select></div>
-        <div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Marital Status</label>
-          <select class="fselect" name="marital_status"><option value="">Select…</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></div>
-        <div class="fg"><label class="flabel">Blood Group</label>
-          <select class="fselect" name="blood_group"><option value="">Select…</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="Indian"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Contact</div>
-      <div class="frow"><div class="fg"><label class="flabel">Official Email</label><input class="finput" type="email" name="email" placeholder="jane@mcraan.com"></div>
-        <div class="fg"><label class="flabel">Official Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" placeholder="jane@gmail.com"></div>
-        <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" placeholder="+91-9000000001"></div></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Statutory IDs</div>
-      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" placeholder="AAAAA0000A" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" maxlength="12" placeholder="12-digit number"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Passport Number</label><input class="finput" name="passport_number" placeholder="A1234567" oninput="this.value=this.value.toUpperCase()"></div>
-        <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" placeholder="MH/BAN/0000000"></div></div>
-      <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" placeholder="17-digit ESI number"></div>
-      <div class="divider"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:8px;text-transform:uppercase">Banking</div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" placeholder="Jane Mary Smith"></div>
-        <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" placeholder="HDFC Bank"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number" placeholder="50200012345678"></div>
-        <div class="fg"><label class="flabel">IFSC Code</label><input class="finput" name="bank_ifsc" placeholder="HDFC0001234" oninput="this.value=this.value.toUpperCase()"></div></div>`,
-    afterSave:loadEmployees,
+      <div class="mtabs" style="margin:-20px -20px 16px;padding:0 20px;background:var(--s2)">
+        <div class="mtab active" onclick="switchMTab('ae1',this)">👤 Identity</div>
+        <div class="mtab" onclick="switchMTab('ae2',this)">💼 Role & Org</div>
+        <div class="mtab" onclick="switchMTab('ae3',this)">🪪 Personal</div>
+        <div class="mtab" onclick="switchMTab('ae4',this)">🏦 Finance</div>
+      </div>
+      <!-- IDENTITY -->
+      <div class="mtab-panel active" id="ae1">
+        <div class="frow frow3">
+          <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Jane"></div>
+          <div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" placeholder="Mary"></div>
+          <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Smith"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Official Email *</label><input class="finput" type="email" name="email" required placeholder="jane@company.com"></div>
+          <div class="fg"><label class="flabel">Official Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Employee Code</label><input class="finput" name="emp_id" placeholder="Auto-generated if blank"></div>
+          <div class="fg"><label class="flabel">Status</label>
+            <select class="fselect" name="status"><option>Active</option><option>Onboarding</option></select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" placeholder="jane@gmail.com"></div>
+          <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" placeholder="+91-9000000001"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+          <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" placeholder="Source"></div>
+        </div>
+      </div>
+      <!-- ROLE & ORG -->
+      <div class="mtab-panel" id="ae2">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Job Title *</label><input class="finput" name="job_title" required placeholder="Software Engineer"></div>
+          <div class="fg"><label class="flabel">Employment Type</label><select class="fselect" name="employment_type_id">${masterOpts('employment-types','id','name')}</select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id" id="ae-dept"><option value="">Loading…</option></select></div>
+          <div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id" id="ae-bu"><option value="">No BU</option></select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id" id="ae-cc"><option value="">No cost centre</option></select></div>
+          <div class="fg"><label class="flabel">Reporting Manager</label><select class="fselect" name="reporting_manager_id" id="ae-rm"><option value="">None</option></select></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id" id="ae-cli"><option value="">No client</option></select></div>
+          <div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name / code"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad / Remote"></div>
+          <div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="30"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Salary Structure</label>
+            <select class="fselect" name="salary_structure"><option value="">Select…</option><option>Fixed</option><option>Fixed + Variable</option><option>Fully Variable</option><option>CTC</option></select></div>
+          <div class="fg"><label class="flabel">Rating</label>
+            <select class="fselect" name="rating"><option value="0">☆ None</option><option value="1">★ 1</option><option value="2">★★ 2</option><option value="3">★★★ 3</option><option value="4">★★★★ 4</option><option value="5">★★★★★ 5</option></select></div>
+        </div>
+      </div>
+      <!-- PERSONAL -->
+      <div class="mtab-panel" id="ae3">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Gender</label>
+            <select class="fselect" name="gender"><option value="">Select…</option><option>Male</option><option>Female</option><option>Non-binary</option><option>Prefer not to say</option></select></div>
+          <div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Marital Status</label>
+            <select class="fselect" name="marital_status"><option value="">Select…</option><option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option></select></div>
+          <div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="Indian"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Blood Group</label>
+            <select class="fselect" name="blood_group"><option value="">Select…</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option></select></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 8px;padding-top:8px;border-top:1px solid var(--bdr)">Statutory IDs</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" placeholder="AAAAA0000A" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" maxlength="12" placeholder="12 digits"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" placeholder="A1234567" oninput="this.value=this.value.toUpperCase()"></div>
+          <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number"></div>
+        </div>
+        <div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number"></div>
+      </div>
+      <!-- FINANCE -->
+      <div class="mtab-panel" id="ae4">
+        <div class="frow">
+          <div class="fg"><label class="flabel">Annual CTC (₹)</label><input class="finput" type="number" name="salary" placeholder="1200000"></div>
+          <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" placeholder="0"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Billable?</label>
+            <select class="fselect" name="billable"><option value="0">No</option><option value="1">Yes</option></select></div>
+          <div class="fg"><label class="flabel">Billable Amount (₹/yr)</label><input class="finput" type="number" name="billable_amount" placeholder="0"></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 8px;padding-top:8px;border-top:1px solid var(--bdr)">Bank Details</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Name</label><input class="finput" name="bank_account_name" placeholder="Jane Mary Smith"></div>
+          <div class="fg"><label class="flabel">Bank Name</label><input class="finput" name="bank_name" placeholder="HDFC Bank"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number"></div>
+          <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" placeholder="HDFC0001234" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+      </div>`,
+    afterSave:()=>{loadEmployees();toast('Employee created! Default password: Employee@123','info');},
     afterRender:async()=>{
       const[depts,emps,bus,ccs,clients]=await Promise.all([
         apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/employees'),
         apiFetch('/api/lookup/business-units'),apiFetch('/api/lookup/cost-centres'),
         apiFetch('/api/lookup/clients')]);
-      const ds=$('emp-dept-sel');if(ds)ds.innerHTML='<option value="">No department</option>'+(depts||[]).map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
-      const rs=$('emp-rm-sel');if(rs)rs.innerHTML='<option value="">None</option>'+(emps||[]).map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})</option>`).join('');
-      const bs=$('emp-bu-sel');if(bs)bs.innerHTML='<option value="">No BU</option>'+(bus||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
-      const cs=$('emp-cc-sel');if(cs)cs.innerHTML='<option value="">No cost centre</option>'+(ccs||[]).map(cc=>`<option value="${cc.id}">${cc.code} — ${cc.name}</option>`).join('');
-      const cl=$('emp-cli-sel');if(cl)cl.innerHTML='<option value="">No client</option>'+(clients||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+      const s=(el,opts,ph)=>{if(el)el.innerHTML=ph+(opts||[]).map(o=>`<option value="${o.id}">${o.name||o.code+' – '+o.name2||o.code}</option>`).join('');};
+      const d=$('ae-dept');if(d)d.innerHTML='<option value="">No department</option>'+(depts||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+      const r=$('ae-rm');if(r)r.innerHTML='<option value="">None</option>'+(emps||[]).map(r=>`<option value="${r.id}">${r.name} (${r.emp_id})</option>`).join('');
+      const b=$('ae-bu');if(b)b.innerHTML='<option value="">No BU</option>'+(bus||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
+      const cc=$('ae-cc');if(cc)cc.innerHTML='<option value="">No cost centre</option>'+(ccs||[]).map(r=>`<option value="${r.id}">${r.code} — ${r.name}</option>`).join('');
+      const cl=$('ae-cli');if(cl)cl.innerHTML='<option value="">No client</option>'+(clients||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
     }
   },
 
@@ -4848,6 +4945,20 @@ async function submitModal(){
     });
     await _saveVendorFromModal(data);return;
   }
+  if(_curModalType==='add-emp-ts'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['employee_id','client_id','regular_hours','overtime_hours','bill_rate'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;
+    });
+    try{
+      await apiFetch('/api/timesheets',{method:'POST',body:JSON.stringify(data)});
+      toast('Timesheet submitted!','success');closeModal();
+      if(window._curEmp) renderEmpDetail(window._curEmp,'timesheets');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
   if(_curModalType==='edit-employee'){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
@@ -4884,7 +4995,8 @@ async function submitModal(){
    'contract_type_id','engagement_type_id','payment_terms_id','category_id','priority_id',
    'source_id','format_id','role_id','state_id','country_id','is_primary','start_year','end_year',
    'is_current','headcount','sla_score','health_score','rating','billable','billable_amount',
-   'account_manager_id','reporting_manager_id','manager_id','office_location_id'].forEach(f=>{
+   'account_manager_id','reporting_manager_id','manager_id','office_location_id',
+   'business_unit_id','cost_centre_id','notice_period','tds_rate'].forEach(f=>{
     if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;
     else if(data[f]==='')data[f]=null;
   });
@@ -5338,7 +5450,67 @@ async function renderPortalDashboard(){
       <div style="margin-top:12px"><button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()">+ Apply Leave</button></div>
     </div>
   </div>`;
-  setHtml('portal-content',html);
+  // Manager approval queue — shown if this employee has direct reports
+  let approvalHtml='';
+  if(window._isManager){
+    try{
+      const pending=await apiFetch('/api/manager/timesheets?status=Pending')||[];
+      const pendingLeaves=await apiFetch('/api/manager/leaves').then(r=>(r||[]).filter(l=>l.status==='Pending'));
+      if(pending.length||pendingLeaves.length){
+        approvalHtml=`<div class="portal-card" style="margin-top:16px;border:2px solid var(--amber)">
+          <div class="portal-card-title" style="color:var(--amber-dk)">🔔 Pending Approvals (${pending.length+pendingLeaves.length})</div>
+          ${pending.length?`
+          <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:8px 0 6px">⏱ Timesheets</div>
+          <table><thead><tr><th>Employee</th><th>Week</th><th>Hours</th><th>Project</th><th>Actions</th></tr></thead>
+          <tbody>${pending.map(t=>`<tr>
+            <td><div style="font-size:12px;font-weight:600">${t.employee_name}</div><div style="font-size:10px;color:var(--txt3)">${t.emp_id}</div></td>
+            <td class="tmono" style="font-size:11px">${fmt.date(t.week_ending)}</td>
+            <td class="tmono fw7">${t.total_hours}h</td>
+            <td style="font-size:11px">${t.project||t.client_name||'–'}</td>
+            <td><div class="tact">
+              <button class="btn btn-primary btn-xs" onclick="portalApproveTs(${t.id})">✓</button>
+              <button class="btn btn-warning btn-xs" onclick="portalReturnTs(${t.id})">↩</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table>`:''}
+          ${pendingLeaves.length?`
+          <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px">🏖 Leave Requests</div>
+          <table><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Actions</th></tr></thead>
+          <tbody>${pendingLeaves.map(l=>`<tr>
+            <td><div style="font-size:12px;font-weight:600">${l.employee_name}</div></td>
+            <td>${pill(l.leave_type,'p-blue')}</td>
+            <td class="tmono" style="font-size:11px">${fmt.date(l.from_date)}</td>
+            <td class="tmono" style="font-size:11px">${fmt.date(l.to_date)}</td>
+            <td class="tmono fw7">${l.days}</td>
+            <td><div class="tact">
+              <button class="btn btn-primary btn-xs" onclick="portalApproveLeave(${l.id})">✓</button>
+              <button class="btn btn-danger btn-xs" onclick="portalRejectLeave(${l.id})">✗</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table>`:''}
+        </div>`;
+      }
+    }catch(ex){console.log('Approval queue error:',ex);}
+  }
+
+  setHtml('portal-content',html+approvalHtml);
+}
+
+async function portalApproveTs(id){
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
+  toast('Approved!','success');renderPortalDashboard();
+}
+function portalReturnTs(id){
+  const r=prompt('Return reason:');if(r===null)return;
+  apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Returned',notes:r})})
+    .then(()=>{toast('Returned','info');renderPortalDashboard();}).catch(e=>toast(e.message,'error'));
+}
+async function portalApproveLeave(id){
+  await apiFetch(`/api/employee/leaves/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
+  toast('Leave approved!','success');renderPortalDashboard();
+}
+function portalRejectLeave(id){
+  const r=prompt('Rejection reason:');if(r===null)return;
+  apiFetch(`/api/employee/leaves/${id}`,{method:'PUT',body:JSON.stringify({status:'Rejected',rejection_reason:r})})
+    .then(()=>{toast('Rejected','info');renderPortalDashboard();}).catch(e=>toast(e.message,'error'));
 }
 
 async function renderPortalProfile(){
