@@ -1476,9 +1476,10 @@ def my_timesheets():
             WHERE t.employee_id=%s ORDER BY t.week_ending DESC""",(g.user['employee_id'],)))
     d=request.get_json()
     st=_scalar("SELECT id FROM master_timesheet_statuses WHERE name='Pending'")
-    cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+    if not d.get('week_ending'): return err("week_ending required")
+    cur=_cur();cur.execute("INSERT INTO timesheets(employee_id,client_id,project,week_ending,regular_hours,overtime_hours,bill_rate,notes,status_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (g.user['employee_id'],d.get('client_id'),d.get('project'),d['week_ending'],
-         d.get('regular_hours',0),d.get('overtime_hours',0),d.get('bill_rate',0),d.get('notes'),st))
+         d.get('regular_hours',0) or 0,d.get('overtime_hours',0) or 0,d.get('bill_rate',0) or 0,d.get('notes'),st))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Timesheet submitted",201)
 
 @app.route('/api/my/payslips')
@@ -1665,10 +1666,11 @@ def requisitions():
         sql+=" ORDER BY p.sort_order,days_open DESC"
         return ok(rows(sql,params))
     d=request.get_json()
+    if not d.get('title'): return err("title is required")
     cur=_cur();cur.execute("""INSERT INTO job_requisitions(title,client_id,engagement_type_id,department_id,recruiter_id,priority_id,location,comp_min,comp_max,description,target_start,opened_date)
         VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,CURRENT_DATE) RETURNING id""",
-        (d['title'],d['client_id'],d.get('engagement_type_id'),d.get('department_id'),d.get('recruiter_id'),
-         d.get('priority_id'),d.get('location'),d.get('comp_min'),d.get('comp_max'),d.get('description'),d.get('target_start')))
+        (d['title'],d.get('client_id') or None,d.get('engagement_type_id'),d.get('department_id'),d.get('recruiter_id'),
+         d.get('priority_id'),d.get('location'),d.get('comp_min'),d.get('comp_max'),d.get('description'),d.get('target_start') or None))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Created",201)
 
 @app.route('/api/requisitions/<int:rid>', methods=['GET','PUT','DELETE'])
@@ -1697,9 +1699,10 @@ def candidates():
         sql+=" ORDER BY c.created_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
-    cur=_cur();cur.execute("INSERT INTO candidates(first_name,last_name,email,phone,location,current_title,years_exp,source_id,skills) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-        (d['first_name'],d['last_name'],d.get('email'),d.get('phone'),d.get('location'),d.get('current_title'),d.get('years_exp',0),d.get('source_id'),d.get('skills','')))
-    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Added",201)
+    if not d.get('first_name') or not d.get('last_name'): return err("first_name and last_name required")
+    cur=_cur();cur.execute("INSERT INTO candidates(first_name,last_name,email,phone,location,current_title,years_exp,source_id,skills) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        (d['first_name'],d['last_name'],d.get('email'),d.get('phone'),d.get('location'),d.get('current_title'),d.get('years_exp') or 0,d.get('source_id'),d.get('skills','')))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Candidate added",201)
 
 @app.route('/api/pipeline')
 @require_auth
@@ -2824,10 +2827,10 @@ def employee_dashboard():
     emp = row1("SELECT * FROM employees WHERE id=%s",(uid,))
     if not emp: return err("Employee not found",404)
     # Pending timesheets
-    pending_ts = _scalar("SELECT COUNT(*) FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE t.employee_id=%s AND s.name='Pending'",(uid,))
+    pending_ts = _scalar("SELECT COUNT(*) FROM timesheets t LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE t.employee_id=%s AND (s.name='Pending' OR (t.status_id IS NULL))",(uid,))
     # Total approved hours this month
     approved_hours = row1("""SELECT COALESCE(SUM(t.total_hours),0) as hours
-        FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id
+        FROM timesheets t LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
         WHERE t.employee_id=%s AND s.name='Approved'
         AND t.week_ending >= date_trunc('month',NOW())""",(uid,))
     # Leave balance (simple: 18 days per year, used = sum of approved leaves this year)
@@ -2838,8 +2841,8 @@ def employee_dashboard():
     except:
         leaves_taken = {'used': 0}
     # Recent timesheets
-    recent_ts = rows("""SELECT t.*,s.name as status,c.name as client_name
-        FROM timesheets t JOIN master_timesheet_statuses s ON s.id=t.status_id
+    recent_ts = rows("""SELECT t.*,COALESCE(s.name,'Pending') as status,c.name as client_name
+        FROM timesheets t LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
         LEFT JOIN clients c ON c.id=t.client_id
         WHERE t.employee_id=%s ORDER BY t.submitted_at DESC LIMIT 5""",(uid,))
     # Pending leaves

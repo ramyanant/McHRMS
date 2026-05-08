@@ -5221,7 +5221,7 @@ const modalDefs={
     title:'Create Job Requisition',submit:'Create Requisition',endpoint:'/api/requisitions',method:'POST',
     fields:()=>`
       <div class="fg"><label class="flabel">Job Title *</label><input class="finput" name="title" required placeholder="Senior Software Engineer"></div>
-      <div class="frow"><div class="fg"><label class="flabel">Client *</label><select class="fselect" name="client_id" id="job-cl-sel"><option value="">Loading…</option></select></div><div class="fg"><label class="flabel">Engagement Type</label><select class="fselect" name="engagement_type_id">${masterOpts('contract-types','id','name')}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id" id="job-cl-sel"><option value="">Internal / No client</option></select></div><div class="fg"><label class="flabel">Engagement Type</label><select class="fselect" name="engagement_type_id">${masterOpts('contract-types','id','name')}</select></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority_id">${masterOpts('priority-levels','id','name')}</select></div><div class="fg"><label class="flabel">Recruiter</label><select class="fselect" name="recruiter_id" id="job-rec-sel"><option value="">Loading…</option></select></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Comp Min (₹)</label><input class="finput" type="number" name="comp_min" placeholder="1200000"></div><div class="fg"><label class="flabel">Comp Max (₹)</label><input class="finput" type="number" name="comp_max" placeholder="1600000"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad / Remote"></div><div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start"></div></div>
@@ -5240,7 +5240,12 @@ const modalDefs={
       <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane@email.com"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" placeholder="Software Engineer"></div><div class="fg"><label class="flabel">Years of Experience</label><input class="finput" type="number" name="years_exp" placeholder="5"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad, India"></div><div class="fg"><label class="flabel">Source</label><select class="fselect" name="source_id">${masterOpts('candidate-sources','id','name')}</select></div></div>
-      <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills" placeholder="React, Node.js, TypeScript"></div>`,
+      <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills" placeholder="React, Node.js, TypeScript"></div>
+      <div class="fg"><label class="flabel">Apply to Requisition</label><select class="fselect" name="requisition_id" id="cand-req-sel"><option value="">Select job (optional)…</option></select></div>`,
+    afterRender:async()=>{
+      const reqs=await apiFetch('/api/requisitions?status=Active')||[];
+      const el=$('cand-req-sel');if(el)el.innerHTML='<option value="">Select job (optional)…</option>'+reqs.map(r=>`<option value="${r.id}">${r.title} — ${r.client_name||'Internal'}</option>`).join('');
+    },
     afterSave:loadPipeline
   },
   'sched-int':{
@@ -5865,7 +5870,7 @@ async function submitModal(){
       if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;
     });
     try{
-      await apiFetch('/api/timesheets',{method:'POST',body:JSON.stringify(data)});
+      await apiFetch('/api/my/timesheets',{method:'POST',body:JSON.stringify(data)});
       toast('Timesheet submitted!','success');closeModal();
       if(window._curEmp) renderEmpDetail(window._curEmp,'timesheets');
     }catch(e){toast('Error: '+e.message,'error');}
@@ -6485,7 +6490,7 @@ async function savePortalProfile(){
 }
 
 async function renderPortalTimesheets(){
-  const rows2=await apiFetch('/api/timesheets')||[];
+  const rows2=await apiFetch('/api/my/timesheets')||[];
   const html=`
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <div style="font-size:18px;font-weight:700">My Timesheets</div>
@@ -6545,7 +6550,7 @@ async function submitPortalTs(){
   if(!d){toast('Please select a week ending date','error');return;}
   if(!reg){toast('Please enter regular hours','error');return;}
   try{
-    await apiFetch('/api/timesheets',{method:'POST',body:JSON.stringify({
+    await apiFetch('/api/my/timesheets',{method:'POST',body:JSON.stringify({
       week_ending:d,
       client_id:parseInt(document.getElementById('pts-client')?.value)||null,
       project:document.getElementById('pts-project')?.value,
