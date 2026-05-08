@@ -465,6 +465,9 @@ tbody tr:hover td{background:var(--green-lt)}
     <div class="ni" data-mod="employees" onclick="nav('employees')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>Employees
     </div>
+    <div class="ni" data-mod="projects" onclick="nav('projects')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>Projects
+    </div>
 <div class="ni" data-mod="emp-portal" id="nav-emp-portal" style="display:none" onclick="nav('emp-portal')">
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
   <span>My Portal</span>
@@ -667,6 +670,28 @@ tbody tr:hover td{background:var(--green-lt)}
 </div>
 
 <!-- EMPLOYEES -->
+<!-- PROJECTS -->
+<div id="mod-projects" class="mod">
+  <div id="proj-list-view">
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+      <div style="width:42px;height:42px;border-radius:10px;background:rgba(99,102,241,.12);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📂</div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;color:var(--txt)">Projects</div>
+        <div style="font-size:11.5px;color:var(--txt2);margin-top:2px">Delivery · Resources · Billing · Milestones · Risks</div>
+      </div>
+      <div class="fc gap8">
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="proj-type-filter" onchange="loadProjects()"><option value="">All Types</option><option>Fixed Bid</option><option>T&M</option><option>Staff Augmentation</option><option>Support</option><option>Internal</option><option>R&D</option><option>Migration</option><option>Maintenance</option></select>
+        <select class="fselect" style="width:auto;padding:5px 10px;font-size:11.5px" id="proj-status-filter" onchange="loadProjects()"><option value="">All Statuses</option><option>Draft</option><option>Active</option><option>On Hold</option><option>Completed</option><option>Cancelled</option></select>
+        <input type="text" class="finput" style="width:160px;padding:5px 10px;font-size:11.5px" id="proj-search" placeholder="Search projects…" oninput="loadProjects()">
+        <button class="btn btn-primary btn-sm" onclick="openProjectForm()">+ New Project</button>
+      </div>
+    </div>
+    <div class="kgrid k4" id="proj-kpis"></div>
+    <div class="card"><div class="tbl-wrap" id="proj-tbl">Loading…</div></div>
+  </div>
+  <div id="proj-detail-view" style="display:none"></div>
+</div>
+
 <div id="mod-employees" class="mod">
   <!-- LIST VIEW -->
   <div id="emp-list-view">
@@ -1010,6 +1035,12 @@ const pillMap={
   Direct:'p-blue',Partner:'p-teal',
   // Vendor types
   Staffing:'p-amber',Infrastructure:'p-blue',Consulting:'p-teal',Payroll:'p-purple',Technology:'p-charcoal',Other:'p-gray',
+  // Project types
+  'Fixed Bid':'p-purple','T&M':'p-blue','Staff Augmentation':'p-amber',Support:'p-teal',Internal:'p-gray','R&D':'p-purple',Migration:'p-blue',Maintenance:'p-charcoal',
+  // Risk/priority
+  Critical:'p-red',Open:'p-red',Monitoring:'p-amber',Mitigated:'p-green',
+  // Milestone
+  'In Progress':'p-blue',Delayed:'p-red',Completed:'p-green',Pending:'p-gray',
 };
 function pill(t,def='p-gray'){return`<span class="pill ${pillMap[t]||def}">${t||'–'}</span>`;}
 function av(name,extra=''){return`<div class="avrow"><div class="av ${fmt.avCol(name)} ${extra}">${fmt.ini(name)}</div><div><div class="av-name">${name||'–'}</div></div></div>`;}
@@ -1177,6 +1208,7 @@ const modCfg={
   'clients':      {title:'Clients',             sub:'Account Management'},
   'vendors':      {title:'Vendors',             sub:'Vendor Registry'},
   'employees':    {title:'Employees',           sub:'People Directory'},
+  'projects':     {title:'Projects',            sub:'Delivery · Resources · Billing · Profitability'},
   'timesheets':   {title:'Timesheets',          sub:'Hours & Approvals'},
   'payroll':      {title:'Payroll',             sub:'Processing & Compliance'},
   'jobs':         {title:'Job Requisitions',    sub:'Open Positions'},
@@ -1266,6 +1298,7 @@ function nav(id){
     'clients':()=>{closeClientDetail&&closeClientDetail();loadClients();},
     'vendors':()=>{closeVendorDetail&&closeVendorDetail();loadVendors();},
     'employees':()=>{closeEmpDetail&&closeEmpDetail();loadEmployees();},
+    'projects':()=>{closeProjDetail&&closeProjDetail();loadProjects();},
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
     'jobs':loadJobs,'sourcing':loadSourcing,'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
@@ -3080,12 +3113,598 @@ function setRating(n){
 }
 
 // ═══════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════
+let _projCache=[];
+
+async function loadProjects(){
+  const type=$('proj-type-filter')?.value||'';
+  const status=$('proj-status-filter')?.value||'';
+  const search=($('proj-search')?.value||'').toLowerCase();
+  try{
+    let url='/api/projects?';
+    if(type)url+=`type=${encodeURIComponent(type)}&`;
+    if(status)url+=`status=${encodeURIComponent(status)}&`;
+    const data=await apiFetch(url)||[];
+    _projCache=data;
+    let filtered=data;
+    if(search) filtered=filtered.filter(p=>(p.name||'').toLowerCase().includes(search)||(p.project_code||'').toLowerCase().includes(search)||(p.client_name||'').toLowerCase().includes(search));
+    const active=data.filter(p=>p.status==='Active').length;
+    const totalBudget=data.reduce((s,p)=>s+(parseFloat(p.budget)||0),0);
+    const totalRev=data.reduce((s,p)=>s+(parseFloat(p.estimated_revenue)||0),0);
+    setHtml('proj-kpis',`
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Projects</div><div class="kpi-value">${data.length}</div><div class="kpi-delta">${type||'All types'}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active</div><div class="kpi-value">${active}</div><div class="kpi-delta kpi-up">In delivery</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Total Budget</div><div class="kpi-value">${fmt.moneyK(totalBudget)}</div><div class="kpi-delta">Across all</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value">${fmt.moneyK(totalRev)}</div><div class="kpi-delta">Pipeline</div></div>`);
+    if(!filtered.length){setHtml('proj-tbl','<div class="empty"><div class="empty-icon">📂</div><div class="empty-title">No projects found</div></div>');return;}
+    setHtml('proj-tbl',`<table><thead><tr>
+        <th>Project</th><th>Type</th><th>Client</th><th>PM</th><th>Status</th><th>Health</th><th>Progress</th><th>Budget</th><th>Team</th><th>Actions</th>
+      </tr></thead><tbody>${filtered.map(p=>{
+      const hc=p.health_score>70?'var(--green)':p.health_score>50?'var(--amber)':'var(--red)';
+      const sc={'Active':'var(--green-dk)','On Hold':'var(--amber)','Completed':'var(--blue)','Cancelled':'var(--red)','Draft':'var(--txt3)'}[p.status]||'var(--txt3)';
+      return `<tr style="cursor:pointer" onclick="viewProject(${p.id})">
+        <td><div class="av-name">${p.name}</div><div class="av-meta" style="font-family:var(--mono)">${p.project_code||''}</div></td>
+        <td>${pill(p.project_type||'T&M','p-blue')}</td>
+        <td>${p.client_name?`<span class="pill p-teal" style="font-size:9px">${p.client_name}</span>`:'–'}</td>
+        <td style="font-size:11.5px">${p.pm_name||'–'}</td>
+        <td><span class="pill" style="color:${sc};background:${sc}22">${p.status||'Draft'}</span></td>
+        <td><div class="prow"><div class="ptrack" style="width:48px"><div class="pfill" style="width:${p.health_score||80}%;background:${hc}"></div></div><span class="pval">${p.health_score||80}</span></div></td>
+        <td><div class="prow"><div class="ptrack" style="width:48px"><div class="pfill" style="width:${p.completion_pct||0}%;background:var(--blue)"></div></div><span class="pval">${p.completion_pct||0}%</span></div></td>
+        <td class="tmono">${fmt.moneyK(p.budget)}</td>
+        <td class="tmono">${p.resource_count||0} 👤</td>
+        <td onclick="event.stopPropagation()"><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="viewProject(${p.id})">Open</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`);
+  }catch(e){console.error(e);}
+}
+
+async function viewProject(id){
+  const p=await apiFetch(`/api/projects/${id}`);
+  if(!p)return;
+  window._curProj=p;
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.innerHTML=`<span class="bc-item bc-link" onclick="closeProjDetail()">Projects</span><span class="bc-sep">›</span><span class="bc-item bc-current">${p.name}</span>`;
+  if(tbSub){tbSub.style.display='none';if(bcSep)bcSep.style.display='none';}
+  $('proj-list-view').style.display='none';
+  $('proj-detail-view').style.display='';
+  renderProjDetail(p,'dashboard');
+}
+
+function closeProjDetail(){
+  window._curProj=null;
+  $('proj-detail-view').style.display='none';
+  $('proj-list-view').style.display='';
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub'),bcSep=$('bc-sep');
+  if(tbTitle)tbTitle.textContent='Projects';
+  if(tbSub){tbSub.textContent='Delivery · Resources · Billing · Profitability';tbSub.style.display='';if(bcSep)bcSep.style.display='';}
+}
+
+let _curProjTab='dashboard';
+function renderProjDetail(p,tab){
+  _curProjTab=tab;
+  const tabs=[
+    {id:'dashboard',icon:'📊',label:'Dashboard'},
+    {id:'overview', icon:'📋',label:'Overview'},
+    {id:'resources',icon:'👥',label:'Resources'},
+    {id:'financials',icon:'💰',label:'Financials'},
+    {id:'timeline', icon:'📅',label:'Milestones'},
+    {id:'risks',    icon:'⚠️',label:'Risks'},
+    {id:'docs',     icon:'📁',label:'Documents'},
+  ];
+  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderProjDetail(window._curProj,'${t.id}')"><span class="tab-icon">${t.icon}</span><span>${t.label}</span></div>`).join('');
+  const field=(l,v,mono)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${mono?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
+  const hc=p.health_score>70?'var(--green)':p.health_score>50?'var(--amber)':'var(--red)';
+  const sc={'Active':'var(--green-dk)','On Hold':'var(--amber)','Completed':'var(--blue)','Cancelled':'var(--red)','Draft':'var(--txt3)'}[p.status]||'var(--txt3)';
+  let panelHtml='';
+
+  if(tab==='dashboard'){
+    const resources=p.resources||[],milestones=p.milestones||[],risks=p.risks||[];
+    const upcoming=milestones.filter(m=>m.status!=='Completed').slice(0,3);
+    const openRisks=risks.filter(r=>r.status==='Open');
+    panelHtml=`
+      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:var(--rl);padding:20px 24px;color:#fff;margin-bottom:16px;display:flex;align-items:flex-start;gap:16px">
+        <div style="font-size:36px">📂</div>
+        <div style="flex:1">
+          <div style="font-size:18px;font-weight:800">${p.name}</div>
+          <div style="font-size:12px;opacity:.8;margin-top:3px">${p.project_code||''} · ${p.project_type||'T&M'} · ${p.client_name||'Internal'}</div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${p.status||'Draft'}</span>
+            <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${p.priority||'Medium'} Priority</span>
+            ${p.pm_name?`<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">PM: ${p.pm_name}</span>`:''}
+          </div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:32px;font-weight:900;font-family:var(--mono);line-height:1">${p.completion_pct||0}%</div>
+          <div style="font-size:11px;opacity:.7;margin-top:4px">Complete</div>
+          <div style="background:rgba(255,255,255,.2);border-radius:10px;height:6px;width:100px;margin-top:6px;overflow:hidden">
+            <div style="height:100%;width:${p.completion_pct||0}%;background:#fff;border-radius:10px"></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Team Size</div><div class="kpi-value">${resources.length}</div><div class="kpi-delta">Resources allocated</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Hours MTD</div><div class="kpi-value">${fmt.num(p.hours_mtd||0)}</div><div class="kpi-delta">This month</div></div>
+        <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Budget</div><div class="kpi-value">${fmt.moneyK(p.budget||0)}</div><div class="kpi-delta">${p.budget_currency||'INR'}</div></div>
+        <div class="kpi" style="--kc:${hc}"><div class="kpi-label">Health</div><div class="kpi-value">${p.health_score||80}/100</div><div class="kpi-delta">${p.health_score>70?'🟢 Healthy':p.health_score>50?'🟡 Watch':'🔴 At risk'}</div></div>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📋 Project Info</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Type',pill(p.project_type||'T&M','p-blue'))}${field('Client',p.client_name||'Internal')}
+              ${field('Account Manager',p.account_manager_name)}${field('Cost Centre',p.cost_centre_name)}
+              ${field('Start',fmt.date(p.start_date))}${field('End',fmt.date(p.end_date))}
+              ${field('SOW',p.sow_reference,true)}${field('PO',p.po_number,true)}
+            </div></div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">👥 Team (${resources.length})</div>
+              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'resources')">View All →</button>
+            </div>
+            <div class="card-body" style="padding:8px 16px">
+              ${resources.slice(0,4).map(r=>`<div class="avrow" style="padding:6px 0;border-bottom:1px solid var(--bdr)">
+                <div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(r.employee_name)}</div>
+                <div><div class="av-name">${r.employee_name}</div><div class="av-meta">${r.role||r.job_title||'–'} · ${r.allocation_pct||100}%</div></div>
+                ${r.bill_rate?`<div style="font-size:11px;color:var(--green-dk);font-weight:600;margin-left:auto">${fmt.moneyK(r.bill_rate)}/hr</div>`:''}
+              </div>`).join('')}
+              ${!resources.length?'<div style="color:var(--txt3);font-size:12px;padding:8px 0">No resources yet</div>':''}
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📅 Upcoming Milestones</div>
+              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'timeline')">View All →</button>
+            </div>
+            <div class="card-body" style="padding:8px 16px">
+              ${upcoming.length?upcoming.map(m=>{
+                const late=m.due_date&&new Date(m.due_date)<new Date()&&m.status!=='Completed';
+                return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
+                  <div style="display:flex;justify-content:space-between">
+                    <span style="font-size:12.5px;font-weight:600;color:${late?'var(--red)':'var(--txt)'}">${m.title}</span>
+                    <span class="pill ${m.status==='Completed'?'p-green':late?'p-red':'p-gray'}" style="font-size:9px">${m.status}</span>
+                  </div>
+                  <div style="font-size:11px;color:var(--txt3);margin-top:2px">${fmt.date(m.due_date)||'No date'}${late?' ⚠️ Overdue':''}</div>
+                </div>`;
+              }).join(''):`<div style="color:var(--txt3);font-size:12px;padding:8px 0">No milestones yet</div>`}
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">⚠️ Open Risks (${openRisks.length})</div>
+              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'risks')">View All →</button>
+            </div>
+            <div class="card-body" style="padding:8px 16px">
+              ${openRisks.slice(0,3).map(r=>{
+                const ic=r.impact==='High'?'var(--red)':r.impact==='Medium'?'var(--amber)':'var(--green)';
+                return `<div style="padding:6px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:${ic};flex-shrink:0"></div>
+                  <div><div style="font-size:12px;font-weight:500">${r.title}</div>
+                    <div style="font-size:10.5px;color:var(--txt3)">${r.probability} prob · ${r.impact} impact</div></div>
+                </div>`;
+              }).join('')}
+              ${!openRisks.length?'<div style="color:var(--green-dk);font-size:12px;padding:8px 0">No open risks 🎉</div>':''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } else if(tab==='overview'){
+    panelHtml=`
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="editProjectInline()">✏️ Edit Project</button>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="fsec"><div class="fsec-icon">📋</div><div><div class="fsec-title">Basic Information</div></div></div>
+          ${field('Project Code',p.project_code,true)}${field('Name',p.name)}
+          ${field('Short Name',p.short_name)}${field('Type',pill(p.project_type||'T&M','p-blue'))}
+          ${field('Category',p.category)}${field('Status',p.status)}
+          ${field('Priority',p.priority)}${field('Confidentiality',p.confidentiality)}
+          ${p.description?`<div class="org-field"><div class="org-field-label">Description</div><div style="font-size:12.5px;color:var(--txt);line-height:1.6">${p.description}</div></div>`:''}
+        </div>
+        <div>
+          <div class="fsec"><div class="fsec-icon">🏢</div><div><div class="fsec-title">Organisation & Dates</div></div></div>
+          ${field('Client',p.client_name)}${field('Account Manager',p.account_manager_name)}
+          ${field('Project Manager',p.pm_name)}${field('Department',p.department_name)}
+          ${field('Business Unit',p.business_unit_name)}${field('Cost Centre',p.cost_centre_name)}
+          ${field('Start Date',fmt.date(p.start_date))}${field('End Date',fmt.date(p.end_date))}
+          ${field('Go-Live Date',fmt.date(p.go_live_date))}
+          ${field('SOW Reference',p.sow_reference,true)}${field('PO Number',p.po_number,true)}
+        </div>
+      </div>`;
+  } else if(tab==='resources'){
+    const resources=p.resources||[],vendors=p.vendors||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">👥</div><div><div class="fsec-title">Project Team</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddProjResource(${p.id})">+ Add Member</button>
+      </div>
+      ${resources.length?`<div class="card" style="margin-bottom:20px"><div class="tbl-wrap"><table>
+        <thead><tr><th>Employee</th><th>Dept</th><th>Role</th><th>Allocation</th><th>Bill Rate</th><th>Cost Rate</th><th>Start</th><th>End</th><th></th></tr></thead>
+        <tbody>${resources.map(r=>`<tr>
+          <td><div class="avrow"><div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(r.employee_name)}</div>
+            <div><div class="av-name">${r.employee_name}</div><div class="av-meta">${r.emp_id||''}</div></div></div></td>
+          <td style="font-size:11.5px">${r.department_name||'–'}</td>
+          <td style="font-size:12px">${r.role||'–'}</td>
+          <td class="tmono fw7">${r.allocation_pct||100}%</td>
+          <td class="tmono tg">${r.bill_rate?fmt.money(r.bill_rate)+'/hr':'–'}</td>
+          <td class="tmono">${r.cost_rate?fmt.money(r.cost_rate)+'/hr':'–'}</td>
+          <td class="tmono" style="font-size:11px">${fmt.date(r.start_date)||'–'}</td>
+          <td class="tmono" style="font-size:11px">${fmt.date(r.end_date)||'–'}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="removeProjResource(${r.id})">×</button></td>
+        </tr>`).join('')}</tbody></table></div></div>`
+        :`<div class="empty" style="margin-bottom:20px"><div class="empty-icon">👥</div><div class="empty-title">No team members yet</div></div>`}
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📦</div><div><div class="fsec-title">Vendors</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddProjVendor(${p.id})">+ Add Vendor</button>
+      </div>
+      ${vendors.length?`<div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Vendor</th><th>Type</th><th>Role</th><th>Contract Value</th><th></th></tr></thead>
+        <tbody>${vendors.map(v=>`<tr>
+          <td class="tbold">${v.vendor_name}</td><td>${pill(v.vendor_type||'–','p-amber')}</td>
+          <td>${v.role||'–'}</td><td class="tmono">${fmt.money(v.contract_value)}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="removeProjVendor(${v.id})">×</button></td>
+        </tr>`).join('')}</tbody></table></div></div>`
+        :`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No vendors on this project</div></div>`}`;
+  } else if(tab==='financials'){
+    const resources=p.resources||[];
+    const tbr=resources.reduce((s,r)=>s+(parseFloat(r.bill_rate)||0),0);
+    const tcr=resources.reduce((s,r)=>s+(parseFloat(r.cost_rate)||0),0);
+    const margin=tbr-tcr;
+    panelHtml=`
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Contract Value</div><div class="kpi-value">${fmt.moneyK(p.contract_value||0)}</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Budget</div><div class="kpi-value">${fmt.moneyK(p.budget||0)}</div></div>
+        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value">${fmt.moneyK(p.estimated_revenue||0)}</div></div>
+      </div>
+      <div class="g2">
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">💰 Financial Summary</div></div>
+            <div class="card-body"><div class="g2" style="gap:8px 20px">
+              ${field('Billing Type',pill(p.billing_type||'T&M','p-blue'))}${field('Billing Cycle',p.billing_cycle||'Monthly')}
+              ${field('Budget',fmt.money(p.budget)+' '+p.budget_currency)}${field('Contract Value',fmt.money(p.contract_value))}
+              ${field('Est. Revenue',fmt.money(p.estimated_revenue))}
+              ${field('Hours MTD',fmt.num(p.hours_mtd||0)+'h')}${field('Total Hours',fmt.num(p.hours_total||0)+'h')}
+            </div></div>
+          </div>
+          ${p.rate_card?`<div class="card"><div class="card-hd"><div class="card-title">📋 Rate Card</div></div>
+            <div class="card-body"><pre style="font-family:var(--mono);font-size:11.5px;white-space:pre-wrap">${p.rate_card}</pre></div></div>`:''}
+        </div>
+        <div>
+          <div class="card">
+            <div class="card-hd"><div class="card-title">📊 Rate Analysis (per hr)</div></div>
+            <div class="card-body">
+              ${field('Total Bill Rate',`<span style="color:var(--green-dk);font-weight:700">${fmt.money(tbr)}/hr</span>`)}
+              ${field('Total Cost Rate',`<span style="color:var(--red);font-weight:700">${fmt.money(tcr)}/hr</span>`)}
+              ${field('Gross Margin',`<span style="color:${margin>=0?'var(--green-dk)':'var(--red)'};font-weight:700">${fmt.money(margin)}/hr (${tbr?Math.round(margin/tbr*100):0}%)</span>`)}
+              <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bdr)">
+                ${resources.map(r=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bdr)">
+                  <span style="font-size:12px">${r.employee_name}</span>
+                  <span style="font-size:11.5px;color:var(--green-dk)">${r.bill_rate?fmt.money(r.bill_rate)+'/hr':'No rate'}</span>
+                </div>`).join('')}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } else if(tab==='timeline'){
+    const milestones=p.milestones||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📅</div><div><div class="fsec-title">Milestones</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddMilestone(${p.id})">+ Add Milestone</button>
+      </div>
+      <div class="card" style="margin-bottom:16px"><div class="card-body"><div class="g2" style="gap:8px 20px">
+        ${field('Start',fmt.date(p.start_date))}${field('End',fmt.date(p.end_date))}
+        ${field('Go-Live',fmt.date(p.go_live_date))}
+        ${field('Progress',`<div class="prow"><div class="ptrack" style="flex:1;height:10px"><div class="pfill" style="width:${p.completion_pct||0}%;background:var(--blue)"></div></div><span class="pval fw7">${p.completion_pct||0}%</span></div>`)}
+      </div></div></div>
+      ${milestones.length?milestones.map(m=>{
+        const late=m.due_date&&new Date(m.due_date)<new Date()&&m.status!=='Completed';
+        const mc=m.status==='Completed'?'var(--green)':late?'var(--red)':'var(--blue)';
+        return `<div class="card" style="margin-bottom:8px;border-left:3px solid ${mc}">
+          <div class="card-hd">
+            <div><div class="card-title">${m.title}</div>
+              <div style="font-size:11px;color:var(--txt3)">Due: ${fmt.date(m.due_date)||'TBD'}${late?' · ⚠️ Overdue':''}</div></div>
+            <div style="display:flex;gap:8px">
+              <span class="pill ${m.status==='Completed'?'p-green':late?'p-red':'p-gray'}">${m.status}</span>
+              <button class="btn btn-ghost btn-xs" onclick="editMilestone(${m.id})">Edit</button>
+              <button class="btn btn-danger btn-xs" onclick="removeMilestone(${m.id})">×</button>
+            </div>
+          </div>
+          ${m.description||m.deliverable?`<div class="card-body" style="font-size:12px;color:var(--txt2)">${m.description||''}${m.deliverable?`<strong> Deliverable:</strong> ${m.deliverable}`:''}</div>`:''}
+        </div>`;
+      }).join(''):`<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No milestones yet</div><button class="btn btn-primary" style="margin-top:16px" onclick="openAddMilestone(${p.id})">+ Add First Milestone</button></div>`}`;
+  } else if(tab==='risks'){
+    const risks=p.risks||[];
+    const ic=(v)=>v==='High'?'var(--red)':v==='Medium'?'var(--amber)':'var(--green)';
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">⚠️</div><div><div class="fsec-title">Risk Register</div><div class="fsec-sub">${risks.filter(r=>r.status==='Open').length} open</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openAddRisk(${p.id})">+ Log Risk</button>
+      </div>
+      ${risks.length?risks.map(r=>`<div class="card" style="margin-bottom:8px">
+        <div class="card-hd">
+          <div><div class="card-title">${r.title}</div>
+            <div style="font-size:11px;color:var(--txt3)">
+              Prob: <span style="color:${ic(r.probability)};font-weight:600">${r.probability}</span> ·
+              Impact: <span style="color:${ic(r.impact)};font-weight:600">${r.impact}</span>
+              ${r.owner_name?' · '+r.owner_name:''}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <span class="pill ${r.status==='Open'?'p-red':r.status==='Mitigated'?'p-green':'p-gray'}">${r.status}</span>
+            <button class="btn btn-danger btn-xs" onclick="removeRisk(${r.id})">×</button>
+          </div>
+        </div>
+        ${r.description||r.mitigation?`<div class="card-body" style="font-size:12px;color:var(--txt2)">${r.description?`<p>${r.description}</p>`:''}${r.mitigation?`<p><strong>Mitigation:</strong> ${r.mitigation}</p>`:''}</div>`:''}
+      </div>`).join(''):`<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">No risks logged</div></div>`}`;
+  } else if(tab==='docs'){
+    const docs=p.documents||[];
+    panelHtml=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📁</div><div><div class="fsec-title">Documents</div></div></div>
+        <button class="btn btn-primary btn-sm" onclick="openProjDocUpload()">+ Upload</button>
+      </div>
+      ${docs.length?`<div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+        <tbody>${docs.map(d=>`<tr>
+          <td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td>
+          <td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="removeProjDoc(${d.id})">×</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`:`<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}`;
+  }
+
+  const actionBar=`<div class="detail-action-bar">
+    <button class="btn btn-ghost btn-sm" onclick="closeProjDetail()">← Projects</button>
+    <span class="bc-sep">›</span>
+    <span style="font-size:13px;font-weight:600;color:var(--txt)">${p.name}</span>
+    ${pill(p.project_type||'T&M','p-blue')}
+    <span class="pill" style="color:${sc};background:${sc}22">${p.status||'Draft'}</span>
+    <div style="flex:1"></div>
+    <button class="btn btn-ghost btn-sm" onclick="editProjectInline()">✏️ Edit</button>
+  </div>`;
+  setHtml('proj-detail-view',actionBar+`<div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">${panelHtml}</div>`);
+}
+
+async function openProjectForm(){
+  const[emps,clients,depts,bus,ccs]=await Promise.all([apiFetch('/api/lookup/employees'),apiFetch('/api/lookup/clients'),apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/business-units'),apiFetch('/api/lookup/cost-centres')]);
+  const eo=(arr,val)=>'<option value="">None</option>'+(arr||[]).map(e=>`<option value="${e.id}"${e.id==val?' selected':''}>${e.name}</option>`).join('');
+  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+  const TYPES=['Fixed Bid','T&M','Staff Augmentation','Support','Internal','R&D','Migration','Maintenance'];
+  const STATUSES=['Draft','Active','On Hold','Completed','Cancelled'];
+  const BILLINGS=['T&M','Fixed Bid','Milestone','Retainer'];
+  _curModalType='add-project';
+  $('m-title').textContent='New Project';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="mtabs"><div class="mtab active" onclick="switchMTab('ap1',this)">📋 Basic Info</div><div class="mtab" onclick="switchMTab('ap2',this)">🏢 Org & Team</div><div class="mtab" onclick="switchMTab('ap3',this)">💰 Financials</div></div>
+    <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+      <div class="mtab-panel active" id="ap1">
+        <div class="frow"><div class="fg"><label class="flabel">Project Name *</label><input class="finput" name="name" required placeholder="e.g. ERP Implementation"></div>
+          <div class="fg"><label class="flabel">Short Name</label><input class="finput" name="short_name" placeholder="ERP-IMPL"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Project Code</label><input class="finput" name="project_code" placeholder="Auto-generated"></div>
+          <div class="fg"><label class="flabel">Type *</label><select class="fselect" name="project_type"><option value="">Select…</option>${so(TYPES,'T&M')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${so(STATUSES,'Draft')}</select></div>
+          <div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Category</label><input class="finput" name="category"></div>
+          <div class="fg"><label class="flabel">Confidentiality</label><select class="fselect" name="confidentiality"><option>Public</option><option selected>Internal</option><option>Confidential</option><option>Restricted</option></select></div></div>
+        <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" name="description" rows="3" placeholder="Brief scope and objectives…"></textarea></div>
+        <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+          <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date"></div></div>
+        <div class="fg"><label class="flabel">Go-Live Date</label><input class="finput" type="date" name="go_live_date"></div>
+      </div>
+      <div class="mtab-panel" id="ap2">
+        <div class="frow"><div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id">${eo(clients)}</select></div>
+          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${eo(emps)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Project Manager</label><select class="fselect" name="project_manager_id">${eo(emps)}</select></div>
+          <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${eo(depts)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id">${eo(bus)}</select></div>
+          <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">None</option>${(ccs||[]).map(cc=>`<option value="${cc.id}">${cc.code} — ${cc.name}</option>`).join('')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">SOW Reference</label><input class="finput" name="sow_reference"></div>
+          <div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number"></div></div>
+      </div>
+      <div class="mtab-panel" id="ap3">
+        <div class="frow"><div class="fg"><label class="flabel">Billing Type</label><select class="fselect" name="billing_type">${so(BILLINGS,'T&M')}</select></div>
+          <div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle"><option>Monthly</option><option>Bi-Monthly</option><option>Quarterly</option><option>Milestone</option></select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" placeholder="0"></div>
+          <div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" placeholder="0"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Est. Revenue (₹)</label><input class="finput" type="number" name="estimated_revenue" placeholder="0"></div>
+          <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="budget_currency"><option>INR</option><option>USD</option><option>GBP</option><option>EUR</option></select></div></div>
+        <div class="fg"><label class="flabel">Rate Card</label><textarea class="ftextarea" name="rate_card" rows="3" placeholder="Role rates, markup etc…"></textarea></div>
+      </div>
+    </div></form>`;
+  $('m-submit').textContent='Create Project';
+  $('overlay').classList.add('open');
+}
+
+async function editProject(id){
+  // id ignored — always edits _curProj. Alias for backward compat.
+  return editProjectInline();
+}
+async function editProjectInline(){
+  const p=window._curProj;if(!p)return;
+  const[emps,clients,depts,bus,ccs]=await Promise.all([apiFetch('/api/lookup/employees'),apiFetch('/api/lookup/clients'),apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/business-units'),apiFetch('/api/lookup/cost-centres')]);
+  const eo=(arr,val)=>'<option value="">None</option>'+(arr||[]).map(e=>`<option value="${e.id}"${e.id==val?' selected':''}>${e.name}</option>`).join('');
+  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+  const TYPES=['Fixed Bid','T&M','Staff Augmentation','Support','Internal','R&D','Migration','Maintenance'];
+  const STATUSES=['Draft','Active','On Hold','Completed','Cancelled'];
+  const BILLINGS=['T&M','Fixed Bid','Milestone','Retainer'];
+  _curModalType='edit-project';
+  $('m-title').textContent='Edit — '+p.name;
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_id" value="${p.id}">
+    <div class="mtabs"><div class="mtab active" onclick="switchMTab('ep1',this)">📋 Basic Info</div><div class="mtab" onclick="switchMTab('ep2',this)">🏢 Org & Team</div><div class="mtab" onclick="switchMTab('ep3',this)">💰 Financials</div></div>
+    <div style="padding:4px 0 8px;overflow-y:auto;max-height:60vh">
+      <div class="mtab-panel active" id="ep1">
+        <div class="frow"><div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" required value="${p.name||''}"></div>
+          <div class="fg"><label class="flabel">Short Name</label><input class="finput" name="short_name" value="${p.short_name||''}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Type</label><select class="fselect" name="project_type"><option value="">Select…</option>${so(TYPES,p.project_type)}</select></div>
+          <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">${so(STATUSES,p.status)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority">${so(['Low','Medium','High','Critical'],p.priority)}</select></div>
+          <div class="fg"><label class="flabel">Confidentiality</label><select class="fselect" name="confidentiality">${so(['Public','Internal','Confidential','Restricted'],p.confidentiality)}</select></div></div>
+        <div class="fg"><label class="flabel">Category</label><input class="finput" name="category" value="${p.category||''}"></div>
+        <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" name="description" rows="3">${p.description||''}</textarea></div>
+        <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="${(p.start_date||'').split('T')[0]}"></div>
+          <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date" value="${(p.end_date||'').split('T')[0]}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Go-Live Date</label><input class="finput" type="date" name="go_live_date" value="${(p.go_live_date||'').split('T')[0]}"></div>
+          <div class="fg"><label class="flabel">Completion %</label><input class="finput" type="number" name="completion_pct" value="${p.completion_pct||0}" min="0" max="100"></div></div>
+        <div class="fg"><label class="flabel">Health Score (0-100)</label><input class="finput" type="number" name="health_score" value="${p.health_score||80}" min="0" max="100"></div>
+      </div>
+      <div class="mtab-panel" id="ep2">
+        <div class="frow"><div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id">${eo(clients,p.client_id)}</select></div>
+          <div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id">${eo(emps,p.account_manager_id)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Project Manager</label><select class="fselect" name="project_manager_id">${eo(emps,p.project_manager_id)}</select></div>
+          <div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id">${eo(depts,p.department_id)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id">${eo(bus,p.business_unit_id)}</select></div>
+          <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">None</option>${(ccs||[]).map(cc=>`<option value="${cc.id}"${cc.id==p.cost_centre_id?' selected':''}>${cc.code} — ${cc.name}</option>`).join('')}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">SOW Reference</label><input class="finput" name="sow_reference" value="${p.sow_reference||''}"></div>
+          <div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number" value="${p.po_number||''}"></div></div>
+      </div>
+      <div class="mtab-panel" id="ep3">
+        <div class="frow"><div class="fg"><label class="flabel">Billing Type</label><select class="fselect" name="billing_type">${so(BILLINGS,p.billing_type)}</select></div>
+          <div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle">${so(['Monthly','Bi-Monthly','Quarterly','Milestone'],p.billing_cycle)}</select></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" value="${p.contract_value||0}"></div>
+          <div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="${p.budget||0}"></div></div>
+        <div class="frow"><div class="fg"><label class="flabel">Est. Revenue (₹)</label><input class="finput" type="number" name="estimated_revenue" value="${p.estimated_revenue||0}"></div>
+          <div class="fg"><label class="flabel">Currency</label><select class="fselect" name="budget_currency">${so(['INR','USD','GBP','EUR','SGD'],p.budget_currency)}</select></div></div>
+        <div class="fg"><label class="flabel">Rate Card</label><textarea class="ftextarea" name="rate_card" rows="3">${p.rate_card||''}</textarea></div>
+      </div>
+    </div></form>`;
+  $('m-submit').textContent='Save Project';
+  $('overlay').classList.add('open');
+}
+
+async function openAddProjResource(projId){
+  const emps=await apiFetch('/api/lookup/employees')||[];
+  _curModalType='add-proj-resource';
+  $('m-title').textContent='Add Team Member';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_proj_id" value="${projId}">
+    <div class="fg"><label class="flabel">Employee *</label><select class="fselect" name="employee_id" required><option value="">Select…</option>${emps.map(e=>`<option value="${e.id}">${e.name} (${e.emp_id||''})</option>`).join('')}</select></div>
+    <div class="fg"><label class="flabel">Role on Project</label><input class="finput" name="role" placeholder="Lead Developer, Analyst…"></div>
+    <div class="frow"><div class="fg"><label class="flabel">Allocation %</label><input class="finput" type="number" name="allocation_pct" value="100" min="1" max="100"></div>
+      <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="0"></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">Cost Rate (₹/hr)</label><input class="finput" type="number" name="cost_rate" value="0"></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+      <div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date"></div></div>
+  </form>`;
+  $('m-submit').textContent='Add to Project';
+  $('overlay').classList.add('open');
+}
+async function removeProjResource(rid){
+  if(!confirm('Remove resource?'))return;
+  await apiFetch(`/api/projects/resources/${rid}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'resources');}
+}
+async function openAddProjVendor(projId){
+  const vendors=await apiFetch('/api/vendors')||[];
+  _curModalType='add-proj-vendor';
+  $('m-title').textContent='Add Vendor';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_proj_id" value="${projId}">
+    <div class="fg"><label class="flabel">Vendor *</label><select class="fselect" name="vendor_id" required><option value="">Select…</option>${vendors.map(v=>`<option value="${v.id}">${v.name}</option>`).join('')}</select></div>
+    <div class="fg"><label class="flabel">Role / Scope</label><input class="finput" name="role" placeholder="Background Verification, Cloud Infra…"></div>
+    <div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" value="0"></div>
+  </form>`;
+  $('m-submit').textContent='Add Vendor';
+  $('overlay').classList.add('open');
+}
+async function removeProjVendor(rid){
+  if(!confirm('Remove vendor?'))return;
+  await apiFetch(`/api/projects/vendors/${rid}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'resources');}
+}
+async function openAddMilestone(projId){
+  _curModalType='add-milestone';
+  $('m-title').textContent='Add Milestone';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_proj_id" value="${projId}">
+    <div class="fg"><label class="flabel">Title *</label><input class="finput" name="title" required placeholder="Phase 1 Delivery"></div>
+    <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" name="description" rows="2"></textarea></div>
+    <div class="frow"><div class="fg"><label class="flabel">Due Date</label><input class="finput" type="date" name="due_date"></div>
+      <div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option>Pending</option><option>In Progress</option><option>Completed</option><option>Delayed</option></select></div></div>
+    <div class="fg"><label class="flabel">Deliverable</label><input class="finput" name="deliverable" placeholder="What is delivered?"></div>
+  </form>`;
+  $('m-submit').textContent='Add Milestone';
+  $('overlay').classList.add('open');
+}
+async function editMilestone(mid){
+  const ms=(window._curProj?.milestones||[]).find(m=>m.id===mid);if(!ms)return;
+  _curModalType='edit-milestone';
+  $('m-title').textContent='Edit Milestone';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_id" value="${mid}">
+    <div class="fg"><label class="flabel">Title *</label><input class="finput" name="title" required value="${ms.title||''}"></div>
+    <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" name="description" rows="2">${ms.description||''}</textarea></div>
+    <div class="frow"><div class="fg"><label class="flabel">Due Date</label><input class="finput" type="date" name="due_date" value="${(ms.due_date||'').split('T')[0]}"></div>
+      <div class="fg"><label class="flabel">Completion Date</label><input class="finput" type="date" name="completion_date" value="${(ms.completion_date||'').split('T')[0]}"></div></div>
+    <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option ${ms.status==='Pending'?'selected':''}>Pending</option><option ${ms.status==='In Progress'?'selected':''}>In Progress</option><option ${ms.status==='Completed'?'selected':''}>Completed</option><option ${ms.status==='Delayed'?'selected':''}>Delayed</option></select></div>
+      <div class="fg"><label class="flabel">Deliverable</label><input class="finput" name="deliverable" value="${ms.deliverable||''}"></div></div>
+  </form>`;
+  $('m-submit').textContent='Save Milestone';
+  $('overlay').classList.add('open');
+}
+async function removeMilestone(mid){
+  if(!confirm('Remove milestone?'))return;
+  await apiFetch(`/api/projects/milestones/${mid}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+}
+async function openAddRisk(projId){
+  const emps=await apiFetch('/api/lookup/employees')||[];
+  _curModalType='add-risk';
+  $('m-title').textContent='Log Risk';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_proj_id" value="${projId}">
+    <div class="fg"><label class="flabel">Risk Title *</label><input class="finput" name="title" required placeholder="e.g. Key resource unavailability"></div>
+    <div class="fg"><label class="flabel">Description</label><textarea class="ftextarea" name="description" rows="2"></textarea></div>
+    <div class="frow"><div class="fg"><label class="flabel">Probability</label><select class="fselect" name="probability"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+      <div class="fg"><label class="flabel">Impact</label><select class="fselect" name="impact"><option>Low</option><option selected>Medium</option><option>High</option></select></div></div>
+    <div class="fg"><label class="flabel">Mitigation</label><textarea class="ftextarea" name="mitigation" rows="2" placeholder="Steps to mitigate…"></textarea></div>
+    <div class="frow"><div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option>Open</option><option>Monitoring</option><option>Mitigated</option><option>Closed</option></select></div>
+      <div class="fg"><label class="flabel">Owner</label><select class="fselect" name="owner_id"><option value="">None</option>${emps.map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}</select></div></div>
+  </form>`;
+  $('m-submit').textContent='Log Risk';
+  $('overlay').classList.add('open');
+}
+async function removeRisk(rid){
+  if(!confirm('Remove risk?'))return;
+  await apiFetch(`/api/projects/risks/${rid}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'risks');}
+}
+function openProjDocUpload(){
+  const p=window._curProj;if(!p)return;
+  _curModalType='upload-proj-doc';
+  $('m-title').textContent='Upload Document';
+  $('m-body').innerHTML=`<form id="mform"><input type="hidden" name="_proj_id" value="${p.id}">
+    <div class="fg"><label class="flabel">Type</label><select class="fselect" name="doc_type"><option>SOW</option><option>Contract</option><option>PO</option><option>Requirements</option><option>Design</option><option>Minutes</option><option>Report</option><option>Other</option></select></div>
+    <div class="fg"><label class="flabel">Name *</label><input class="finput" name="doc_name" required placeholder="Filename or title"></div>
+    <div class="fg"><label class="flabel">Upload File</label><input type="file" id="proj-doc-file" onchange="_readProjDoc(this)" style="font-size:12px;color:var(--txt2)"></div>
+  </form>`;
+  $('m-submit').textContent='Upload';
+  $('overlay').classList.add('open');
+}
+function _readProjDoc(input){
+  const file=input.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{window._projDocData={data:e.target.result.split(',')[1],size:Math.round(file.size/1024)+'KB',mime:file.type,name:file.name};};
+  r.readAsDataURL(file);
+  const dn=document.querySelector('[name="doc_name"]');
+  if(dn&&!dn.value)dn.value=file.name;
+}
+async function removeProjDoc(did){
+  if(!confirm('Remove document?'))return;
+  await apiFetch(`/api/projects/documents/${did}`,{method:'DELETE'});
+  toast('Removed','success');
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'docs');}
+}
+
+// ═══════════════════════════════════════════════════
 // EMPLOYEES
 // ═══════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════
-// EMPLOYEES
-// ═══════════════════════════════════════════════════
-let _empCache = [];
 
 async function loadEmployees(){
   const q=$('emp-search')?.value||'';
@@ -4718,6 +5337,16 @@ const modalDefs={
     afterSave:async()=>{if(window._curEmp){const fr=await apiFetch('/api/employees/'+window._curEmp.id);window._curEmp=fr;renderEmpDetail(fr,'experience');}},
     getEndpoint:()=>`/api/employees/${window._curEmp?.id}/experience`
   },
+  'upload-proj-doc':{
+    title:'Upload Project Document',submit:'Upload',
+    endpoint:()=>`/api/projects/${window._uploadProjId||window._curProj?.id}/documents`,method:'POST',
+    fields:()=>`
+      <div class="fg"><label class="flabel">Document Type</label>
+        <select class="fselect" name="doc_type"><option>SOW</option><option>Contract</option><option>Requirements</option><option>Design</option><option>Test Plan</option><option>Meeting Notes</option><option>Invoice</option><option>Other</option></select></div>
+      <div class="fg"><label class="flabel">Document Name</label><input class="finput" name="doc_name" placeholder="e.g. SOW_v2.pdf"></div>
+      <div class="fg"><label class="flabel">File</label><input class="finput" type="file" id="proj-doc-file" onchange="loadFileData('proj','proj-doc-file')"></div>`,
+    afterSave:async()=>{const pid=window._uploadProjId||window._curProj?.id;if(pid){const fresh=await apiFetch('/api/projects/'+pid);window._curProj=fresh;renderProjDetail(fresh,'docs');}}
+  },
   'upload-emp-doc':{
     title:'Upload Employee Document',submit:'Save Document',method:'POST',
     fields:()=>`
@@ -4944,6 +5573,196 @@ async function submitModal(){
       if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
     });
     await _saveVendorFromModal(data);return;
+  }
+  // ── PROJECT MODALS ────────────────────────────────────────────────────────
+  if(_curModalType==='add-project'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['client_id','account_manager_id','project_manager_id','department_id','business_unit_id',
+     'cost_centre_id','budget','contract_value','estimated_revenue','health_score','completion_pct'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
+    });
+    try{const r=await apiFetch('/api/projects',{method:'POST',body:JSON.stringify(data)});
+      toast(`Project ${r.project_code} created!`,'success');closeModal();loadProjects();}
+    catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='edit-project'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const id=data._id;delete data._id;
+    ['client_id','account_manager_id','project_manager_id','department_id','business_unit_id',
+     'cost_centre_id','budget','contract_value','estimated_revenue','health_score','completion_pct'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else if(data[f]==='')data[f]=null;
+    });
+    try{await apiFetch(`/api/projects/${id}`,{method:'PUT',body:JSON.stringify(data)});
+      toast('Project updated!','success');closeModal();
+      const p=await apiFetch(`/api/projects/${id}`);window._curProj=p;renderProjDetail(p,_curProjTab);loadProjects();}
+    catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-resource'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const projId=data._proj_id;delete data._proj_id;
+    ['employee_id','allocation_pct','bill_rate','cost_rate'].forEach(f=>{if(data[f])data[f]=parseFloat(data[f])||null;});
+    try{await apiFetch(`/api/projects/${projId}/resources`,{method:'POST',body:JSON.stringify(data)});
+      toast('Resource added!','success');closeModal();
+      const p=await apiFetch(`/api/projects/${projId}`);window._curProj=p;renderProjDetail(p,'resources');}
+    catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-vendor'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const projId=data._proj_id;delete data._proj_id;
+    if(data.vendor_id)data.vendor_id=parseInt(data.vendor_id);
+    if(data.contract_value)data.contract_value=parseFloat(data.contract_value)||0;
+    try{await apiFetch(`/api/projects/${projId}/vendors`,{method:'POST',body:JSON.stringify(data)});
+      toast('Vendor added!','success');closeModal();
+      const p=await apiFetch(`/api/projects/${projId}`);window._curProj=p;renderProjDetail(p,'resources');}
+    catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-milestone'||_curModalType==='edit-milestone'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    try{
+      if(_curModalType==='add-milestone'){
+        const projId=data._proj_id;delete data._proj_id;
+        await apiFetch(`/api/projects/${projId}/milestones`,{method:'POST',body:JSON.stringify(data)});
+        toast('Milestone added!','success');closeModal();
+        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+      } else {
+        const id=data._id;delete data._id;
+        await apiFetch(`/api/projects/milestones/${id}`,{method:'PUT',body:JSON.stringify(data)});
+        toast('Milestone updated!','success');closeModal();
+        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+      }
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-risk'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const projId=data._proj_id;delete data._proj_id;
+    if(data.owner_id)data.owner_id=parseInt(data.owner_id)||null;
+    try{await apiFetch(`/api/projects/${projId}/risks`,{method:'POST',body:JSON.stringify(data)});
+      toast('Risk logged!','success');closeModal();
+      if(window._curProj){const p=await apiFetch(`/api/projects/${projId}`);window._curProj=p;renderProjDetail(p,'risks');}
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='upload-proj-doc'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const projId=data._proj_id;delete data._proj_id;
+    if(window._projDocData){data.file_data=window._projDocData.data;data.file_size=window._projDocData.size;data.mime_type=window._projDocData.mime;delete window._projDocData;}
+    try{await apiFetch(`/api/projects/${projId}/documents`,{method:'POST',body:JSON.stringify(data)});
+      toast('Uploaded!','success');closeModal();
+      if(window._curProj){const p=await apiFetch(`/api/projects/${projId}`);window._curProj=p;renderProjDetail(p,'docs');}
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  // ── PROJECT MODALS ──────────────────────────────────────────────────────────
+  if(_curModalType==='add-project'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['client_id','account_manager_id','project_manager_id','department_id','business_unit_id',
+     'cost_centre_id','budget','contract_value','estimated_revenue','health_score','completion_pct'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;
+    });
+    try{
+      const res=await apiFetch('/api/projects',{method:'POST',body:JSON.stringify(data)});
+      toast(`Project created! Code: ${res.project_code}`,'success');closeModal();loadProjects();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='edit-project'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const id=data._id||window._editProjId;delete data._id;
+    ['client_id','account_manager_id','project_manager_id','department_id','business_unit_id',
+     'cost_centre_id','budget','contract_value','estimated_revenue','actual_revenue',
+     'health_score','completion_pct'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;
+    });
+    try{
+      await apiFetch(`/api/projects/${id}`,{method:'PUT',body:JSON.stringify(data)});
+      toast('Project updated!','success');closeModal();
+      const fresh=await apiFetch(`/api/projects/${id}`);window._curProj=fresh;
+      renderProjDetail(fresh,_curProjTab);loadProjects();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-resource'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['employee_id','allocation_pct','bill_rate','cost_rate'].forEach(f=>{
+      if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;
+    });
+    const pid=window._modalProjId||window._curProj?.id;
+    try{
+      await apiFetch(`/api/projects/${pid}/resources`,{method:'POST',body:JSON.stringify(data)});
+      toast('Resource added!','success');closeModal();
+      const fresh=await apiFetch(`/api/projects/${pid}`);window._curProj=fresh;renderProjDetail(fresh,'resources');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-vendor'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['vendor_id','contract_value'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;});
+    const pid=window._modalProjId||window._curProj?.id;
+    try{
+      await apiFetch(`/api/projects/${pid}/vendors`,{method:'POST',body:JSON.stringify(data)});
+      toast('Vendor added!','success');closeModal();
+      const fresh=await apiFetch(`/api/projects/${pid}`);window._curProj=fresh;renderProjDetail(fresh,'resources');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-milestone'||_curModalType==='update-proj-milestone'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    const pid=window._modalProjId||window._curProj?.id;
+    const mid=window._modalMilestoneId;
+    try{
+      if(mid&&_curModalType==='update-proj-milestone'){
+        await apiFetch(`/api/projects/milestones/${mid}`,{method:'PUT',body:JSON.stringify(data)});
+        toast('Milestone updated!','success');
+      } else {
+        await apiFetch(`/api/projects/${pid}/milestones`,{method:'POST',body:JSON.stringify(data)});
+        toast('Milestone added!','success');
+      }
+      window._modalMilestoneId=null;closeModal();
+      const fresh=await apiFetch(`/api/projects/${pid}`);window._curProj=fresh;renderProjDetail(fresh,'milestones');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='add-proj-risk'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    ['owner_id'].forEach(f=>{if(data[f]!==undefined&&data[f]!=='')data[f]=parseFloat(data[f])||null;else data[f]=null;});
+    const pid=window._modalProjId||window._curProj?.id;
+    try{
+      await apiFetch(`/api/projects/${pid}/risks`,{method:'POST',body:JSON.stringify(data)});
+      toast('Risk added!','success');closeModal();
+      const fresh=await apiFetch(`/api/projects/${pid}`);window._curProj=fresh;renderProjDetail(fresh,'risks');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
   }
   if(_curModalType==='add-emp-ts'){
     const form=$('mform');if(!form)return;

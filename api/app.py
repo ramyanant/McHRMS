@@ -1827,6 +1827,356 @@ def toggle_task(tid):
 
 
 # ═══════════════════════════════════════════════════
+# PROJECTS
+# ═══════════════════════════════════════════════════
+def _bootstrap_projects():
+    """Create projects table and related tables if they don't exist."""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS projects (
+            id SERIAL PRIMARY KEY,
+            project_code TEXT UNIQUE,
+            name TEXT NOT NULL,
+            short_name TEXT,
+            project_type TEXT DEFAULT 'T&M',
+            category TEXT,
+            description TEXT,
+            status TEXT DEFAULT 'Draft',
+            priority TEXT DEFAULT 'Medium',
+            confidentiality TEXT DEFAULT 'Internal',
+            client_id INTEGER REFERENCES clients(id),
+            account_manager_id INTEGER REFERENCES employees(id),
+            project_manager_id INTEGER REFERENCES employees(id),
+            department_id INTEGER REFERENCES departments(id),
+            business_unit_id INTEGER REFERENCES business_units(id),
+            cost_centre_id INTEGER REFERENCES cost_centres(id),
+            start_date DATE,
+            end_date DATE,
+            go_live_date DATE,
+            budget NUMERIC DEFAULT 0,
+            budget_currency TEXT DEFAULT 'INR',
+            estimated_revenue NUMERIC DEFAULT 0,
+            actual_revenue NUMERIC DEFAULT 0,
+            billing_type TEXT DEFAULT 'T&M',
+            billing_cycle TEXT DEFAULT 'Monthly',
+            rate_card TEXT,
+            po_number TEXT,
+            contract_value NUMERIC DEFAULT 0,
+            sow_reference TEXT,
+            health_score INTEGER DEFAULT 80,
+            completion_pct INTEGER DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS project_resources (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            employee_id INTEGER NOT NULL REFERENCES employees(id),
+            role TEXT,
+            allocation_pct INTEGER DEFAULT 100,
+            bill_rate NUMERIC DEFAULT 0,
+            cost_rate NUMERIC DEFAULT 0,
+            start_date DATE,
+            end_date DATE,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS project_vendors (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            role TEXT,
+            contract_value NUMERIC DEFAULT 0,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS project_milestones (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            title TEXT NOT NULL,
+            description TEXT,
+            due_date DATE,
+            completion_date DATE,
+            status TEXT DEFAULT 'Pending',
+            deliverable TEXT,
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS project_risks (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            title TEXT NOT NULL,
+            description TEXT,
+            probability TEXT DEFAULT 'Medium',
+            impact TEXT DEFAULT 'Medium',
+            mitigation TEXT,
+            status TEXT DEFAULT 'Open',
+            owner_id INTEGER REFERENCES employees(id),
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        CREATE TABLE IF NOT EXISTS project_documents (
+            id SERIAL PRIMARY KEY,
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            doc_type TEXT,
+            doc_name TEXT,
+            file_data TEXT,
+            file_size TEXT,
+            mime_type TEXT,
+            uploaded_by INTEGER REFERENCES employees(id),
+            is_active INTEGER DEFAULT 1,
+            uploaded_at TIMESTAMP DEFAULT NOW()
+        );
+        """)
+        conn.close()
+    except Exception as e:
+        print(f"Projects bootstrap warning: {e}", flush=True)
+
+_bootstrap_projects()
+
+def _next_project_code():
+    """Generate next project code like PROJ-0042."""
+    try:
+        n = _scalar("SELECT COUNT(*) as c FROM projects") or 0
+        return f"PROJ-{(n+1):04d}"
+    except:
+        return f"PROJ-{__import__('random').randint(1000,9999)}"
+
+@app.route('/api/projects', methods=['GET','POST'])
+@require_auth
+def projects():
+    db=get_db()
+    if request.method=='GET':
+        status=request.args.get('status','')
+        ptype=request.args.get('type','')
+        client=request.args.get('client_id','')
+        sql="""SELECT p.*,
+            c.name as client_name,
+            e.first_name||' '||e.last_name as pm_name,
+            am.first_name||' '||am.last_name as account_manager_name,
+            d.name as department_name,
+            b.name as business_unit_name,
+            cc.name as cost_centre_name,
+            (SELECT COUNT(*) FROM project_resources pr WHERE pr.project_id=p.id AND pr.is_active=1) as resource_count,
+            (SELECT COALESCE(SUM(t.total_hours),0) FROM timesheets t
+             JOIN project_resources pr ON pr.employee_id=t.employee_id AND pr.project_id=p.id
+             WHERE EXTRACT(MONTH FROM t.week_ending)=EXTRACT(MONTH FROM NOW())) as hours_mtd
+            FROM projects p
+            LEFT JOIN clients c ON c.id=p.client_id
+            LEFT JOIN employees e ON e.id=p.project_manager_id
+            LEFT JOIN employees am ON am.id=p.account_manager_id
+            LEFT JOIN departments d ON d.id=p.department_id
+            LEFT JOIN business_units b ON b.id=p.business_unit_id
+            LEFT JOIN cost_centres cc ON cc.id=p.cost_centre_id
+            WHERE p.is_active=1"""
+        params=[]
+        if status: sql+=" AND p.status=%s"; params.append(status)
+        if ptype: sql+=" AND p.project_type=%s"; params.append(ptype)
+        if client: sql+=" AND p.client_id=%s"; params.append(int(client))
+        sql+=" ORDER BY p.updated_at DESC"
+        return ok(rows(sql, params))
+    d=request.get_json()
+    if not d.get('project_code'):
+        d['project_code']=_next_project_code()
+    cur=_cur()
+    cur.execute("""INSERT INTO projects(project_code,name,short_name,project_type,category,description,
+        status,priority,confidentiality,client_id,account_manager_id,project_manager_id,
+        department_id,business_unit_id,cost_centre_id,start_date,end_date,go_live_date,
+        budget,budget_currency,estimated_revenue,billing_type,billing_cycle,
+        rate_card,po_number,contract_value,sow_reference,health_score,completion_pct)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['project_code'],d['name'],d.get('short_name'),d.get('project_type','T&M'),d.get('category'),
+         d.get('description'),d.get('status','Draft'),d.get('priority','Medium'),
+         d.get('confidentiality','Internal'),d.get('client_id'),d.get('account_manager_id'),
+         d.get('project_manager_id'),d.get('department_id'),d.get('business_unit_id'),
+         d.get('cost_centre_id'),d.get('start_date') or None,d.get('end_date') or None,
+         d.get('go_live_date') or None,d.get('budget',0),d.get('budget_currency','INR'),
+         d.get('estimated_revenue',0),d.get('billing_type','T&M'),d.get('billing_cycle','Monthly'),
+         d.get('rate_card'),d.get('po_number'),d.get('contract_value',0),d.get('sow_reference'),
+         d.get('health_score',80),d.get('completion_pct',0)))
+    pid=cur.fetchone()['id']
+    log("projects",pid,"created",f"Project '{d['name']}' created",g.user.get('username'))
+    get_db().commit(); return ok({"id":pid,"project_code":d['project_code']},"Project created",201)
+
+@app.route('/api/projects/<int:pid>', methods=['GET','PUT','DELETE'])
+@require_auth
+def project_detail(pid):
+    db=get_db()
+    if request.method=='GET':
+        p=row1("""SELECT p.*,c.name as client_name,
+            pm.first_name||' '||pm.last_name as pm_name,
+            am.first_name||' '||am.last_name as account_manager_name,
+            d.name as department_name,b.name as business_unit_name,
+            cc.name as cost_centre_name, cc.code as cost_centre_code
+            FROM projects p LEFT JOIN clients c ON c.id=p.client_id
+            LEFT JOIN employees pm ON pm.id=p.project_manager_id
+            LEFT JOIN employees am ON am.id=p.account_manager_id
+            LEFT JOIN departments d ON d.id=p.department_id
+            LEFT JOIN business_units b ON b.id=p.business_unit_id
+            LEFT JOIN cost_centres cc ON cc.id=p.cost_centre_id
+            WHERE p.id=%s""",(pid,))
+        if not p: return err("Not found",404)
+        p['resources']=rows("""SELECT pr.*,e.first_name||' '||e.last_name as employee_name,
+            e.emp_id,e.job_title,d.name as department_name
+            FROM project_resources pr JOIN employees e ON e.id=pr.employee_id
+            LEFT JOIN departments d ON d.id=e.department_id
+            WHERE pr.project_id=%s AND pr.is_active=1 ORDER BY pr.created_at""",(pid,))
+        p['vendors']=rows("""SELECT pv.*,v.name as vendor_name,v.vendor_type,v.contact_email
+            FROM project_vendors pv JOIN vendors v ON v.id=pv.vendor_id
+            WHERE pv.project_id=%s AND pv.is_active=1""",(pid,))
+        p['milestones']=rows("SELECT * FROM project_milestones WHERE project_id=%s AND is_active=1 ORDER BY due_date",(pid,))
+        p['risks']=rows("""SELECT pr.*,e.first_name||' '||e.last_name as owner_name
+            FROM project_risks pr LEFT JOIN employees e ON e.id=pr.owner_id
+            WHERE pr.project_id=%s AND pr.is_active=1""",(pid,))
+        p['documents']=rows("SELECT id,doc_type,doc_name,file_size,mime_type,uploaded_at FROM project_documents WHERE project_id=%s AND is_active=1 ORDER BY uploaded_at DESC",(pid,))
+        # Timesheet summary
+        p['hours_mtd']=_scalar("SELECT COALESCE(SUM(t.total_hours),0) FROM timesheets t JOIN project_resources pr ON pr.employee_id=t.employee_id AND pr.project_id=%s WHERE EXTRACT(MONTH FROM t.week_ending)=EXTRACT(MONTH FROM NOW())",(pid,)) or 0
+        p['hours_total']=_scalar("SELECT COALESCE(SUM(t.total_hours),0) FROM timesheets t JOIN project_resources pr ON pr.employee_id=t.employee_id AND pr.project_id=%s",(pid,)) or 0
+        return ok(p)
+    if request.method=='PUT':
+        d=request.get_json()
+        _cur().execute("""UPDATE projects SET name=%s,short_name=%s,project_type=%s,category=%s,
+            description=%s,status=%s,priority=%s,confidentiality=%s,client_id=%s,
+            account_manager_id=%s,project_manager_id=%s,department_id=%s,business_unit_id=%s,
+            cost_centre_id=%s,start_date=%s,end_date=%s,go_live_date=%s,budget=%s,
+            budget_currency=%s,estimated_revenue=%s,billing_type=%s,billing_cycle=%s,
+            rate_card=%s,po_number=%s,contract_value=%s,sow_reference=%s,
+            health_score=%s,completion_pct=%s,updated_at=NOW() WHERE id=%s""",
+            (d['name'],d.get('short_name'),d.get('project_type','T&M'),d.get('category'),
+             d.get('description'),d.get('status','Active'),d.get('priority','Medium'),
+             d.get('confidentiality','Internal'),d.get('client_id'),d.get('account_manager_id'),
+             d.get('project_manager_id'),d.get('department_id'),d.get('business_unit_id'),
+             d.get('cost_centre_id'),d.get('start_date') or None,d.get('end_date') or None,
+             d.get('go_live_date') or None,d.get('budget',0),d.get('budget_currency','INR'),
+             d.get('estimated_revenue',0),d.get('billing_type','T&M'),d.get('billing_cycle','Monthly'),
+             d.get('rate_card'),d.get('po_number'),d.get('contract_value',0),d.get('sow_reference'),
+             d.get('health_score',80),d.get('completion_pct',0),pid))
+        db.commit(); return ok(msg="Updated")
+    # DELETE
+    _cur().execute("UPDATE projects SET is_active=0 WHERE id=%s",(pid,))
+    db.commit(); return ok(msg="Archived")
+
+# Project Resources
+@app.route('/api/projects/<int:pid>/resources', methods=['POST'])
+@require_auth
+def project_add_resource(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("""INSERT INTO project_resources(project_id,employee_id,role,allocation_pct,bill_rate,cost_rate,start_date,end_date)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (pid,d['employee_id'],d.get('role'),d.get('allocation_pct',100),
+         d.get('bill_rate',0),d.get('cost_rate',0),
+         d.get('start_date') or None,d.get('end_date') or None))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Resource added",201)
+
+@app.route('/api/projects/resources/<int:rid>', methods=['PUT','DELETE'])
+@require_auth
+def project_resource_detail(rid):
+    if request.method=='DELETE':
+        _cur().execute("UPDATE project_resources SET is_active=0 WHERE id=%s",(rid,))
+    else:
+        d=request.get_json()
+        _cur().execute("UPDATE project_resources SET role=%s,allocation_pct=%s,bill_rate=%s,cost_rate=%s,end_date=%s WHERE id=%s",
+            (d.get('role'),d.get('allocation_pct',100),d.get('bill_rate',0),d.get('cost_rate',0),d.get('end_date') or None,rid))
+    get_db().commit(); return ok(msg="Done")
+
+# Project Vendors
+@app.route('/api/projects/<int:pid>/vendors', methods=['POST'])
+@require_auth
+def project_add_vendor(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("INSERT INTO project_vendors(project_id,vendor_id,role,contract_value) VALUES(%s,%s,%s,%s) RETURNING id",
+        (pid,d['vendor_id'],d.get('role'),d.get('contract_value',0)))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Vendor added",201)
+
+@app.route('/api/projects/vendors/<int:rid>', methods=['DELETE'])
+@require_auth
+def project_vendor_detail(rid):
+    _cur().execute("UPDATE project_vendors SET is_active=0 WHERE id=%s",(rid,))
+    get_db().commit(); return ok(msg="Removed")
+
+# Project Milestones
+@app.route('/api/projects/<int:pid>/milestones', methods=['POST'])
+@require_auth
+def project_add_milestone(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("INSERT INTO project_milestones(project_id,title,description,due_date,deliverable,status) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
+        (pid,d['title'],d.get('description'),d.get('due_date') or None,d.get('deliverable'),d.get('status','Pending')))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Milestone added",201)
+
+@app.route('/api/projects/milestones/<int:mid>', methods=['PUT','DELETE'])
+@require_auth
+def project_milestone_detail(mid):
+    if request.method=='DELETE':
+        _cur().execute("UPDATE project_milestones SET is_active=0 WHERE id=%s",(mid,))
+    else:
+        d=request.get_json()
+        _cur().execute("UPDATE project_milestones SET title=%s,description=%s,due_date=%s,completion_date=%s,status=%s,deliverable=%s WHERE id=%s",
+            (d['title'],d.get('description'),d.get('due_date') or None,d.get('completion_date') or None,d.get('status','Pending'),d.get('deliverable'),mid))
+    get_db().commit(); return ok(msg="Done")
+
+# Project Documents
+@app.route('/api/projects/<int:pid>/documents', methods=['POST'])
+@require_auth
+def project_add_doc(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("INSERT INTO project_documents(project_id,doc_type,doc_name,file_data,file_size,mime_type,uploaded_by) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        (pid,d.get('doc_type','General'),d.get('doc_name'),d.get('file_data'),d.get('file_size'),d.get('mime_type'),g.user.get('employee_id')))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Uploaded",201)
+
+@app.route('/api/projects/documents/<int:did>', methods=['GET','DELETE'])
+@require_auth
+def project_doc_detail(did):
+    if request.method=='DELETE':
+        _cur().execute("UPDATE project_documents SET is_active=0 WHERE id=%s",(did,))
+        get_db().commit(); return ok(msg="Removed")
+    r=row1("SELECT * FROM project_documents WHERE id=%s",(did,))
+    return ok(r) if r else err("Not found",404)
+
+# Project Risks
+@app.route('/api/projects/<int:pid>/risks', methods=['POST'])
+@require_auth
+def project_add_risk(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("INSERT INTO project_risks(project_id,title,description,probability,impact,mitigation,status,owner_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+        (pid,d['title'],d.get('description'),d.get('probability','Medium'),d.get('impact','Medium'),d.get('mitigation'),d.get('status','Open'),d.get('owner_id')))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Risk added",201)
+
+@app.route('/api/projects/risks/<int:rid>', methods=['PUT','DELETE'])
+@require_auth
+def project_risk_detail(rid):
+    if request.method=='DELETE':
+        _cur().execute("UPDATE project_risks SET is_active=0 WHERE id=%s",(rid,))
+    else:
+        d=request.get_json()
+        _cur().execute("UPDATE project_risks SET title=%s,description=%s,probability=%s,impact=%s,mitigation=%s,status=%s,owner_id=%s WHERE id=%s",
+            (d['title'],d.get('description'),d.get('probability','Medium'),d.get('impact','Medium'),d.get('mitigation'),d.get('status','Open'),d.get('owner_id'),rid))
+    get_db().commit(); return ok(msg="Done")
+
+# Project Documents
+@app.route('/api/projects/<int:pid>/documents', methods=['POST'])
+@require_auth
+def project_upload_doc(pid):
+    d=request.get_json()
+    cur=_cur()
+    cur.execute("INSERT INTO project_documents(project_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
+        (pid,d.get('doc_type','Other'),d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
+    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Uploaded",201)
+
+@app.route('/api/projects/documents/<int:did>', methods=['DELETE'])
+@require_auth
+def project_doc_detail(did):
+    _cur().execute("UPDATE project_documents SET is_active=0 WHERE id=%s",(did,))
+    get_db().commit(); return ok(msg="Removed")
+
+
+# ═══════════════════════════════════════════════════
 # INVOICES
 # ═══════════════════════════════════════════════════
 @app.route('/api/invoices', methods=['GET','POST'])
