@@ -1700,9 +1700,20 @@ def candidates():
         return ok(rows(sql,params))
     d=request.get_json()
     if not d.get('first_name') or not d.get('last_name'): return err("first_name and last_name required")
-    cur=_cur();cur.execute("INSERT INTO candidates(first_name,last_name,email,phone,location,current_title,years_exp,source_id,skills) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
+    cur=_cur()
+    cur.execute("INSERT INTO candidates(first_name,last_name,email,phone,location,current_title,years_exp,source_id,skills) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (d['first_name'],d['last_name'],d.get('email'),d.get('phone'),d.get('location'),d.get('current_title'),d.get('years_exp') or 0,d.get('source_id'),d.get('skills','')))
-    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Candidate added",201)
+    cid=cur.fetchone()['id']
+    # Auto-create application if requisition_id provided
+    req_id=d.get('requisition_id')
+    app_id=None
+    if req_id:
+        sid=_scalar("SELECT id FROM master_application_stages WHERE name='Applied'")
+        cur.execute("INSERT INTO applications(candidate_id,requisition_id,stage_id,recruiter_id) VALUES(%s,%s,%s,%s) RETURNING id",
+            (cid,req_id,sid,d.get('recruiter_id')))
+        app_id=cur.fetchone()['id']
+    get_db().commit()
+    return ok({"id":cid,"application_id":app_id},"Candidate added",201)
 
 @app.route('/api/pipeline')
 @require_auth
@@ -1714,7 +1725,7 @@ def pipeline():
         e.first_name||' '||e.last_name as recruiter_name
         FROM applications a JOIN candidates c ON c.id=a.candidate_id
         JOIN job_requisitions r ON r.id=a.requisition_id
-        JOIN clients cl ON cl.id=r.client_id
+        LEFT JOIN clients cl ON cl.id=r.client_id
         LEFT JOIN master_application_stages s ON s.id=a.stage_id
         LEFT JOIN master_candidate_sources src ON src.id=c.source_id
         LEFT JOIN employees e ON e.id=a.recruiter_id WHERE 1=1"""
@@ -1738,6 +1749,29 @@ def add_application():
         (d['candidate_id'],d['requisition_id'],sid,d.get('expected_salary'),d.get('recruiter_id')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Created",201)
 
+@app.route('/api/requisitions/<int:rid>/applications', methods=['GET'])
+@require_auth
+def req_applications(rid):
+    """Get all candidates who applied to a specific requisition."""    return ok(rows("""SELECT a.id as application_id, a.stage_id,
+        c.id as candidate_id, c.first_name||' '||c.last_name as candidate_name,
+        c.current_title, c.years_exp, c.skills, s.name as stage
+        FROM applications a
+        JOIN candidates c ON c.id=a.candidate_id
+        LEFT JOIN master_application_stages s ON s.id=a.stage_id
+        WHERE a.requisition_id=%s ORDER BY a.applied_at DESC""",(rid,)))
+
+@app.route('/api/requisitions/<int:rid>/applications', methods=['GET'])
+@require_auth
+def req_applications(rid):
+    """Get all candidates applied to a requisition — for interview scheduling."""
+    return ok(rows("""SELECT a.id as application_id, a.stage_id,
+        c.id as candidate_id, c.first_name||' '||c.last_name as candidate_name,
+        c.current_title, c.years_exp, s.name as stage
+        FROM applications a
+        JOIN candidates c ON c.id=a.candidate_id
+        LEFT JOIN master_application_stages s ON s.id=a.stage_id
+        WHERE a.requisition_id=%s ORDER BY a.applied_at DESC""",(rid,)))
+
 @app.route('/api/applications/<int:aid>', methods=['GET','PUT'])
 @require_auth
 def app_detail(aid):
@@ -1758,11 +1792,13 @@ def interviews():
     if request.method=='GET':
         return ok(rows("""SELECT i.*,f.name as format,c.first_name||' '||c.last_name as candidate_name,r.title as role,cl.name as client
             FROM interviews i JOIN applications a ON a.id=i.application_id JOIN candidates c ON c.id=a.candidate_id
-            JOIN job_requisitions r ON r.id=a.requisition_id JOIN clients cl ON cl.id=r.client_id
+            JOIN job_requisitions r ON r.id=a.requisition_id LEFT JOIN clients cl ON cl.id=r.client_id
             LEFT JOIN master_interview_formats f ON f.id=i.format_id ORDER BY i.scheduled_at"""))
     d=request.get_json()
+    if not d.get('application_id'): return err("application_id is required")
     fmt=row1("SELECT id FROM master_interview_formats WHERE name=%s",(d.get('format','Video'),))
-    cur=_cur();cur.execute("INSERT INTO interviews(application_id,round,format_id,interviewer,scheduled_at,location_link,notes) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+    cur=_cur()
+    cur.execute("INSERT INTO interviews(application_id,round,format_id,interviewer,scheduled_at,location_link,notes) VALUES(%s,%s,%s,%s,%s,%s,%s) RETURNING id",
         (d['application_id'],d['round'],fmt['id'] if fmt else None,d.get('interviewer'),d.get('scheduled_at'),d.get('location_link'),d.get('notes')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Scheduled",201)
 

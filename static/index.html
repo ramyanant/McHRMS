@@ -4599,14 +4599,23 @@ async function loadPipeline(){
     const stages=['Applied','Screening','Technical','Offer','Placed'];
     setHtml('kanban',stages.map(stage=>{
       const cards=data.by_stage[stage]||[];
+      const nextStage={Applied:'Screening',Screening:'Technical',Technical:'Offer',Offer:'Placed'}[stage];
       return`<div class="kcol">
         <div class="kcol-hd" style="border-top:3px solid ${stageColors[stage]}"><span class="kcol-name">${stage}</span><span class="kcol-cnt">${cards.length}</span></div>
         <div class="kbody">${cards.length===0?'<div style="font-size:11px;color:var(--txt3);text-align:center;padding:12px">Empty</div>'
-          :cards.map(c=>`<div class="kcard" onclick="toast('${(c.candidate_name||'Candidate').replace(/'/g,"\\'")} — ${c.role||''}','info')">
-            <div class="kc-name">${c.candidate_name||'–'}</div>
-            <div class="kc-meta">${c.current_title||'–'}<br>${c.years_exp||0} YOE · ${c.location||'–'}</div>
-            ${c.role?`<div style="font-size:10px;color:var(--txt3);margin-top:4px">${c.role}${c.client?' · '+c.client:''}</div>`:''}
-            <div class="kc-tags">${(c.skills||'').split(',').slice(0,2).filter(Boolean).map(s=>`<span class="pill p-green" style="font-size:9px">${s.trim()}</span>`).join('')}<span class="pill p-gray" style="font-size:9px">${c.source||'–'}</span></div>
+          :cards.map(card=>`<div class="kcard">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+              <div class="kc-name">${card.candidate_name||'–'}</div>
+              ${nextStage?`<button style="font-size:9px;background:var(--green-lt);color:var(--green-dk);border:1px solid var(--green);border-radius:4px;padding:2px 5px;cursor:pointer;flex-shrink:0" onclick="moveCandidate(${card.id},'${nextStage}')">→ ${nextStage}</button>`:''}
+            </div>
+            <div class="kc-meta">${card.current_title||'–'}</div>
+            <div class="kc-meta">${card.years_exp||0} YOE · ${card.location||'–'}</div>
+            ${card.role?`<div style="font-size:10px;color:var(--txt3);margin-top:3px">📋 ${card.role}${card.client?' · '+card.client:''}</div>`:''}
+            <div class="kc-tags" style="margin-top:5px">${(card.skills||'').split(',').slice(0,3).filter(Boolean).map(s=>`<span class="pill p-green" style="font-size:9px">${s.trim()}</span>`).join('')}<span class="pill p-gray" style="font-size:9px">${card.source||'–'}</span></div>
+            <div style="display:flex;gap:4px;margin-top:6px">
+              <button style="font-size:9px;background:var(--blue-dim);color:var(--blue);border:1px solid rgba(26,107,181,.2);border-radius:4px;padding:2px 6px;cursor:pointer" onclick="schedIntFromCard(${card.id},'${(card.candidate_name||'').replace(/'/g,"\\'")}')">📅 Interview</button>
+              ${stage!=='Placed'&&stage!=='Rejected'?`<button style="font-size:9px;background:var(--red-dim);color:var(--red);border:1px solid rgba(192,57,43,.2);border-radius:4px;padding:2px 5px;cursor:pointer" onclick="moveCandidate(${card.id},'Rejected')">✗ Reject</button>`:''}
+            </div>
           </div>`).join('')}</div>
       </div>`;
     }).join(''));
@@ -4616,6 +4625,53 @@ async function loadPipeline(){
 // ═══════════════════════════════════════════════════
 // INTERVIEWS
 // ═══════════════════════════════════════════════════
+// Move candidate to next stage
+async function moveCandidate(appId,stage){
+  if(stage==='Rejected'&&!confirm('Reject this candidate?'))return;
+  try{
+    await apiFetch(`/api/applications/${appId}`,{method:'PUT',body:JSON.stringify({stage})});
+    toast(stage==='Rejected'?'Candidate rejected':'Moved to '+stage,'success');
+    loadPipeline();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// Quick-schedule interview from kanban card
+async function schedIntFromCard(appId,candName){
+  window._schedIntAppId=appId;
+  openModal('sched-int');
+  // After modal renders, pre-select the candidate
+  setTimeout(()=>{
+    const si=$('si-cand');
+    // Rebuild the candidate selector with this app id pre-selected
+    if(si){
+      si.innerHTML=`<option value="${appId}" selected>${candName}</option>`;
+      si.disabled=false;
+    }
+    // Hide the requisition selector since we already have the app id
+    const siReq=$('si-req');
+    if(siReq){siReq.closest('.fg').style.display='none';}
+  },300);
+}
+
+// Cascade loader for interview scheduling: req → candidates
+async function loadIntCandidates(){
+  const req=$('si-req');
+  const cand=$('si-cand');
+  if(!req||!cand)return;
+  const rid=req.value;
+  if(!rid){cand.innerHTML='<option value="">Select requisition first…</option>';return;}
+  cand.innerHTML='<option value="">Loading candidates…</option>';
+  try{
+    const apps=await apiFetch(`/api/requisitions/${rid}/applications`);
+    if(!apps||!apps.length){
+      cand.innerHTML='<option value="">No candidates applied to this req</option>';
+      return;
+    }
+    cand.innerHTML='<option value="">Select candidate…</option>'+
+      apps.map(a=>`<option value="${a.application_id}">${a.candidate_name} — ${a.current_title||'–'} (${a.stage||'Applied'})</option>`).join('');
+  }catch(e){cand.innerHTML='<option value="">Error loading candidates</option>';}
+}
+
 async function loadInterviews(){
   try{
     const[rows,summary]=await Promise.all([apiFetch('/api/interviews'),apiFetch('/api/interviews/summary')]);
@@ -5234,27 +5290,55 @@ const modalDefs={
     }
   },
   'add-cand':{
-    title:'Add Candidate',submit:'Add Candidate',endpoint:'/api/candidates',method:'POST',
+    title:'Add Candidate to Pipeline',submit:'Add to Pipeline',endpoint:'/api/candidates',method:'POST',
     fields:()=>`
+      <div class="fg" style="background:var(--blue-dim);border:1px solid rgba(26,107,181,.2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue);margin-bottom:12px">
+        ℹ️ Candidates only appear in the pipeline when linked to a Job Requisition. Select one below.
+      </div>
+      <div class="fg"><label class="flabel">Job Requisition *</label><select class="fselect" name="requisition_id" id="cand-req-sel" required><option value="">Loading requisitions…</option></select></div>
       <div class="frow"><div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required placeholder="Jane"></div><div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required placeholder="Doe"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" placeholder="jane@email.com"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" placeholder="+91-9000000000"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" placeholder="Software Engineer"></div><div class="fg"><label class="flabel">Years of Experience</label><input class="finput" type="number" name="years_exp" placeholder="5"></div></div>
       <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad, India"></div><div class="fg"><label class="flabel">Source</label><select class="fselect" name="source_id">${masterOpts('candidate-sources','id','name')}</select></div></div>
-      <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills" placeholder="React, Node.js, TypeScript"></div>
-      <div class="fg"><label class="flabel">Apply to Requisition</label><select class="fselect" name="requisition_id" id="cand-req-sel"><option value="">Select job (optional)…</option></select></div>`,
+      <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills" placeholder="React, Node.js, TypeScript"></div>`,
     afterRender:async()=>{
       const reqs=await apiFetch('/api/requisitions?status=Active')||[];
-      const el=$('cand-req-sel');if(el)el.innerHTML='<option value="">Select job (optional)…</option>'+reqs.map(r=>`<option value="${r.id}">${r.title} — ${r.client_name||'Internal'}</option>`).join('');
+      const el=$('cand-req-sel');
+      if(el)el.innerHTML='<option value="">Select requisition…</option>'+reqs.map(r=>`<option value="${r.id}">${r.title} — ${r.client_name||'Internal'}</option>`).join('');
     },
-    afterSave:loadPipeline
+    afterSave:()=>{loadPipeline();}
   },
   'sched-int':{
-    title:'Schedule Interview',submit:'Schedule',endpoint:'/api/interviews',method:'POST',
+    title:'Schedule Interview',submit:'Schedule Interview',endpoint:'/api/interviews',method:'POST',
     fields:()=>`
-      <div class="fg"><label class="flabel">Application ID</label><input class="finput" type="number" name="application_id" placeholder="Application ID from pipeline"></div>
-      <div class="frow"><div class="fg"><label class="flabel">Round</label><select class="fselect" name="round"><option>Round 1 — HR Screen</option><option>Round 2 — Technical</option><option>Panel Final</option><option>Executive</option></select></div><div class="fg"><label class="flabel">Format</label><select class="fselect" name="format_id">${masterOpts('interview-formats','id','name')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Date &amp; Time</label><input class="finput" type="datetime-local" name="scheduled_at"></div><div class="fg"><label class="flabel">Interviewer(s)</label><input class="finput" name="interviewer" placeholder="Ravi Kumar, Priya M."></div></div>
-      <div class="fg"><label class="flabel">Video Link / Room</label><input class="finput" name="location_link" placeholder="https://meet.google.com/xxx or Room 4B"></div>`,
+      <div class="fg"><label class="flabel">Job Requisition *</label>
+        <select class="fselect" id="si-req" onchange="loadIntCandidates()" required>
+          <option value="">Select requisition first…</option>
+        </select></div>
+      <div class="fg"><label class="flabel">Candidate *</label>
+        <select class="fselect" id="si-cand" name="application_id" required>
+          <option value="">Select requisition first…</option>
+        </select></div>
+      <div class="frow"><div class="fg"><label class="flabel">Round *</label>
+        <select class="fselect" name="round">
+          <option>Round 1 — HR Screen</option><option>Round 2 — Technical</option>
+          <option>Round 3 — Technical Deep Dive</option><option>Panel Final</option><option>Executive</option>
+        </select></div>
+        <div class="fg"><label class="flabel">Format</label>
+          <select class="fselect" name="format_id">${masterOpts('interview-formats','id','name')}</select></div></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Date & Time *</label><input class="finput" type="datetime-local" name="scheduled_at" required></div>
+        <div class="fg"><label class="flabel">Interviewer(s)</label><input class="finput" name="interviewer" placeholder="Ravi Kumar, Priya M."></div>
+      </div>
+      <div class="fg"><label class="flabel">Video Link / Meeting Room</label>
+        <input class="finput" name="location_link" placeholder="https://meet.google.com/xxx or Conference Room 4B"></div>
+      <div class="fg"><label class="flabel">Notes</label>
+        <textarea class="ftextarea" name="notes" rows="2" placeholder="Topics to cover, candidate brief…"></textarea></div>`,
+    afterRender:async()=>{
+      const reqs=await apiFetch('/api/requisitions?status=Active')||[];
+      const el=$('si-req');
+      if(el)el.innerHTML='<option value="">Select requisition…</option>'+reqs.map(r=>`<option value="${r.id}">${r.title} — ${r.client_name||'Internal'}</option>`).join('');
+    },
     afterSave:loadInterviews
   },
   'start-onb':{
@@ -5907,7 +5991,7 @@ async function submitModal(){
   const endpoint = def.getEndpoint ? def.getEndpoint() : def.endpoint;
   if(!endpoint){toast('No endpoint configured','error');return;}
   // Cast numeric FKs
-  ['salary','bill_rate','comp_min','comp_max','amount','tax_amount','budget','years_exp',
+  ['salary','bill_rate','comp_min','comp_max','amount','tax_amount','budget','years_exp','application_id','format_id',
    'employee_id','client_id','vendor_id','recruiter_id','application_id','department_id',
    'contract_type_id','engagement_type_id','payment_terms_id','category_id','priority_id',
    'source_id','format_id','role_id','state_id','country_id','is_primary','start_year','end_year',
