@@ -2169,12 +2169,6 @@ def project_upload_doc(pid):
         (pid,d.get('doc_type','Other'),d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
     get_db().commit(); return ok({"id":cur.fetchone()['id']},"Uploaded",201)
 
-@app.route('/api/projects/documents/<int:did>', methods=['DELETE'])
-@require_auth
-def project_doc_detail(did):
-    _cur().execute("UPDATE project_documents SET is_active=0 WHERE id=%s",(did,))
-    get_db().commit(); return ok(msg="Removed")
-
 
 # ═══════════════════════════════════════════════════
 # INVOICES
