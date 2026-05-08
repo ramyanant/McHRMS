@@ -3186,264 +3186,306 @@ let _curProjTab='dashboard';
 function renderProjDetail(p,tab){
   _curProjTab=tab;
   const tabs=[
-    {id:'dashboard',icon:'📊',label:'Dashboard'},
-    {id:'overview', icon:'📋',label:'Overview'},
-    {id:'resources',icon:'👥',label:'Resources'},
-    {id:'financials',icon:'💰',label:'Financials'},
-    {id:'timeline', icon:'📅',label:'Milestones'},
-    {id:'risks',    icon:'⚠️',label:'Risks'},
-    {id:'docs',     icon:'📁',label:'Documents'},
+    {id:'dashboard',  icon:'📊', label:'Dashboard'},
+    {id:'details',    icon:'📋', label:'Details'},
+    {id:'resources',  icon:'👥', label:'Resources'},
+    {id:'financials', icon:'💰', label:'Financials'},
+    {id:'milestones', icon:'🏁', label:'Milestones'},
+    {id:'risks',      icon:'⚠️', label:'Risks'},
+    {id:'timesheets', icon:'⏱️', label:'Timesheets'},
+    {id:'docs',       icon:'📁', label:'Documents'},
   ];
-  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderProjDetail(window._curProj,'${t.id}')"><span class="tab-icon">${t.icon}</span><span>${t.label}</span></div>`).join('');
-  const field=(l,v,mono)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${mono?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
-  const hc=p.health_score>70?'var(--green)':p.health_score>50?'var(--amber)':'var(--red)';
-  const sc={'Active':'var(--green-dk)','On Hold':'var(--amber)','Completed':'var(--blue)','Cancelled':'var(--red)','Draft':'var(--txt3)'}[p.status]||'var(--txt3)';
+  const tabBar=tabs.map(t=>`<div class="org-tab${t.id===tab?' active':''}" onclick="renderProjDetail(window._curProj,'${t.id}')">
+    <span class="tab-icon">${t.icon}</span><span>${t.label}</span></div>`).join('');
+  const field=(l,v,mono)=>`<div class="org-field"><div class="org-field-label">${l}</div>
+    <div class="org-field-value${mono?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
+  const hc=p.health_score>=80?'var(--green)':p.health_score>=60?'var(--amber)':'var(--red)';
+  const budgetUsed=p.budget>0?Math.min(100,Math.round(((p.actual_revenue||0)/p.budget)*100)):0;
   let panelHtml='';
 
   if(tab==='dashboard'){
     const resources=p.resources||[],milestones=p.milestones||[],risks=p.risks||[];
-    const upcoming=milestones.filter(m=>m.status!=='Completed').slice(0,3);
-    const openRisks=risks.filter(r=>r.status==='Open');
     panelHtml=`
-      <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);border-radius:var(--rl);padding:20px 24px;color:#fff;margin-bottom:16px;display:flex;align-items:flex-start;gap:16px">
-        <div style="font-size:36px">📂</div>
-        <div style="flex:1">
-          <div style="font-size:18px;font-weight:800">${p.name}</div>
-          <div style="font-size:12px;opacity:.8;margin-top:3px">${p.project_code||''} · ${p.project_type||'T&M'} · ${p.client_name||'Internal'}</div>
-          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-            <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${p.status||'Draft'}</span>
-            <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">${p.priority||'Medium'} Priority</span>
-            ${p.pm_name?`<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;font-size:11px">PM: ${p.pm_name}</span>`:''}
-          </div>
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-size:32px;font-weight:900;font-family:var(--mono);line-height:1">${p.completion_pct||0}%</div>
-          <div style="font-size:11px;opacity:.7;margin-top:4px">Complete</div>
-          <div style="background:rgba(255,255,255,.2);border-radius:10px;height:6px;width:100px;margin-top:6px;overflow:hidden">
-            <div style="height:100%;width:${p.completion_pct||0}%;background:#fff;border-radius:10px"></div>
-          </div>
+    <div style="background:linear-gradient(135deg,#1e3a5f,#0f2440);border-radius:var(--rl);padding:20px 24px;margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:16px">
+      <div style="width:52px;height:52px;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📂</div>
+      <div style="flex:1">
+        <div style="font-size:18px;font-weight:800">${p.name}</div>
+        <div style="font-size:11.5px;opacity:.8;margin-top:3px">${p.project_code||''} · ${p.client_name||'Internal'} · PM: ${p.pm_name||'–'}</div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${p.project_type||'T&M'}</span>
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${p.status||'Draft'}</span>
+          <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${p.priority||'Medium'} Priority</span>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">
-        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Team Size</div><div class="kpi-value">${resources.length}</div><div class="kpi-delta">Resources allocated</div></div>
-        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Hours MTD</div><div class="kpi-value">${fmt.num(p.hours_mtd||0)}</div><div class="kpi-delta">This month</div></div>
-        <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Budget</div><div class="kpi-value">${fmt.moneyK(p.budget||0)}</div><div class="kpi-delta">${p.budget_currency||'INR'}</div></div>
-        <div class="kpi" style="--kc:${hc}"><div class="kpi-label">Health</div><div class="kpi-value">${p.health_score||80}/100</div><div class="kpi-delta">${p.health_score>70?'🟢 Healthy':p.health_score>50?'🟡 Watch':'🔴 At risk'}</div></div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:40px;font-weight:900;line-height:1;font-family:var(--mono)">${p.completion_pct||0}%</div>
+        <div style="font-size:10px;opacity:.6;margin-top:4px">${fmt.date(p.start_date)||'TBD'} → ${fmt.date(p.end_date)||'TBD'}</div>
       </div>
-      <div class="g2">
-        <div>
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title">📋 Project Info</div></div>
-            <div class="card-body"><div class="g2" style="gap:8px 20px">
-              ${field('Type',pill(p.project_type||'T&M','p-blue'))}${field('Client',p.client_name||'Internal')}
-              ${field('Account Manager',p.account_manager_name)}${field('Cost Centre',p.cost_centre_name)}
-              ${field('Start',fmt.date(p.start_date))}${field('End',fmt.date(p.end_date))}
-              ${field('SOW',p.sow_reference,true)}${field('PO',p.po_number,true)}
-            </div></div>
-          </div>
-          <div class="card">
-            <div class="card-hd"><div class="card-title">👥 Team (${resources.length})</div>
-              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'resources')">View All →</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px">
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Budget</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.budget||0)}</div><div class="kpi-delta">${p.budget_currency||'INR'}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.estimated_revenue||0)}</div><div class="kpi-delta">Forecast</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contract Value</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.contract_value||0)}</div><div class="kpi-delta">${p.billing_type||'T&M'}</div></div>
+      <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Resources</div><div class="kpi-value" style="font-size:18px">${resources.length}</div><div class="kpi-delta">Allocated</div></div>
+      <div class="kpi" style="--kc:${hc}"><div class="kpi-label">Health</div><div class="kpi-value" style="font-size:18px;color:${hc}">${p.health_score||80}/100</div><div class="kpi-delta">${(p.health_score||80)>=80?'🟢 Good':(p.health_score||80)>=60?'🟡 Watch':'🔴 At Risk'}</div></div>
+    </div>
+    <div class="g2">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-hd"><div class="card-title">📋 Project Info</div></div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Client',p.client_name||'Internal')}${field('Account Manager',p.account_manager_name)}
+            ${field('Project Manager',p.pm_name)}${field('Department',p.department_name)}
+            ${field('Business Unit',p.business_unit_name)}${field('Cost Centre',p.cost_centre_name)}
+            ${field('SOW / PO',p.sow_reference||p.po_number||'–')}${field('Billing',p.billing_type+(p.billing_cycle?' · '+p.billing_cycle:''))}
+          </div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-title">📅 Timeline</div></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);margin-bottom:6px">
+              <span>Start: <strong style="color:var(--txt)">${fmt.date(p.start_date)||'TBD'}</strong></span>
+              <span>Go-Live: <strong style="color:var(--txt)">${fmt.date(p.go_live_date)||'TBD'}</strong></span>
+              <span>End: <strong style="color:var(--txt)">${fmt.date(p.end_date)||'TBD'}</strong></span>
             </div>
-            <div class="card-body" style="padding:8px 16px">
-              ${resources.slice(0,4).map(r=>`<div class="avrow" style="padding:6px 0;border-bottom:1px solid var(--bdr)">
-                <div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(r.employee_name)}</div>
-                <div><div class="av-name">${r.employee_name}</div><div class="av-meta">${r.role||r.job_title||'–'} · ${r.allocation_pct||100}%</div></div>
-                ${r.bill_rate?`<div style="font-size:11px;color:var(--green-dk);font-weight:600;margin-left:auto">${fmt.moneyK(r.bill_rate)}/hr</div>`:''}
+            <div class="ptrack" style="height:8px"><div class="pfill" style="width:${p.completion_pct||0}%;background:${hc}"></div></div>
+            ${p.description?`<p style="font-size:12px;color:var(--txt2);margin:12px 0 0;line-height:1.6">${p.description}</p>`:''}
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-hd"><div class="card-title">👥 Team (${resources.length})</div>
+            <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'resources')">Manage →</button></div>
+          <div class="card-body" style="padding:8px 16px">
+            ${resources.slice(0,5).map(r=>`
+              <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bdr)">
+                <div class="av av-blue" style="width:28px;height:28px;font-size:10px;flex-shrink:0">${fmt.ini(r.employee_name)}</div>
+                <div style="flex:1"><div style="font-size:12px;font-weight:600">${r.employee_name}</div>
+                  <div style="font-size:10px;color:var(--txt3)">${r.role||'–'} · ${r.allocation_pct}%</div></div>
               </div>`).join('')}
-              ${!resources.length?'<div style="color:var(--txt3);font-size:12px;padding:8px 0">No resources yet</div>':''}
-            </div>
+            ${!resources.length?'<div style="color:var(--txt3);font-size:12px;padding:8px 0">No resources allocated yet</div>':''}
+            ${resources.length>5?`<div style="font-size:11px;color:var(--txt3);padding:8px 0;text-align:center">+${resources.length-5} more</div>`:''}
           </div>
         </div>
-        <div>
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title">📅 Upcoming Milestones</div>
-              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'timeline')">View All →</button>
-            </div>
-            <div class="card-body" style="padding:8px 16px">
-              ${upcoming.length?upcoming.map(m=>{
-                const late=m.due_date&&new Date(m.due_date)<new Date()&&m.status!=='Completed';
-                return `<div style="padding:8px 0;border-bottom:1px solid var(--bdr)">
-                  <div style="display:flex;justify-content:space-between">
-                    <span style="font-size:12.5px;font-weight:600;color:${late?'var(--red)':'var(--txt)'}">${m.title}</span>
-                    <span class="pill ${m.status==='Completed'?'p-green':late?'p-red':'p-gray'}" style="font-size:9px">${m.status}</span>
-                  </div>
-                  <div style="font-size:11px;color:var(--txt3);margin-top:2px">${fmt.date(m.due_date)||'No date'}${late?' ⚠️ Overdue':''}</div>
-                </div>`;
-              }).join(''):`<div style="color:var(--txt3);font-size:12px;padding:8px 0">No milestones yet</div>`}
-            </div>
-          </div>
-          <div class="card">
-            <div class="card-hd"><div class="card-title">⚠️ Open Risks (${openRisks.length})</div>
-              <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'risks')">View All →</button>
-            </div>
-            <div class="card-body" style="padding:8px 16px">
-              ${openRisks.slice(0,3).map(r=>{
-                const ic=r.impact==='High'?'var(--red)':r.impact==='Medium'?'var(--amber)':'var(--green)';
-                return `<div style="padding:6px 0;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:10px">
-                  <div style="width:6px;height:6px;border-radius:50%;background:${ic};flex-shrink:0"></div>
-                  <div><div style="font-size:12px;font-weight:500">${r.title}</div>
-                    <div style="font-size:10.5px;color:var(--txt3)">${r.probability} prob · ${r.impact} impact</div></div>
-                </div>`;
-              }).join('')}
-              ${!openRisks.length?'<div style="color:var(--green-dk);font-size:12px;padding:8px 0">No open risks 🎉</div>':''}
-            </div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-hd"><div class="card-title">🏁 Milestones</div>
+            <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'milestones')">Manage →</button></div>
+          <div class="card-body" style="padding:8px 16px">
+            ${milestones.slice(0,4).map(m=>{
+              const today=new Date().toISOString().split('T')[0];
+              const ov=m.status!=='Completed'&&m.due_date&&m.due_date<today;
+              const col=m.status==='Completed'?'var(--green)':ov?'var(--red)':'var(--txt3)';
+              return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bdr)">
+                <div style="width:7px;height:7px;border-radius:50%;background:${col};flex-shrink:0"></div>
+                <div style="flex:1;font-size:12px">${m.title}</div>
+                <span style="font-size:10px;color:${col};font-family:var(--mono)">${fmt.date(m.due_date)||'–'}</span>
+              </div>`;}).join('')}
+            ${!milestones.length?'<div style="color:var(--txt3);font-size:12px;padding:8px 0">No milestones defined</div>':''}
           </div>
         </div>
-      </div>`;
-  } else if(tab==='overview'){
+        ${risks.filter(r=>r.status==='Open').length?`
+        <div class="card" style="border-left:3px solid var(--red)">
+          <div class="card-hd"><div class="card-title">⚠️ Open Risks (${risks.filter(r=>r.status==='Open').length})</div>
+            <button class="btn btn-ghost btn-xs" onclick="renderProjDetail(window._curProj,'risks')">View →</button></div>
+          <div class="card-body" style="padding:8px 16px">
+            ${risks.filter(r=>r.status==='Open').slice(0,3).map(r=>`
+              <div style="padding:5px 0;border-bottom:1px solid var(--bdr)">
+                <div style="font-size:12px;font-weight:600">${r.title}</div>
+                <div style="font-size:10px;color:var(--txt3)">Impact: ${r.impact} · Probability: ${r.probability}</div>
+              </div>`).join('')}
+          </div>
+        </div>`:''}
+      </div>
+    </div>`;
+  }
+  else if(tab==='details'){
     panelHtml=`
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
         <button class="btn btn-primary btn-sm" onclick="editProjectInline()">✏️ Edit Project</button>
       </div>
       <div class="g2">
         <div>
-          <div class="fsec"><div class="fsec-icon">📋</div><div><div class="fsec-title">Basic Information</div></div></div>
-          ${field('Project Code',p.project_code,true)}${field('Name',p.name)}
-          ${field('Short Name',p.short_name)}${field('Type',pill(p.project_type||'T&M','p-blue'))}
+          <div class="fsec"><div class="fsec-icon">📋</div><div><div class="fsec-title">Core Information</div></div></div>
+          ${field('Project Code',p.project_code,true)}${field('Project Name',p.name)}
+          ${field('Short Name',p.short_name)}${field('Type',p.project_type)}
           ${field('Category',p.category)}${field('Status',p.status)}
           ${field('Priority',p.priority)}${field('Confidentiality',p.confidentiality)}
-          ${p.description?`<div class="org-field"><div class="org-field-label">Description</div><div style="font-size:12.5px;color:var(--txt);line-height:1.6">${p.description}</div></div>`:''}
+          <div style="margin-top:12px"><div class="org-field-label">Description</div>
+            <div style="font-size:13px;color:var(--txt);line-height:1.6;margin-top:4px">${p.description||'<span style="color:var(--txt3);font-style:italic">No description</span>'}</div></div>
         </div>
         <div>
-          <div class="fsec"><div class="fsec-icon">🏢</div><div><div class="fsec-title">Organisation & Dates</div></div></div>
-          ${field('Client',p.client_name)}${field('Account Manager',p.account_manager_name)}
+          <div class="fsec"><div class="fsec-icon">🏢</div><div><div class="fsec-title">Organisation</div></div></div>
+          ${field('Client',p.client_name||'Internal')}${field('Account Manager',p.account_manager_name)}
           ${field('Project Manager',p.pm_name)}${field('Department',p.department_name)}
           ${field('Business Unit',p.business_unit_name)}${field('Cost Centre',p.cost_centre_name)}
-          ${field('Start Date',fmt.date(p.start_date))}${field('End Date',fmt.date(p.end_date))}
-          ${field('Go-Live Date',fmt.date(p.go_live_date))}
-          ${field('SOW Reference',p.sow_reference,true)}${field('PO Number',p.po_number,true)}
+          <div class="fsec" style="margin-top:16px"><div class="fsec-icon">📅</div><div><div class="fsec-title">Timeline</div></div></div>
+          ${field('Start Date',fmt.date(p.start_date))}${field('Go-Live Date',fmt.date(p.go_live_date))}
+          ${field('End Date',fmt.date(p.end_date))}
+          <div style="margin-top:8px"><div class="org-field-label">Completion</div>
+            <div class="prow" style="margin-top:6px"><div class="ptrack" style="flex:1;height:8px"><div class="pfill" style="width:${p.completion_pct||0}%;background:${hc}"></div></div><span class="pval">${p.completion_pct||0}%</span></div>
+          </div>
         </div>
       </div>`;
-  } else if(tab==='resources'){
+  }
+  else if(tab==='resources'){
     const resources=p.resources||[],vendors=p.vendors||[];
     panelHtml=`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">👥</div><div><div class="fsec-title">Project Team</div></div></div>
-        <button class="btn btn-primary btn-sm" onclick="openAddProjResource(${p.id})">+ Add Member</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">👥</div><div><div class="fsec-title">Resource Allocation</div><div class="fsec-sub">${resources.length} employees · ${vendors.length} vendors</div></div></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="openAddResource(${p.id})">+ Add Employee</button>
+          <button class="btn btn-ghost btn-sm" onclick="openAddVendor(${p.id})">+ Add Vendor</button>
+        </div>
       </div>
-      ${resources.length?`<div class="card" style="margin-bottom:20px"><div class="tbl-wrap"><table>
-        <thead><tr><th>Employee</th><th>Dept</th><th>Role</th><th>Allocation</th><th>Bill Rate</th><th>Cost Rate</th><th>Start</th><th>End</th><th></th></tr></thead>
+      ${resources.length?`<div class="card" style="margin-bottom:16px"><div class="tbl-wrap"><table>
+        <thead><tr><th>Employee</th><th>Role</th><th>Dept</th><th>Allocation</th><th>Bill Rate</th><th>Cost Rate</th><th>Period</th><th></th></tr></thead>
         <tbody>${resources.map(r=>`<tr>
           <td><div class="avrow"><div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(r.employee_name)}</div>
-            <div><div class="av-name">${r.employee_name}</div><div class="av-meta">${r.emp_id||''}</div></div></div></td>
-          <td style="font-size:11.5px">${r.department_name||'–'}</td>
+            <div><div class="av-name">${r.employee_name}</div><div class="av-meta">${r.emp_id}</div></div></div></td>
           <td style="font-size:12px">${r.role||'–'}</td>
-          <td class="tmono fw7">${r.allocation_pct||100}%</td>
-          <td class="tmono tg">${r.bill_rate?fmt.money(r.bill_rate)+'/hr':'–'}</td>
-          <td class="tmono">${r.cost_rate?fmt.money(r.cost_rate)+'/hr':'–'}</td>
-          <td class="tmono" style="font-size:11px">${fmt.date(r.start_date)||'–'}</td>
-          <td class="tmono" style="font-size:11px">${fmt.date(r.end_date)||'–'}</td>
-          <td><button class="btn btn-danger btn-xs" onclick="removeProjResource(${r.id})">×</button></td>
-        </tr>`).join('')}</tbody></table></div></div>`
-        :`<div class="empty" style="margin-bottom:20px"><div class="empty-icon">👥</div><div class="empty-title">No team members yet</div></div>`}
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📦</div><div><div class="fsec-title">Vendors</div></div></div>
-        <button class="btn btn-primary btn-sm" onclick="openAddProjVendor(${p.id})">+ Add Vendor</button>
-      </div>
+          <td style="font-size:11.5px;color:var(--txt2)">${r.department_name||'–'}</td>
+          <td><div class="prow"><div class="ptrack" style="width:60px"><div class="pfill" style="width:${r.allocation_pct}%;background:${r.allocation_pct>=80?'var(--green)':'var(--blue)'}"></div></div><span class="pval">${r.allocation_pct}%</span></div></td>
+          <td class="tmono">${r.bill_rate?'₹'+fmt.num(r.bill_rate)+'/hr':'–'}</td>
+          <td class="tmono">${r.cost_rate?'₹'+fmt.num(r.cost_rate)+'/hr':'–'}</td>
+          <td style="font-size:11px;color:var(--txt3)">${fmt.date(r.start_date)||'–'} → ${fmt.date(r.end_date)||'Ongoing'}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="delProjResource(${r.id})">×</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`
+      :`<div class="empty" style="margin-bottom:16px"><div class="empty-icon">👥</div><div class="empty-title">No employees allocated</div></div>`}
+      <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:10px">📦 Vendors (${vendors.length})</div>
       ${vendors.length?`<div class="card"><div class="tbl-wrap"><table>
         <thead><tr><th>Vendor</th><th>Type</th><th>Role</th><th>Contract Value</th><th></th></tr></thead>
         <tbody>${vendors.map(v=>`<tr>
           <td class="tbold">${v.vendor_name}</td><td>${pill(v.vendor_type||'–','p-amber')}</td>
-          <td>${v.role||'–'}</td><td class="tmono">${fmt.money(v.contract_value)}</td>
-          <td><button class="btn btn-danger btn-xs" onclick="removeProjVendor(${v.id})">×</button></td>
-        </tr>`).join('')}</tbody></table></div></div>`
-        :`<div class="empty"><div class="empty-icon">📦</div><div class="empty-title">No vendors on this project</div></div>`}`;
-  } else if(tab==='financials'){
-    const resources=p.resources||[];
-    const tbr=resources.reduce((s,r)=>s+(parseFloat(r.bill_rate)||0),0);
-    const tcr=resources.reduce((s,r)=>s+(parseFloat(r.cost_rate)||0),0);
-    const margin=tbr-tcr;
+          <td style="font-size:12px">${v.role||'–'}</td><td class="tmono">${fmt.money(v.contract_value||0)}</td>
+          <td><button class="btn btn-danger btn-xs" onclick="delProjVendor(${v.id})">×</button></td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>`
+      :`<div style="color:var(--txt3);font-size:12px">No vendors on this project</div>`}`;
+  }
+  else if(tab==='financials'){
+    const margin=p.contract_value>0?Math.round(((p.contract_value-p.budget)/p.contract_value)*100):0;
     panelHtml=`
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Contract Value</div><div class="kpi-value">${fmt.moneyK(p.contract_value||0)}</div></div>
-        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Budget</div><div class="kpi-value">${fmt.moneyK(p.budget||0)}</div></div>
-        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value">${fmt.moneyK(p.estimated_revenue||0)}</div></div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
+        <button class="btn btn-primary btn-sm" onclick="editProjectInline()">✏️ Edit</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Budget</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.budget||0)}</div><div class="kpi-delta">${p.budget_currency||'INR'}</div></div>
+        <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Contract Value</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.contract_value||0)}</div><div class="kpi-delta">${p.billing_type}</div></div>
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value" style="font-size:18px">${fmt.moneyK(p.estimated_revenue||0)}</div></div>
+        <div class="kpi" style="--kc:${margin>=20?'var(--green)':margin>=0?'var(--amber)':'var(--red)'}"><div class="kpi-label">Gross Margin</div><div class="kpi-value" style="font-size:18px">${margin}%</div></div>
       </div>
       <div class="g2">
-        <div>
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-hd"><div class="card-title">💰 Financial Summary</div></div>
-            <div class="card-body"><div class="g2" style="gap:8px 20px">
-              ${field('Billing Type',pill(p.billing_type||'T&M','p-blue'))}${field('Billing Cycle',p.billing_cycle||'Monthly')}
-              ${field('Budget',fmt.money(p.budget)+' '+p.budget_currency)}${field('Contract Value',fmt.money(p.contract_value))}
-              ${field('Est. Revenue',fmt.money(p.estimated_revenue))}
-              ${field('Hours MTD',fmt.num(p.hours_mtd||0)+'h')}${field('Total Hours',fmt.num(p.hours_total||0)+'h')}
-            </div></div>
-          </div>
-          ${p.rate_card?`<div class="card"><div class="card-hd"><div class="card-title">📋 Rate Card</div></div>
-            <div class="card-body"><pre style="font-family:var(--mono);font-size:11.5px;white-space:pre-wrap">${p.rate_card}</pre></div></div>`:''}
+        <div class="card">
+          <div class="card-hd"><div class="card-title">💳 Billing</div></div>
+          <div class="card-body"><div class="g2" style="gap:8px 20px">
+            ${field('Billing Type',p.billing_type)}${field('Billing Cycle',p.billing_cycle)}
+            ${field('PO Number',p.po_number)}${field('SOW Reference',p.sow_reference)}
+            <div style="grid-column:1/-1"><div class="org-field-label">Rate Card</div>
+              <pre style="font-size:12px;color:var(--txt);white-space:pre-wrap;background:var(--s2);padding:10px;border-radius:var(--r);margin:4px 0 0;font-family:var(--mono);line-height:1.5">${p.rate_card||'No rate card defined'}</pre></div>
+          </div></div>
         </div>
         <div>
-          <div class="card">
-            <div class="card-hd"><div class="card-title">📊 Rate Analysis (per hr)</div></div>
-            <div class="card-body">
-              ${field('Total Bill Rate',`<span style="color:var(--green-dk);font-weight:700">${fmt.money(tbr)}/hr</span>`)}
-              ${field('Total Cost Rate',`<span style="color:var(--red);font-weight:700">${fmt.money(tcr)}/hr</span>`)}
-              ${field('Gross Margin',`<span style="color:${margin>=0?'var(--green-dk)':'var(--red)'};font-weight:700">${fmt.money(margin)}/hr (${tbr?Math.round(margin/tbr*100):0}%)</span>`)}
-              <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--bdr)">
-                ${resources.map(r=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bdr)">
-                  <span style="font-size:12px">${r.employee_name}</span>
-                  <span style="font-size:11.5px;color:var(--green-dk)">${r.bill_rate?fmt.money(r.bill_rate)+'/hr':'No rate'}</span>
-                </div>`).join('')}
-              </div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="card-hd"><div class="card-title">📊 P&L Summary</div></div>
+            <div class="card-body" style="font-size:12px">
+              ${[['Contract Value',fmt.money(p.contract_value||0),'var(--txt)'],
+                 ['Budget (Cost)',fmt.money(p.budget||0),'var(--txt)'],
+                 ['Actual Revenue',fmt.money(p.actual_revenue||0),'var(--green)'],
+                 ['Gross Margin',margin+'%',margin>=0?'var(--green)':'var(--red)'],
+                 ['Hours MTD',fmt.num(p.hours_mtd||0)+'h','var(--txt)'],
+                 ['Hours Total',fmt.num(p.hours_total||0)+'h','var(--txt)'],
+              ].map(([l,v,col])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--bdr)">
+                <span style="color:var(--txt2)">${l}</span><span class="tmono fw7" style="color:${col}">${v}</span></div>`).join('')}
             </div>
           </div>
         </div>
       </div>`;
-  } else if(tab==='timeline'){
-    const milestones=p.milestones||[];
+  }
+  else if(tab==='milestones'){
+    const ms=p.milestones||[];
+    const today=new Date().toISOString().split('T')[0];
     panelHtml=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">📅</div><div><div class="fsec-title">Milestones</div></div></div>
+        <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">🏁</div><div><div class="fsec-title">Milestones & Deliverables</div><div class="fsec-sub">${ms.filter(m=>m.status==='Completed').length}/${ms.length} complete</div></div></div>
         <button class="btn btn-primary btn-sm" onclick="openAddMilestone(${p.id})">+ Add Milestone</button>
       </div>
-      <div class="card" style="margin-bottom:16px"><div class="card-body"><div class="g2" style="gap:8px 20px">
-        ${field('Start',fmt.date(p.start_date))}${field('End',fmt.date(p.end_date))}
-        ${field('Go-Live',fmt.date(p.go_live_date))}
-        ${field('Progress',`<div class="prow"><div class="ptrack" style="flex:1;height:10px"><div class="pfill" style="width:${p.completion_pct||0}%;background:var(--blue)"></div></div><span class="pval fw7">${p.completion_pct||0}%</span></div>`)}
-      </div></div></div>
-      ${milestones.length?milestones.map(m=>{
-        const late=m.due_date&&new Date(m.due_date)<new Date()&&m.status!=='Completed';
-        const mc=m.status==='Completed'?'var(--green)':late?'var(--red)':'var(--blue)';
-        return `<div class="card" style="margin-bottom:8px;border-left:3px solid ${mc}">
+      ${ms.length?ms.map(m=>{
+        const ov=m.status!=='Completed'&&m.due_date&&m.due_date<today;
+        const bc=m.status==='Completed'?'var(--green)':ov?'var(--red)':m.status==='In Progress'?'var(--blue)':'var(--bdr2)';
+        return `<div class="card" style="margin-bottom:10px;border-left:4px solid ${bc}">
           <div class="card-hd">
-            <div><div class="card-title">${m.title}</div>
-              <div style="font-size:11px;color:var(--txt3)">Due: ${fmt.date(m.due_date)||'TBD'}${late?' · ⚠️ Overdue':''}</div></div>
-            <div style="display:flex;gap:8px">
-              <span class="pill ${m.status==='Completed'?'p-green':late?'p-red':'p-gray'}">${m.status}</span>
+            <div><div style="font-size:13px;font-weight:700">${m.title}</div>
+              ${m.deliverable?`<div style="font-size:11px;color:var(--txt2)">📦 ${m.deliverable}</div>`:''}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="pill ${m.status==='Completed'?'p-green':ov?'p-red':m.status==='In Progress'?'p-blue':'p-gray'}">${ov&&m.status!=='Completed'?'Overdue':m.status}</span>
+              <span style="font-size:11px;color:var(--txt3);font-family:var(--mono)">${fmt.date(m.due_date)||'No date'}</span>
               <button class="btn btn-ghost btn-xs" onclick="editMilestone(${m.id})">Edit</button>
               <button class="btn btn-danger btn-xs" onclick="removeMilestone(${m.id})">×</button>
             </div>
           </div>
-          ${m.description||m.deliverable?`<div class="card-body" style="font-size:12px;color:var(--txt2)">${m.description||''}${m.deliverable?`<strong> Deliverable:</strong> ${m.deliverable}`:''}</div>`:''}
-        </div>`;
-      }).join(''):`<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">No milestones yet</div><button class="btn btn-primary" style="margin-top:16px" onclick="openAddMilestone(${p.id})">+ Add First Milestone</button></div>`}`;
-  } else if(tab==='risks'){
+          ${m.description?`<div class="card-body" style="font-size:12px;color:var(--txt2);padding-top:0">${m.description}</div>`:''}
+        </div>`;}).join('')
+      :`<div class="empty"><div class="empty-icon">🏁</div><div class="empty-title">No milestones defined</div><button class="btn btn-primary" style="margin-top:16px" onclick="openAddMilestone(${p.id})">+ Add First Milestone</button></div>`}`;
+  }
+  else if(tab==='risks'){
     const risks=p.risks||[];
-    const ic=(v)=>v==='High'?'var(--red)':v==='Medium'?'var(--amber)':'var(--green)';
     panelHtml=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div class="fsec" style="margin:0;border:none;padding:0"><div class="fsec-icon">⚠️</div><div><div class="fsec-title">Risk Register</div><div class="fsec-sub">${risks.filter(r=>r.status==='Open').length} open</div></div></div>
         <button class="btn btn-primary btn-sm" onclick="openAddRisk(${p.id})">+ Log Risk</button>
       </div>
-      ${risks.length?risks.map(r=>`<div class="card" style="margin-bottom:8px">
-        <div class="card-hd">
-          <div><div class="card-title">${r.title}</div>
-            <div style="font-size:11px;color:var(--txt3)">
-              Prob: <span style="color:${ic(r.probability)};font-weight:600">${r.probability}</span> ·
-              Impact: <span style="color:${ic(r.impact)};font-weight:600">${r.impact}</span>
-              ${r.owner_name?' · '+r.owner_name:''}
-            </div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <span class="pill ${r.status==='Open'?'p-red':r.status==='Mitigated'?'p-green':'p-gray'}">${r.status}</span>
-            <button class="btn btn-danger btn-xs" onclick="removeRisk(${r.id})">×</button>
-          </div>
-        </div>
-        ${r.description||r.mitigation?`<div class="card-body" style="font-size:12px;color:var(--txt2)">${r.description?`<p>${r.description}</p>`:''}${r.mitigation?`<p><strong>Mitigation:</strong> ${r.mitigation}</p>`:''}</div>`:''}
-      </div>`).join(''):`<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">No risks logged</div></div>`}`;
-  } else if(tab==='docs'){
+      ${risks.length?`<div class="card"><div class="tbl-wrap"><table>
+        <thead><tr><th>Risk</th><th>Impact</th><th>Probability</th><th>Score</th><th>Status</th><th>Owner</th><th>Mitigation</th><th></th></tr></thead>
+        <tbody>${risks.map(r=>{
+          const score={High:3,Medium:2,Low:1};
+          const s=(score[r.impact]||1)*(score[r.probability]||1);
+          const rc=s>=6?'var(--red)':s>=3?'var(--amber)':'var(--green)';
+          return `<tr>
+            <td><div style="font-size:12px;font-weight:600">${r.title}</div>${r.description?`<div style="font-size:10px;color:var(--txt3)">${r.description}</div>`:''}</td>
+            <td><span class="pill ${r.impact==='High'?'p-red':r.impact==='Medium'?'p-amber':'p-green'}">${r.impact}</span></td>
+            <td><span class="pill ${r.probability==='High'?'p-red':r.probability==='Medium'?'p-amber':'p-green'}">${r.probability}</span></td>
+            <td><span style="font-weight:700;color:${rc};font-family:var(--mono)">${s}/9</span></td>
+            <td>${pill(r.status||'Open','p-amber')}</td>
+            <td style="font-size:12px">${r.owner_name||'–'}</td>
+            <td style="font-size:11px;color:var(--txt2);max-width:180px">${r.mitigation||'–'}</td>
+            <td><button class="btn btn-danger btn-xs" onclick="removeRisk(${r.id})">×</button></td>
+          </tr>`;}).join('')}</tbody>
+      </table></div></div>`
+      :`<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-title">No risks logged</div></div>`}`;
+  }
+  else if(tab==='timesheets'){
+    panelHtml=`
+      <div class="fsec"><div class="fsec-icon">⏱️</div><div><div class="fsec-title">Project Timesheets</div><div class="fsec-sub">Hours logged by all allocated resources</div></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div class="kpi" style="--kc:var(--teal)"><div class="kpi-label">Hours MTD</div><div class="kpi-value">${p.hours_mtd||0}h</div></div>
+        <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total Hours</div><div class="kpi-value">${p.hours_total||0}h</div></div>
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Resources</div><div class="kpi-value">${(p.resources||[]).length}</div></div>
+      </div>
+      <div id="proj-ts-content"><div style="padding:20px;text-align:center;color:var(--txt3)">Loading…</div></div>`;
+    setTimeout(()=>{
+      const empIds=(p.resources||[]).map(r=>r.employee_id);
+      if(!empIds.length){setHtml('proj-ts-content','<div class="empty"><div class="empty-title">No resources allocated to this project</div></div>');return;}
+      Promise.all(empIds.map(eid=>apiFetch(`/api/timesheets?employee_id=${eid}`))).then(results=>{
+        const all=results.flat().filter(Boolean).sort((a,b)=>b.week_ending>a.week_ending?1:-1);
+        const nameMap={};(p.resources||[]).forEach(r=>nameMap[r.employee_id]=r.employee_name);
+        setHtml('proj-ts-content',all.length?`<div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>Week Ending</th><th>Reg Hrs</th><th>OT Hrs</th><th>Total</th><th>Status</th><th>Notes</th></tr></thead>
+          <tbody>${all.slice(0,50).map(t=>`<tr>
+            <td style="font-size:12px;font-weight:600">${nameMap[t.employee_id]||'–'}</td>
+            <td class="tmono">${fmt.date(t.week_ending)}</td>
+            <td class="tmono">${t.regular_hours||0}</td><td class="tmono">${t.overtime_hours||0}</td>
+            <td class="tmono fw7">${t.total_hours||0}h</td>
+            <td>${pill(t.status||'Pending')}</td>
+            <td style="font-size:11px;color:var(--txt2)">${t.notes||'–'}</td>
+          </tr>`).join('')}</tbody>
+        </table></div></div>`:'<div class="empty"><div class="empty-title">No timesheets found</div></div>');
+      });
+    },100);
+  }
+  else if(tab==='docs'){
     const docs=p.documents||[];
     panelHtml=`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -3451,26 +3493,77 @@ function renderProjDetail(p,tab){
         <button class="btn btn-primary btn-sm" onclick="openProjDocUpload()">+ Upload</button>
       </div>
       ${docs.length?`<div class="card"><div class="tbl-wrap"><table>
-        <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th></th></tr></thead>
+        <thead><tr><th>Type</th><th>Document</th><th>Size</th><th>Uploaded</th><th>Actions</th></tr></thead>
         <tbody>${docs.map(d=>`<tr>
-          <td>${pill(d.doc_type,'p-blue')}</td><td class="tbold">${d.doc_name}</td>
-          <td style="font-size:11px">${d.file_size||'–'}</td><td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
-          <td><button class="btn btn-danger btn-xs" onclick="removeProjDoc(${d.id})">×</button></td>
+          <td>${pill(d.doc_type||'General','p-blue')}</td>
+          <td class="tbold">${d.doc_name}</td>
+          <td style="font-size:11px">${d.file_size||'–'}</td>
+          <td style="font-size:11px">${fmt.dt(d.uploaded_at)}</td>
+          <td><div class="tact">
+            <button class="btn btn-danger btn-xs" onclick="removeProjDoc(${d.id})">×</button>
+          </div></td>
         </tr>`).join('')}</tbody>
-      </table></div></div>`:`<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}`;
+      </table></div></div>`
+      :`<div class="empty"><div class="empty-icon">📁</div><div class="empty-title">No documents uploaded</div></div>`}`;
   }
 
+  // Action bar + render
   const actionBar=`<div class="detail-action-bar">
     <button class="btn btn-ghost btn-sm" onclick="closeProjDetail()">← Projects</button>
     <span class="bc-sep">›</span>
     <span style="font-size:13px;font-weight:600;color:var(--txt)">${p.name}</span>
-    ${pill(p.project_type||'T&M','p-blue')}
-    <span class="pill" style="color:${sc};background:${sc}22">${p.status||'Draft'}</span>
+    <span class="pill p-gray" style="font-size:10px;font-family:var(--mono)">${p.project_code||''}</span>
+    <span class="pill ${p.project_type==='T&M'?'p-blue':p.project_type==='Fixed Bid'?'p-purple':'p-teal'}">${p.project_type||'T&M'}</span>
+    <span class="pill ${p.status==='Active'?'p-green':p.status==='On Hold'?'p-amber':p.status==='Completed'?'p-teal':'p-gray'}">${p.status||'Draft'}</span>
     <div style="flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="editProjectInline()">✏️ Edit</button>
+    <button class="btn btn-danger btn-sm" onclick="archProj(${p.id},'${p.name.replace(/'/g,"\\'")}')">Archive</button>
   </div>`;
-  setHtml('proj-detail-view',actionBar+`<div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
-    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">${panelHtml}</div>`);
+
+  setHtml('proj-detail-view', actionBar+`
+    <div class="org-tab-bar" style="margin-bottom:0">${tabBar}</div>
+    <div style="background:var(--surface);border:1px solid var(--bdr);border-top:none;border-radius:0 0 var(--rl) var(--rl);padding:20px">
+      ${panelHtml}
+    </div>`);
+}
+
+// Aliases for inline calls
+async function delProjResource(rid){if(!confirm('Remove resource?'))return;await apiFetch(`/api/projects/resources/${rid}`,{method:'DELETE'});toast('Removed','success');const fresh=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=fresh;renderProjDetail(fresh,'resources');}
+async function delProjVendor(vid){if(!confirm('Remove vendor?'))return;await apiFetch(`/api/projects/vendors/${vid}`,{method:'DELETE'});toast('Removed','success');const fresh=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=fresh;renderProjDetail(fresh,'resources');}
+async function archProj(id,name){if(!confirm(`Archive "${name}"?`))return;await apiFetch(`/api/projects/${id}`,{method:'DELETE'});toast('Archived','success');closeProjDetail();loadProjects();}
+async function openAddResource(pid){
+  const emps=await apiFetch('/api/lookup/employees')||[];
+  const empOpts='<option value="">Select employee…</option>'+emps.map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})${e.job_title?' — '+e.job_title:''}</option>`).join('');
+  _curModalType='add-proj-resource';window._modalProjId=pid;
+  $('m-title').textContent='Add Resource to Project';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="fg"><label class="flabel">Employee *</label><select class="fselect" name="employee_id" required>${empOpts}</select></div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Role on Project</label><input class="finput" name="role" placeholder="Tech Lead, BA, QA…"></div>
+      <div class="fg"><label class="flabel">Allocation %</label><input class="finput" type="number" name="allocation_pct" value="100" min="10" max="100" step="10"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="0"></div>
+      <div class="fg"><label class="flabel">Cost Rate (₹/hr)</label><input class="finput" type="number" name="cost_rate" value="0"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">From</label><input class="finput" type="date" name="start_date"></div>
+      <div class="fg"><label class="flabel">To</label><input class="finput" type="date" name="end_date"></div>
+    </div>
+  </form>`;
+  $('m-submit').textContent='Add Resource';$('overlay').classList.add('open');
+}
+async function openAddVendor(pid){
+  const vs=await apiFetch('/api/vendors')||[];
+  const vOpts='<option value="">Select vendor…</option>'+vs.map(v=>`<option value="${v.id}">${v.name} (${v.vendor_type||'–'})</option>`).join('');
+  _curModalType='add-proj-vendor';window._modalProjId=pid;
+  $('m-title').textContent='Add Vendor to Project';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="fg"><label class="flabel">Vendor *</label><select class="fselect" name="vendor_id" required>${vOpts}</select></div>
+    <div class="fg"><label class="flabel">Role / Scope</label><input class="finput" name="role" placeholder="Sub-contractor, Tool Provider…"></div>
+    <div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" value="0"></div>
+  </form>`;
+  $('m-submit').textContent='Add Vendor';$('overlay').classList.add('open');
 }
 
 async function openProjectForm(){
@@ -3651,7 +3744,7 @@ async function removeMilestone(mid){
   if(!confirm('Remove milestone?'))return;
   await apiFetch(`/api/projects/milestones/${mid}`,{method:'DELETE'});
   toast('Removed','success');
-  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+  if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'milestones');}
 }
 async function openAddRisk(projId){
   const emps=await apiFetch('/api/lookup/employees')||[];
@@ -5637,12 +5730,12 @@ async function submitModal(){
         const projId=data._proj_id;delete data._proj_id;
         await apiFetch(`/api/projects/${projId}/milestones`,{method:'POST',body:JSON.stringify(data)});
         toast('Milestone added!','success');closeModal();
-        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'milestones');}
       } else {
         const id=data._id;delete data._id;
         await apiFetch(`/api/projects/milestones/${id}`,{method:'PUT',body:JSON.stringify(data)});
         toast('Milestone updated!','success');closeModal();
-        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'timeline');}
+        if(window._curProj){const p=await apiFetch(`/api/projects/${window._curProj.id}`);window._curProj=p;renderProjDetail(p,'milestones');}
       }
     }catch(e){toast('Error: '+e.message,'error');}
     return;
