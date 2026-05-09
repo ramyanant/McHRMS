@@ -2931,18 +2931,31 @@ def employee_dashboard():
     """Employee personal dashboard data"""
     uid = g.user.get('employee_id')
     if not uid:
-        # Try to find employee by email
+        # Try multiple matching strategies
         user_email = g.user.get('email','')
-        emp = row1("SELECT id FROM employees WHERE email=%s AND is_active=1",(user_email,))
+        username   = g.user.get('username','')
+        emp = None
+        # 1. Match by official email
+        if user_email:
+            emp = row1("SELECT id FROM employees WHERE email=%s AND is_active=1",(user_email,))
+        # 2. Match by personal email
+        if not emp and user_email:
+            emp = row1("SELECT id FROM employees WHERE personal_email=%s AND is_active=1",(user_email,))
+        # 3. Match username as emp_id (e.g. username='EMP-001')
+        if not emp and username:
+            emp = row1("SELECT id FROM employees WHERE emp_id ILIKE %s AND is_active=1",(username,))
+        # 4. Match username against first/last name slug (jagsmamidi → jags mamidi)
+        if not emp and username:
+            # Try first+last name concat, lowercased, no spaces
+            emp = row1("""SELECT id FROM employees WHERE is_active=1
+                AND LOWER(REPLACE(first_name||last_name,' ','')) ILIKE %s""",(username.lower(),))
         if emp:
             uid = emp['id']
-            # Auto-link the user to their employee record
             try:
                 _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(uid,g.user['id']))
-                get_db().commit()
             except: pass
         else:
-            return err("No employee profile linked to this account",403)
+            return err(f"No employee profile linked. Login: {user_email or username}. Ask admin to link your account in Users & Access.",403)
     emp = row1("SELECT * FROM employees WHERE id=%s",(uid,))
     if not emp: return err("Employee not found",404)
     # Pending timesheets
@@ -3095,6 +3108,35 @@ def manager_leaves():
         WHERE e.reporting_manager_id=%s ORDER BY l.created_at DESC""",(uid,))
     return ok(result)
 
+
+@app.route('/api/admin/ensure-user', methods=['POST'])
+@require_auth
+def ensure_employee_user():
+    """Create or update a user account for an employee."""
+    if g.user.get('role_name') not in ('Admin','HR Manager'): return err("Admin/HR only",403)
+    d = request.get_json()
+    emp_id = d.get('employee_id')
+    username = d.get('username','').strip()
+    password = d.get('password','Employee@123')
+    if not emp_id or not username: return err("employee_id and username required")
+    emp = row1("SELECT * FROM employees WHERE id=%s",(emp_id,))
+    if not emp: return err("Employee not found",404)
+    # Get Employee role id
+    emp_role = row1("SELECT id FROM master_user_roles WHERE name='Employee'")
+    if not emp_role: return err("Employee role not configured",500)
+    email = emp.get('email') or f"{username}@mcraan.com"
+    full_name = f"{emp['first_name']} {emp['last_name']}"
+    # Check if user already exists
+    existing = row1("SELECT id FROM users WHERE username=%s OR email=%s",(username,email))
+    if existing:
+        _cur().execute("UPDATE users SET employee_id=%s,is_active=1 WHERE id=%s",(emp_id,existing['id']))
+        return ok({"id":existing['id'],"action":"linked"},"Linked to existing user")
+    # Create new user
+    cur=_cur()
+    cur.execute("INSERT INTO users(username,email,password_hash,role_id,employee_id,full_name,must_change_pwd) VALUES(%s,%s,%s,%s,%s,%s,0) RETURNING id",
+        (username,email,hash_pw(password),emp_role['id'],emp_id,full_name))
+    uid=cur.fetchone()['id']
+    return ok({"id":uid,"username":username,"password":password,"action":"created"},f"User created: {username}",201)
 
 @app.route('/api/admin/link-employees', methods=['POST'])
 @require_auth
