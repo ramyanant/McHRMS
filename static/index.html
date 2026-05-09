@@ -4605,7 +4605,7 @@ async function loadPipeline(){
         <div class="kbody">${cards.length===0?'<div style="font-size:11px;color:var(--txt3);text-align:center;padding:12px">Empty</div>'
           :cards.map(card=>`<div class="kcard">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
-              <div class="kc-name">${card.candidate_name||'–'}</div>
+              <div class="kc-name" style="cursor:pointer;color:var(--blue)" onclick="viewCandidateCard(${card.id},'${(card.candidate_name||'').replace(/'/g,"\\'")}')">${card.candidate_name||'–'}</div>
               ${nextStage?`<button style="font-size:9px;background:var(--green-lt);color:var(--green-dk);border:1px solid var(--green);border-radius:4px;padding:2px 5px;cursor:pointer;flex-shrink:0" onclick="moveCandidate(${card.id},'${nextStage}')">→ ${nextStage}</button>`:''}
             </div>
             <div class="kc-meta">${card.current_title||'–'}</div>
@@ -4625,6 +4625,105 @@ async function loadPipeline(){
 // ═══════════════════════════════════════════════════
 // INTERVIEWS
 // ═══════════════════════════════════════════════════
+// View full candidate details from pipeline card
+async function viewCandidateCard(appId, candName){
+  try{
+    const[a,interviews]=await Promise.all([
+      apiFetch(`/api/applications/${appId}`),
+      apiFetch('/api/interviews')
+    ]);
+    const intForThis=(interviews||[]).filter(i=>i.application_id==appId);
+    _curModalType='view-candidate';
+    $('m-title').textContent=candName;
+    const field=(l,v)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${v?'':' empty'}">${v||'—'}</div></div>`;
+    $('m-body').innerHTML=`
+      <div class="g2" style="margin-bottom:16px">
+        <div>
+          ${field('Current Title',a?.current_title)}
+          ${field('Experience',a?.years_exp?a.years_exp+' years':null)}
+          ${field('Location',a?.location)}
+          ${field('Email',a?.email?`<a href="mailto:${a.email}" style="color:var(--blue)">${a.email}</a>`:null)}
+          ${field('Phone',a?.phone)}
+        </div>
+        <div>
+          ${field('Role Applied',a?.role)}
+          ${field('Current Stage',pill(a?.stage||'Applied'))}
+          ${field('Applied',fmt.date(a?.applied_at))}
+          ${field('Expected Salary',a?.expected_salary?fmt.money(a.expected_salary):null)}
+          ${field('Source',a?.source)}
+        </div>
+      </div>
+      ${a?.skills?`<div class="org-field"><div class="org-field-label">Skills</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${(a.skills||'').split(',').filter(Boolean).map(s=>`<span class="pill p-green">${s.trim()}</span>`).join('')}</div></div>`:''}
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--bdr)">
+        <div style="font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">Interview History</div>
+        ${intForThis.length?`<table><thead><tr><th>Round</th><th>Format</th><th>Scheduled</th><th>Scorecard</th><th>Decision</th></tr></thead>
+          <tbody>${intForThis.map(i=>`<tr>
+            <td style="font-size:12px">${i.round}</td>
+            <td>${pill(i.format||'Video','p-blue')}</td>
+            <td class="tmono" style="font-size:11px">${fmt.dt(i.scheduled_at)||'–'}</td>
+            <td>${pill(i.scorecard_status||'Not Started')}</td>
+            <td>${i.decision?pill(i.decision):'-'}</td>
+          </tr>`).join('')}</tbody></table>`
+          :'<div style="color:var(--txt3);font-size:12px">No interviews scheduled yet</div>'}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" onclick="closeModal();openModal('sched-int')" style="font-size:12px">📅 Schedule Interview</button>
+        <button class="btn btn-ghost btn-sm" onclick="moveCandidate(${appId},'Screening')" style="font-size:12px">→ Move to Screening</button>
+        <button class="btn btn-ghost btn-sm" onclick="moveCandidate(${appId},'Technical')" style="font-size:12px">→ Move to Technical</button>
+        <button class="btn btn-ghost btn-sm" onclick="moveCandidate(${appId},'Offer')" style="font-size:12px">→ Offer</button>
+        <button class="btn btn-danger btn-sm" onclick="moveCandidate(${appId},'Rejected')" style="font-size:12px">✗ Reject</button>
+      </div>`;
+    // Hide submit button for view-only modal
+    $('m-submit').style.display='none';
+    $('overlay').classList.add('open');
+  }catch(e){console.error(e);toast('Error loading candidate','error');}
+}
+
+// View full candidate details from kanban card
+async function viewCandidateCard(appId, candName){
+  try{
+    const[a,ints]=await Promise.all([
+      apiFetch(`/api/applications/${appId}`),
+      apiFetch('/api/interviews')
+    ]);
+    const intForThis=(ints||[]).filter(i=>i.application_id==appId);
+    _curModalType='view-candidate';
+    $('m-title').textContent=candName;
+    const field=(l,v)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${v?'':' empty'}">${v||'—'}</div></div>`;
+    $('m-body').innerHTML=`
+      <div class="g2" style="margin-bottom:12px">
+        <div>
+          ${field('Current Title',a?.current_title)}${field('Experience',a?.years_exp?a.years_exp+' yrs':null)}
+          ${field('Email',a?.email?`<a href="mailto:${a.email}" style="color:var(--blue)">${a.email}</a>`:null)}
+          ${field('Phone',a?.phone)}
+        </div>
+        <div>
+          ${field('Role Applied',a?.role)}${field('Stage',pill(a?.stage||'Applied'))}
+          ${field('Applied',fmt.date(a?.applied_at))}${field('Expected Salary',a?.expected_salary?fmt.money(a.expected_salary):null)}
+        </div>
+      </div>
+      ${a?.skills?`<div style="margin-bottom:12px"><div class="org-field-label">Skills</div><div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">${(a.skills||'').split(',').filter(Boolean).map(s=>`<span class="pill p-green">${s.trim()}</span>`).join('')}</div></div>`:''}
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bdr)">
+        <div style="font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Interview History</div>
+        ${intForThis.length?`<table><thead><tr><th>Round</th><th>Scheduled</th><th>Scorecard</th><th>Decision</th><th></th></tr></thead>
+          <tbody>${intForThis.map(i=>`<tr>
+            <td style="font-size:12px">${i.round}</td>
+            <td class="tmono" style="font-size:11px">${fmt.dt(i.scheduled_at)||'–'}</td>
+            <td>${pill(i.scorecard_status||'Not Started')}</td>
+            <td>${i.decision?pill(i.decision):'-'}</td>
+            <td><button class="btn btn-ghost btn-xs" onclick="closeModal();openScorecard(${i.id},'${(i.candidate_name||candName).replace(/'/g,"\\'")}','${i.round}','${i.scorecard_status||'Not Started'}','${i.decision||''}','${(i.notes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}','${i.interviewer||''}')">Edit</button></td>
+          </tr>`).join('')}</tbody></table>`
+          :'<div style="color:var(--txt3);font-size:12px">No interviews yet</div>'}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">
+        ${['Screening','Technical','Offer','Placed'].map(s=>`<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="closeModal();moveCandidate(${appId},'${s}')">→ ${s}</button>`).join('')}
+        <button class="btn btn-danger btn-sm" style="font-size:11px" onclick="closeModal();moveCandidate(${appId},'Rejected')">✗ Reject</button>
+      </div>`;
+    $('m-submit').style.display='none';
+    $('overlay').classList.add('open');
+  }catch(e){console.error(e);toast('Error loading candidate','error');}
+}
+
 // Move candidate to next stage
 async function moveCandidate(appId,stage){
   if(stage==='Rejected'&&!confirm('Reject this candidate?'))return;
@@ -4680,20 +4779,97 @@ async function loadInterviews(){
       <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Awaiting Feedback</div><div class="kpi-value">${summary.awaiting_feedback||0}</div></div>
       <div class="kpi" style="--kc:var(--red)"><div class="kpi-label">Overdue Feedback</div><div class="kpi-value">${summary.overdue_feedback||0}</div></div>
       <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Pass Rate</div><div class="kpi-value">44%</div></div>`);
-    setHtml('int-tbl',rows.length===0?'<div class="empty"><div class="empty-title">No interviews scheduled</div></div>'
-      :`<table><thead><tr><th>Candidate</th><th>Role</th><th>Round</th><th>Format</th><th>Interviewer(s)</th><th>Scheduled</th><th>Scorecard</th><th>Decision</th><th>Actions</th></tr></thead><tbody>${
+    const decColor={'Pass':'p-green','Fail':'p-red','No Show':'p-gray','Hold':'p-amber','Offer':'p-teal'};
+    setHtml('int-tbl',rows.length===0?'<div class="empty"><div class="empty-icon">🎙️</div><div class="empty-title">No interviews scheduled</div></div>'
+      :`<table><thead><tr>
+          <th>Candidate</th><th>Role</th><th>Round</th><th>Format</th>
+          <th>Interviewer(s)</th><th>Scheduled</th><th>Scorecard</th><th>Decision</th><th>Actions</th>
+        </tr></thead><tbody>${
       rows.map(i=>`<tr>
-        <td>${av(i.candidate_name)}</td>
-        <td style="font-size:11.5px">${i.role||'–'}</td>
+        <td><div class="avrow">
+          <div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(i.candidate_name)}</div>
+          <div class="av-name">${i.candidate_name||'–'}</div>
+        </div></td>
+        <td style="font-size:11.5px;color:var(--txt2)">${i.role||'–'}</td>
         <td style="font-size:11.5px">${i.round}</td>
         <td>${pill(i.format||'Video','p-blue')}</td>
         <td style="font-size:11px;color:var(--txt2)">${i.interviewer||'–'}</td>
         <td class="tmono" style="font-size:11px">${i.scheduled_at?fmt.dt(i.scheduled_at):'–'}</td>
-        <td>${pill(i.scorecard_status||'Not Started')}</td>
-        <td>${i.decision?pill(i.decision,'p-green'):'<span style="color:var(--txt3)">–</span>'}</td>
-        <td><button class="btn btn-ghost btn-xs" onclick="toast('Opening scorecard…','info')">Scorecard</button></td>
+        <td><span class="pill ${i.scorecard_status==='Completed'?'p-green':i.scorecard_status==='In Progress'?'p-blue':'p-gray'}">${i.scorecard_status||'Not Started'}</span></td>
+        <td>${i.decision?`<span class="pill ${decColor[i.decision]||'p-gray'}">${i.decision}</span>`:'<span style="color:var(--txt3)">Pending</span>'}</td>
+        <td><div class="tact">
+          <button class="btn btn-primary btn-xs" onclick="openScorecard(${i.id},'${(i.candidate_name||'').replace(/'/g,"\'")}','${i.round}','${i.scorecard_status||'Not Started'}','${i.decision||''}','${(i.notes||'').replace(/'/g,"\'").replace(/
+/g,' ')}','${i.interviewer||''}')">✏️ Update</button>
+          ${i.decision==='Pass'?`<button class="btn btn-ghost btn-xs" onclick="advanceCandFromInt(${i.id})">→ Advance</button>`:''}
+        </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
+}
+
+// ── Scorecard / Interview update modal ──────────────────────────────────────
+function openScorecard(iid, candName, round, scorecard, decision, notes, interviewer){
+  _curModalType='update-interview';
+  window._editIntId=iid;
+  $('m-title').textContent=`${round} — ${candName}`;
+  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="fg"><label class="flabel">Interviewer(s)</label>
+      <input class="finput" name="interviewer" value="${interviewer}" placeholder="Ravi Kumar, Priya M."></div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Scorecard Status</label>
+        <select class="fselect" name="scorecard_status">
+          ${so(['Not Started','In Progress','Completed','Overdue'],scorecard)}
+        </select></div>
+      <div class="fg"><label class="flabel">Decision</label>
+        <select class="fselect" name="decision">
+          <option value="">Pending…</option>
+          ${so(['Pass','Fail','Hold','No Show','Offer'],decision)}
+        </select></div>
+    </div>
+    <div class="fg"><label class="flabel">Feedback / Notes</label>
+      <textarea class="ftextarea" name="notes" rows="4" placeholder="Technical assessment, strengths, concerns…">${notes}</textarea></div>
+  </form>`;
+  $('m-submit').textContent='Save Scorecard';
+  $('overlay').classList.add('open');
+}
+
+async function advanceCandFromInt(iid){
+  // Find the application for this interview and move to next stage
+  try{
+    const i=await apiFetch(`/api/interviews/${iid}`)||{};
+    if(!i.application_id){toast('Cannot find application','error');return;}
+    await apiFetch(`/api/applications/${i.application_id}`,{method:'PUT',body:JSON.stringify({stage:'Offer'})});
+    toast('Candidate moved to Offer stage!','success');
+    loadInterviews();loadPipeline();
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+// ── Scorecard / Interview update modal ───────────────────────────────────────
+function openScorecard(iid, candName, round, scorecard, decision, notes, interviewer){
+  _curModalType='update-interview';
+  window._editIntId=iid;
+  $('m-title').textContent=`${round} — ${candName}`;
+  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="fg"><label class="flabel">Interviewer(s)</label>
+      <input class="finput" name="interviewer" value="${interviewer}" placeholder="Ravi Kumar, Priya M."></div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Scorecard Status</label>
+        <select class="fselect" name="scorecard_status">
+          ${so(['Not Started','In Progress','Completed','Overdue'],scorecard)}
+        </select></div>
+      <div class="fg"><label class="flabel">Decision</label>
+        <select class="fselect" name="decision">
+          <option value="">Pending…</option>
+          ${so(['Pass','Fail','Hold','No Show','Offer'],decision)}
+        </select></div>
+    </div>
+    <div class="fg"><label class="flabel">Feedback / Notes</label>
+      <textarea class="ftextarea" name="notes" rows="4" placeholder="Technical assessment, strengths, concerns…">${notes}</textarea></div>
+  </form>`;
+  $('m-submit').textContent='Save Scorecard';
+  $('m-submit').style.display='';
+  $('overlay').classList.add('open');
 }
 
 // ═══════════════════════════════════════════════════
@@ -5950,6 +6126,26 @@ async function submitModal(){
       await apiFetch(`/api/projects/${pid}/risks`,{method:'POST',body:JSON.stringify(data)});
       toast('Risk added!','success');closeModal();
       const fresh=await apiFetch(`/api/projects/${pid}`);window._curProj=fresh;renderProjDetail(fresh,'risks');
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='update-interview'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    try{
+      await apiFetch(`/api/interviews/${window._editIntId}`,{method:'PUT',body:JSON.stringify(data)});
+      toast('Interview updated!','success');closeModal();loadInterviews();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='update-interview'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    try{
+      await apiFetch(`/api/interviews/${window._editIntId}`,{method:'PUT',body:JSON.stringify(data)});
+      toast('Interview updated!','success');closeModal();loadInterviews();
     }catch(e){toast('Error: '+e.message,'error');}
     return;
   }

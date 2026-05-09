@@ -115,6 +115,7 @@ CREATE TABLE onboarding (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REF
 CREATE TABLE onboarding_tasks (id SERIAL PRIMARY KEY, onboarding_id INTEGER NOT NULL REFERENCES onboarding(id), task_name TEXT NOT NULL, category TEXT DEFAULT 'General', is_complete INTEGER DEFAULT 0, due_date DATE, completed_at TIMESTAMP);
 CREATE TABLE invoices (id SERIAL PRIMARY KEY, invoice_number TEXT UNIQUE NOT NULL, client_id INTEGER NOT NULL REFERENCES clients(id), contract_type_id INTEGER REFERENCES master_contract_types(id), period_start DATE, period_end DATE, amount NUMERIC NOT NULL DEFAULT 0, tax_amount NUMERIC DEFAULT 0, total_amount NUMERIC GENERATED ALWAYS AS (amount + tax_amount) STORED, due_date DATE, paid_date DATE, payment_ref TEXT, notes TEXT, po_number TEXT, status_id INTEGER REFERENCES master_invoice_statuses(id), created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE invoice_line_items (id SERIAL PRIMARY KEY, invoice_id INTEGER NOT NULL REFERENCES invoices(id), employee_id INTEGER REFERENCES employees(id), description TEXT, hours NUMERIC DEFAULT 0, rate NUMERIC DEFAULT 0, amount NUMERIC GENERATED ALWAYS AS (hours * rate) STORED);
+CREATE TABLE employee_leaves (id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES employees(id), leave_type TEXT NOT NULL DEFAULT 'Annual', from_date DATE NOT NULL, to_date DATE NOT NULL, days NUMERIC DEFAULT 1, reason TEXT, status TEXT DEFAULT 'Pending', rejection_reason TEXT, applied_at TIMESTAMP DEFAULT NOW(), approved_by INTEGER REFERENCES employees(id), approved_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());
 CREATE TABLE activity_log (id SERIAL PRIMARY KEY, entity_type TEXT NOT NULL, entity_id INTEGER, action TEXT NOT NULL, description TEXT, user_id INTEGER REFERENCES users(id), user_name TEXT DEFAULT 'System', created_at TIMESTAMP DEFAULT NOW())""")
         log.append("All tables created")
         _seed_pg(cur)
@@ -1799,9 +1800,20 @@ def int_summary():
                "overdue_feedback":_scalar("SELECT COUNT(*) as c FROM interviews WHERE scorecard_status='Overdue'"),
                "no_shows":_scalar("SELECT COUNT(*) as c FROM interviews WHERE decision='No Show'")})
 
-@app.route('/api/interviews/<int:iid>', methods=['PUT'])
+@app.route('/api/interviews/<int:iid>', methods=['GET','PUT'])
 @require_auth
 def int_detail(iid):
+    db=get_db()
+    if request.method=='GET':
+        r=row1("""SELECT i.*,f.name as format,
+            c.first_name||' '||c.last_name as candidate_name,
+            r.title as role,a.id as application_id
+            FROM interviews i JOIN applications a ON a.id=i.application_id
+            JOIN candidates c ON c.id=a.candidate_id
+            JOIN job_requisitions r ON r.id=a.requisition_id
+            LEFT JOIN master_interview_formats f ON f.id=i.format_id
+            WHERE i.id=%s""",(iid,))
+        return ok(r) if r else err("Not found",404)
     d=request.get_json()
     _cur().execute("UPDATE interviews SET scorecard_status=%s,decision=%s,notes=%s,interviewer=%s,scheduled_at=%s WHERE id=%s",
         (d.get('scorecard_status'),d.get('decision'),d.get('notes'),d.get('interviewer'),d.get('scheduled_at'),iid))
@@ -2875,6 +2887,32 @@ def employee_dashboard():
         'recent_timesheets': recent_ts,
         'pending_leaves': pending_leaves,
     })
+
+def _ensure_employee_leaves_table():
+    """Create employee_leaves if it doesn't exist — safe to run every startup."""
+    try:
+        conn=get_pg_conn(); conn.autocommit=True; cur=conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS employee_leaves (
+            id SERIAL PRIMARY KEY,
+            employee_id INTEGER NOT NULL REFERENCES employees(id),
+            leave_type TEXT NOT NULL DEFAULT 'Annual',
+            from_date DATE NOT NULL,
+            to_date DATE NOT NULL,
+            days NUMERIC DEFAULT 1,
+            reason TEXT,
+            status TEXT DEFAULT 'Pending',
+            rejection_reason TEXT,
+            applied_at TIMESTAMP DEFAULT NOW(),
+            approved_by INTEGER REFERENCES employees(id),
+            approved_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )""")
+        conn.close()
+    except Exception as ex:
+        print(f"employee_leaves migration: {ex}", flush=True)
+
+_ensure_employee_leaves_table()
 
 @app.route('/api/employee/leaves', methods=['GET','POST'])
 @require_auth
