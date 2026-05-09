@@ -1688,16 +1688,45 @@ def req_detail(rid):
         (d['title'],d.get('priority_id'),d.get('status','Active'),d.get('location'),d.get('comp_min'),d.get('comp_max'),d.get('description'),d.get('recruiter_id'),rid))
     get_db().commit(); return ok(msg="Updated")
 
+# ── Candidate-Project mapping bootstrap ────────────────────────────────────────
+def _bootstrap_candidate_projects():
+    try:
+        conn=get_pg_conn(); conn.autocommit=True; cur=conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS candidate_projects (
+            id SERIAL PRIMARY KEY,
+            candidate_id INTEGER NOT NULL REFERENCES candidates(id),
+            project_id INTEGER NOT NULL REFERENCES projects(id),
+            role TEXT,
+            notes TEXT,
+            status TEXT DEFAULT 'Active',
+            mapped_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(candidate_id,project_id)
+        )""")
+        conn.close()
+    except Exception as ex:
+        print(f"candidate_projects bootstrap: {ex}", flush=True)
+
+_bootstrap_candidate_projects()
+
 @app.route('/api/candidates', methods=['GET','POST'])
 @require_auth
 def candidates():
     db=get_db()
     if request.method=='GET':
         q=request.args.get('q','')
-        sql="SELECT c.*,s.name as source FROM candidates c LEFT JOIN master_candidate_sources s ON s.id=c.source_id WHERE c.is_active=1"
+        sql="""SELECT c.*,s.name as source,
+        COUNT(DISTINCT a.id) as application_count,
+        COUNT(DISTINCT cp.id) as project_count,
+        MAX(st.name) as latest_stage
+        FROM candidates c
+        LEFT JOIN master_candidate_sources s ON s.id=c.source_id
+        LEFT JOIN applications a ON a.candidate_id=c.id
+        LEFT JOIN master_application_stages st ON st.id=a.stage_id
+        LEFT JOIN candidate_projects cp ON cp.candidate_id=c.id
+        WHERE c.is_active=1"""
         params=[]
         if q: sql+=" AND (c.first_name||' '||c.last_name LIKE %s OR c.current_title LIKE %s)"; params=[f'%{q}%']*2
-        sql+=" ORDER BY c.created_at DESC"
+        sql+=" GROUP BY c.id,s.name ORDER BY c.created_at DESC"
         return ok(rows(sql,params))
     d=request.get_json()
     if not d.get('first_name') or not d.get('last_name'): return err("first_name and last_name required")
@@ -1715,6 +1744,69 @@ def candidates():
         app_id=cur.fetchone()['id']
     get_db().commit()
     return ok({"id":cid,"application_id":app_id},"Candidate added",201)
+
+@app.route('/api/candidates/<int:cid>', methods=['GET','PUT','DELETE'])
+@require_auth
+def candidate_detail(cid):
+    db=get_db()
+    if request.method=='DELETE':
+        _cur().execute("UPDATE candidates SET is_active=0 WHERE id=%s",(cid,))
+        return ok(msg="Removed")
+    if request.method=='PUT':
+        d=request.get_json()
+        _cur().execute("""UPDATE candidates SET first_name=%s,last_name=%s,email=%s,phone=%s,
+            location=%s,current_title=%s,years_exp=%s,linkedin_url=%s,skills=%s WHERE id=%s""",
+            (d.get('first_name'),d.get('last_name'),d.get('email'),d.get('phone'),
+             d.get('location'),d.get('current_title'),d.get('years_exp') or 0,
+             d.get('linkedin_url'),d.get('skills'),cid))
+        return ok(msg="Updated")
+    # GET — full candidate with applications + project mappings
+    c=row1("""SELECT c.*,s.name as source FROM candidates c
+        LEFT JOIN master_candidate_sources s ON s.id=c.source_id
+        WHERE c.id=%s""", (cid,))
+    if not c: return err("Not found",404)
+    apps=rows("""SELECT a.*,r.title as role,r.location,cl.name as client_name,
+        st.name as stage FROM applications a
+        JOIN job_requisitions r ON r.id=a.requisition_id
+        LEFT JOIN clients cl ON cl.id=r.client_id
+        LEFT JOIN master_application_stages st ON st.id=a.stage_id
+        WHERE a.candidate_id=%s ORDER BY a.applied_at DESC""", (cid,))
+    proj_maps=rows("""SELECT cp.*,p.name as project_name,p.project_code,p.status as project_status,
+        c2.name as client_name FROM candidate_projects cp
+        JOIN projects p ON p.id=cp.project_id
+        LEFT JOIN clients c2 ON c2.id=p.client_id
+        WHERE cp.candidate_id=%s""", (cid,))
+    c['applications']=apps
+    c['project_mappings']=proj_maps
+    return ok(c)
+
+@app.route('/api/candidates/<int:cid>/projects', methods=['GET','POST'])
+@require_auth
+def candidate_projects(cid):
+    if request.method=='GET':
+        return ok(rows("""SELECT cp.*,p.name as project_name,p.project_code,
+            p.status as project_status,c.name as client_name
+            FROM candidate_projects cp JOIN projects p ON p.id=cp.project_id
+            LEFT JOIN clients c ON c.id=p.client_id
+            WHERE cp.candidate_id=%s ORDER BY cp.mapped_at DESC""", (cid,)))
+    d=request.get_json()
+    if not d.get('project_id'): return err("project_id required")
+    try:
+        cur=_cur()
+        cur.execute("""INSERT INTO candidate_projects(candidate_id,project_id,role,notes,status)
+            VALUES(%s,%s,%s,%s,%s) ON CONFLICT(candidate_id,project_id) DO UPDATE
+            SET role=EXCLUDED.role,notes=EXCLUDED.notes,status=EXCLUDED.status
+            RETURNING id""",
+            (cid,d['project_id'],d.get('role'),d.get('notes'),'Active'))
+        return ok({"id":cur.fetchone()['id']},"Mapped",201)
+    except Exception as ex:
+        return err(str(ex))
+
+@app.route('/api/candidate-projects/<int:mid>', methods=['DELETE'])
+@require_auth
+def candidate_project_remove(mid):
+    _cur().execute("DELETE FROM candidate_projects WHERE id=%s",(mid,))
+    return ok(msg="Removed")
 
 @app.route('/api/pipeline')
 @require_auth
@@ -2841,7 +2933,7 @@ def employee_dashboard():
     if not uid:
         # Try to find employee by email
         user_email = g.user.get('email','')
-        emp = row1("SELECT id FROM employees WHERE email=%s AND status='Active'",(user_email,))
+        emp = row1("SELECT id FROM employees WHERE email=%s AND is_active=1",(user_email,))
         if emp:
             uid = emp['id']
             # Auto-link the user to their employee record
