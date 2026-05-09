@@ -1916,18 +1916,79 @@ def int_detail(iid):
 def onboarding():
     db=get_db()
     if request.method=='GET':
-        return ok(rows("""SELECT o.*,t.name as template,e.first_name||' '||e.last_name as employee_name,e.emp_id,e.job_title,c.name as client_name
+        # Get employee-based onboardings
+        emp_rows=rows("""SELECT o.*,t.name as template,'employee' as person_type,
+            e.first_name||' '||e.last_name as person_name,e.emp_id,e.job_title,c.name as client_name
             FROM onboarding o JOIN employees e ON e.id=o.employee_id
             LEFT JOIN master_onboarding_templates t ON t.id=o.template_id
-            LEFT JOIN clients c ON c.id=e.client_id WHERE o.status!='Completed' ORDER BY o.start_date"""))
+            LEFT JOIN clients c ON c.id=e.client_id WHERE o.status!='Completed'""")
+        # Get candidate-based onboardings
+        cand_rows=rows("""SELECT o.*,t.name as template,'candidate' as person_type,
+            ca.first_name||' '||ca.last_name as person_name,NULL as emp_id,
+            r.title as job_title,cl.name as client_name
+            FROM onboarding o JOIN candidates ca ON ca.id=o.candidate_id
+            LEFT JOIN master_onboarding_templates t ON t.id=o.template_id
+            LEFT JOIN applications ap ON ap.candidate_id=ca.id
+            LEFT JOIN job_requisitions r ON r.id=ap.requisition_id
+            LEFT JOIN clients cl ON cl.id=r.client_id
+            WHERE o.status!='Completed' AND o.candidate_id IS NOT NULL""")
+        all_rows=emp_rows+cand_rows
+        all_rows.sort(key=lambda x:(x.get('start_date') or ''))
+        return ok(all_rows)
     d=request.get_json()
-    tpl=row1("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard FTE'),))
-    cur=_cur();cur.execute("INSERT INTO onboarding(employee_id,template_id,buddy_name,start_date,equipment) VALUES(%s,%s,%s,%s,%s)",
-        (d['employee_id'],tpl['id'] if tpl else None,d.get('buddy_name'),d.get('start_date'),d.get('equipment')))
+    # Support both employee_id and candidate_id
+    emp_id=d.get('employee_id') or None
+    cand_id=d.get('candidate_id') or None
+    if not emp_id and not cand_id: return err("Either employee_id or candidate_id is required")
+    # Migrate: add candidate_id column if missing
+    try:
+        _cur().execute("ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id)")
+        _cur().execute("ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'")
+        _cur().execute("ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS vendor_id INTEGER")
+        _cur().execute("ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS notes TEXT")
+    except: pass
+    tpl=row1("SELECT id FROM master_onboarding_templates WHERE name=%s",(d.get('template','Standard'),))
+    cur=_cur()
+    cur.execute("""INSERT INTO onboarding(employee_id,candidate_id,vendor_id,person_type,
+        template_id,buddy_name,start_date,equipment,notes)
+        VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (emp_id,cand_id,d.get('vendor_id'),d.get('person_type','employee' if emp_id else 'candidate'),
+         tpl['id'] if tpl else None,d.get('buddy_name'),d.get('start_date'),
+         d.get('equipment'),d.get('notes')))
     ob_id=cur.fetchone()['id']
-    for task,cat in [("Offer letter signed","Documents"),("Background check","Compliance"),("Equipment provisioned","IT"),("System access setup","IT"),("Benefits enrollment","HR"),("Day 1 orientation","HR"),("30-day check-in","HR")]:
+    # Create default tasks based on template type
+    person_type=d.get('person_type','employee' if emp_id else 'candidate')
+    if person_type=='candidate':
+        tasks=[("Offer letter signed","Documents"),("Background check","Compliance"),
+               ("Equipment provisioned","IT"),("System access setup","IT"),
+               ("ID/Badge issued","Admin"),("Day 1 orientation","HR"),("30-day check-in","HR")]
+    elif person_type=='vendor':
+        tasks=[("NDA signed","Documents"),("System access setup","IT"),
+               ("Tool/access provisioned","IT"),("Project briefing","HR"),("30-day check-in","HR")]
+    else:
+        tasks=[("Offer letter signed","Documents"),("Background check","Compliance"),
+               ("Equipment provisioned","IT"),("System access setup","IT"),
+               ("Benefits enrollment","HR"),("Day 1 orientation","HR"),
+               ("30-day check-in","HR"),("60-day review","HR"),("90-day review","HR")]
+    for task,cat in tasks:
         _cur().execute("INSERT INTO onboarding_tasks(onboarding_id,task_name,category) VALUES(%s,%s,%s)",(ob_id,task,cat))
-    get_db().commit(); return ok({"id":ob_id},"Started",201)
+    get_db().commit(); return ok({"id":ob_id},"Onboarding started",201)
+
+@app.route('/api/onboarding/placed-candidates', methods=['GET'])
+@require_auth
+def placed_candidates():
+    """Candidates who are Placed/Offer stage — ready to onboard."""
+    return ok(rows("""SELECT DISTINCT c.id as candidate_id,
+        c.first_name||' '||c.last_name as name,c.email,c.phone,
+        c.current_title,r.title as role,cl.name as client_name,
+        st.name as stage,a.id as application_id
+        FROM applications a JOIN candidates c ON c.id=a.candidate_id
+        JOIN job_requisitions r ON r.id=a.requisition_id
+        LEFT JOIN clients cl ON cl.id=r.client_id
+        LEFT JOIN master_application_stages st ON st.id=a.stage_id
+        WHERE st.name IN ('Placed','Offer')
+        AND NOT EXISTS (SELECT 1 FROM onboarding o WHERE o.candidate_id=c.id)
+        ORDER BY c.first_name"""))
 
 @app.route('/api/onboarding/<int:oid>', methods=['GET','PUT'])
 @require_auth
@@ -2944,11 +3005,21 @@ def employee_dashboard():
         # 3. Match username as emp_id (e.g. username='EMP-001')
         if not emp and username:
             emp = row1("SELECT id FROM employees WHERE emp_id ILIKE %s AND is_active=1",(username,))
-        # 4. Match username against first/last name slug (jagsmamidi → jags mamidi)
+        # 4. Match username against first/last name slug (jagsmamidi → jagsmamidi)
         if not emp and username:
-            # Try first+last name concat, lowercased, no spaces
             emp = row1("""SELECT id FROM employees WHERE is_active=1
                 AND LOWER(REPLACE(first_name||last_name,' ','')) ILIKE %s""",(username.lower(),))
+        # 5. Match "firstname.lastname" pattern (shreyas.iyer → shreyas + iyer)
+        if not emp and username and '.' in username:
+            parts=username.split('.',1)
+            emp=row1("""SELECT id FROM employees WHERE is_active=1
+                AND LOWER(first_name) ILIKE %s AND LOWER(last_name) ILIKE %s""",
+                (parts[0].lower(),parts[1].lower()))
+        # 6. Match by first name alone (last resort, only if unique)
+        if not emp and username:
+            matches=rows("""SELECT id FROM employees WHERE is_active=1
+                AND LOWER(first_name) ILIKE %s""",(username.split('.')[0].lower()+'%',))
+            if len(matches)==1: emp=matches[0]
         if emp:
             uid = emp['id']
             try:

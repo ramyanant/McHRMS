@@ -973,6 +973,7 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
     <div class="portal-tab" id="ptab-timesheets" onclick="switchPortalTab('timesheets',this)">⏱️ Timesheets</div>
     <div class="portal-tab" id="ptab-leaves" onclick="switchPortalTab('leaves',this)">🏖️ Leave</div>
     <div class="portal-tab" id="ptab-payslips" onclick="switchPortalTab('payslips',this)">💰 Payslips</div>
+    <div class="portal-tab" id="ptab-jobs" onclick="switchPortalTab('jobs',this)">📋 Open Jobs</div>
     <div class="portal-tab" id="ptab-team" onclick="switchPortalTab('team',this)" style="display:none">👥 My Team</div>
   </div>
   <!-- PORTAL CONTENT -->
@@ -4415,6 +4416,33 @@ function renderExperience(ex){
       <td><button class="btn btn-danger btn-xs" onclick="deleteExp(${e.id})">Remove</button></td></tr>`).join('')}</tbody></table>`;
 }
 
+async function createEmpLogin(empId, empName, suggestedUsername){
+  const username=prompt(`Create login for ${empName}\n\nEnter username:`, suggestedUsername||'');
+  if(!username)return;
+  const pwd=prompt('Enter password (leave blank for default Test@123):','');
+  const password=pwd||'Test@123';
+  try{
+    const res=await apiFetch('/api/admin/ensure-user',{method:'POST',
+      body:JSON.stringify({employee_id:empId,username,password})});
+    if(res){
+      toast(`✅ Login created!\nUsername: ${res.username||username}\nPassword: ${password}\nEmployee can now log in.`,'success');
+    }
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
+async function createEmpLogin(empId,empName,suggestedUsername){
+  const username=prompt(`Create login for ${empName}\n\nUsername:`,suggestedUsername||'');
+  if(!username)return;
+  const pwd=prompt('Password (blank = Test@123):','');
+  const password=pwd||'Test@123';
+  try{
+    const res=await apiFetch('/api/admin/ensure-user',{method:'POST',body:JSON.stringify({employee_id:empId,username,password})});
+    if(res){
+      toast(`✅ Login ready!\nUsername: ${res.username||username}\nPassword: ${password}`,'success');
+    }
+  }catch(e){toast('Error: '+e.message,'error');}
+}
+
 async function termEmp(id,name){
   if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
   await apiFetch(`/api/employees/${id}`,{method:'DELETE'});
@@ -5156,10 +5184,29 @@ function openScorecard(iid, candName, round, scorecard, decision, notes, intervi
 // ═══════════════════════════════════════════════════
 // ONBOARDING
 // ═══════════════════════════════════════════════════
+function onbPersonTypeChange(type){
+  const er=$('onb-emp-row'),cr=$('onb-cand-row'),vr=$('onb-vend-row');
+  if(er)er.style.display=type==='employee'?'':'none';
+  if(cr)cr.style.display=type==='candidate'?'':'none';
+  if(vr)vr.style.display=type==='vendor'?'':'none';
+  // Clear non-selected fields
+  if(type!=='employee'){const el=$('onb-emp-sel');if(el)el.value='';}
+  if(type!=='candidate'){const el=$('onb-cand-sel');if(el)el.value='';}
+}
+
+function onbPersonTypeChange(type){
+  const er=$('onb-emp-row'),cr=$('onb-cand-row'),vr=$('onb-vend-row');
+  if(er)er.style.display=type==='employee'?'':'none';
+  if(cr)cr.style.display=type==='candidate'?'':'none';
+  if(vr)vr.style.display=type==='vendor'?'':'none';
+  if(type!=='employee'){const el=$('onb-emp-sel');if(el)el.value='';}
+  if(type!=='candidate'){const el=$('onb-cand-sel');if(el)el.value='';}
+}
+
 async function loadOnboarding(){
   try{
     const rows=await apiFetch('/api/onboarding');
-    setHtml('onb-tbl',rows.length===0?'<div class="empty"><div class="empty-icon">🚀</div><div class="empty-title">No active onboardees</div></div>'
+    setHtml('onb-tbl',rows.length===0?'<div class="empty"><div class="empty-icon">🚀</div><div class="empty-title">No active onboarding — click + Start Onboarding to begin</div></div>'
       :`<table><thead><tr><th>Employee</th><th>Role</th><th>Client</th><th>Start Date</th><th>Progress</th><th>30-Day</th><th>60-Day</th><th>90-Day</th><th>Status</th></tr></thead><tbody>${
       rows.map(o=>`<tr>
         <td>${avFull(o.employee_name,o.emp_id||'')}</td>
@@ -5801,13 +5848,36 @@ const modalDefs={
   'start-onb':{
     title:'Start Onboarding',submit:'Start Onboarding',endpoint:'/api/onboarding',method:'POST',
     fields:()=>`
-      <div class="fg"><label class="flabel">Employee *</label><select class="fselect" name="employee_id" id="onb-emp-sel"><option value="">Loading…</option></select></div>
-      <div class="frow"><div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div><div class="fg"><label class="flabel">Template</label><select class="fselect" name="template">${masterOpts('onboarding-templates','name','name')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Buddy / Mentor</label><input class="finput" name="buddy_name" placeholder="Ravi Kumar"></div><div class="fg"><label class="flabel">Equipment</label><input class="finput" name="equipment" placeholder="MacBook Pro, Dell Latitude, BYOD…"></div></div>`,
+      <div class="fg" style="background:var(--blue-dim);border:1px solid rgba(26,107,181,.2);border-radius:var(--r);padding:10px 14px;font-size:12px;color:var(--blue);margin-bottom:12px">
+        ℹ️ You can onboard Employees, Candidates (offer accepted), or Vendor contacts — no need to create an employee record first.
+      </div>
+      <div class="fg"><label class="flabel">Person Type</label>
+        <select class="fselect" name="person_type" onchange="onbPersonTypeChange(this.value)">
+          <option value="employee">Employee (existing)</option>
+          <option value="candidate">Candidate (offer accepted / placed)</option>
+          <option value="vendor">Vendor Contact</option>
+        </select></div>
+      <div class="fg" id="onb-emp-row"><label class="flabel">Select Employee</label><select class="fselect" name="employee_id" id="onb-emp-sel"><option value="">Loading…</option></select></div>
+      <div class="fg" id="onb-cand-row" style="display:none"><label class="flabel">Select Candidate</label><select class="fselect" name="candidate_id" id="onb-cand-sel"><option value="">Loading…</option></select></div>
+      <div class="fg" id="onb-vend-row" style="display:none"><label class="flabel">Vendor Contact Name</label><input class="finput" name="vendor_name" placeholder="Full name of vendor contact"></div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+        <div class="fg"><label class="flabel">Template</label>
+          <select class="fselect" name="template"><option value="Standard">Standard</option><option value="Standard FTE">Standard FTE</option><option value="Contractor">Contractor</option><option value="Executive">Executive</option></select></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label class="flabel">Buddy / Mentor</label><input class="finput" name="buddy_name" placeholder="Ravi Kumar"></div>
+        <div class="fg"><label class="flabel">Equipment</label><input class="finput" name="equipment" placeholder="MacBook Pro, BYOD…"></div>
+      </div>
+      <div class="fg"><label class="flabel">Notes</label><textarea class="ftextarea" name="notes" rows="2" placeholder="Any special instructions…"></textarea></div>`,
     afterSave:loadOnboarding,
     afterRender:async()=>{
-      const emps=await apiFetch('/api/lookup/employees');
-      const el=$('onb-emp-sel');if(el)el.innerHTML=(emps||[]).map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})</option>`).join('');
+      const[emps,placed]=await Promise.all([
+        apiFetch('/api/lookup/employees'),
+        apiFetch('/api/onboarding/placed-candidates')
+      ]);
+      const es=$('onb-emp-sel');if(es)es.innerHTML='<option value="">Select employee…</option>'+(emps||[]).map(e=>`<option value="${e.id}">${e.name} (${e.emp_id})</option>`).join('');
+      const cs=$('onb-cand-sel');if(cs)cs.innerHTML='<option value="">Select candidate…</option>'+(placed||[]).map(p=>`<option value="${p.candidate_id}">${p.name} — ${p.role||p.current_title||'–'} [${p.stage}]</option>`).join('');
     }
   },
   'create-inv':{
@@ -6488,6 +6558,30 @@ async function submitModal(){
     }catch(e){toast('Error: '+e.message,'error');}
     return;
   }
+  if(_curModalType==='portal-add-cand'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    data.requisition_id=window._portalReqId;
+    if(data.years_exp)data.years_exp=parseFloat(data.years_exp)||0;
+    try{
+      await apiFetch('/api/candidates',{method:'POST',body:JSON.stringify(data)});
+      toast('Candidate submitted to pipeline!','success');closeModal();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
+  if(_curModalType==='portal-add-cand'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    data.requisition_id=window._portalReqId;
+    if(data.years_exp)data.years_exp=parseFloat(data.years_exp)||0;
+    try{
+      await apiFetch('/api/candidates',{method:'POST',body:JSON.stringify(data)});
+      toast('Candidate submitted to pipeline!','success');closeModal();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
   if(_curModalType==='portal-pwd-change'){
     const form=$('mform');if(!form)return;
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v;});
@@ -6872,6 +6966,7 @@ async function renderPortalTab(tab){
     else if(tab==='timesheets')await renderPortalTimesheets();
     else if(tab==='leaves')await renderPortalLeaves();
     else if(tab==='payslips')await renderPortalPayslips();
+    else if(tab==='jobs')await renderPortalJobs();
     else if(tab==='team')await renderPortalTeam();
   }catch(e){
     if(el)el.innerHTML=`<div class="empty"><div class="empty-title">Error loading ${tab}</div><div class="empty-sub">${e.message}</div></div>`;
@@ -7171,6 +7266,117 @@ async function renderPortalPayslips(){
         </tr>`).join('')}</tbody></table></div></div>`
       :`<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div><div class="empty-sub">Payslips appear here after each payroll run</div></div>`}`);
   }catch(e){setHtml('portal-content',`<div class="empty"><div class="empty-title">Could not load payslips</div><div class="empty-sub">${e.message}</div></div>`);}
+}
+
+async function renderPortalJobs(){
+  try{
+    const reqs=await apiFetch('/api/requisitions?status=Active')||[];
+    setHtml('portal-content',`
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px">📋 Open Job Requisitions (${reqs.length})</div>
+      ${reqs.length?`<div class="g2">${reqs.map(r=>`
+        <div class="card">
+          <div class="card-hd">
+            <div>
+              <div class="card-title">${r.title}</div>
+              <div style="font-size:11px;color:var(--txt2);margin-top:2px">${r.client_name||'Internal'} · ${r.location||'–'}</div>
+            </div>
+            ${pill(r.status||'Active','p-green')}
+          </div>
+          <div class="card-body" style="padding:10px 16px">
+            <div class="g2" style="gap:6px 16px">
+              <div><div class="org-field-label">Type</div><div style="font-size:12px">${r.engagement_type||'–'}</div></div>
+              <div><div class="org-field-label">Comp Range</div><div style="font-size:12px;font-family:var(--mono)">${r.comp_min?fmt.money(r.comp_min)+' – '+fmt.money(r.comp_max):'–'}</div></div>
+              <div><div class="org-field-label">Target Start</div><div style="font-size:12px">${fmt.date(r.target_start)||'ASAP'}</div></div>
+              <div><div class="org-field-label">Openings</div><div style="font-size:12px;font-weight:600">${r.headcount||1}</div></div>
+            </div>
+            ${r.description?`<div style="font-size:12px;color:var(--txt2);margin-top:8px;line-height:1.5">${r.description.substring(0,200)}${r.description.length>200?'…':''}</div>`:''}
+            <div style="margin-top:10px">
+              <button class="btn btn-primary btn-xs" onclick="portalAddCandidateToReq(${r.id},'${(r.title||'').replace(/'/g,\"\\\"\")}')">+ Submit a Candidate</button>
+            </div>
+          </div>
+        </div>`).join('')}</div>`
+      :`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No open requisitions</div></div>`}`);
+  }catch(e){
+    setHtml('portal-content',`<div class="empty"><div class="empty-title">Could not load jobs</div><div class="empty-sub">${e.message}</div></div>`);
+  }
+}
+
+function portalAddCandidateToReq(reqId, reqTitle){
+  _curModalType='portal-add-cand';
+  window._portalReqId=reqId;
+  $('m-title').textContent='Submit Candidate for: '+reqTitle;
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="frow">
+      <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required></div>
+      <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email"></div>
+      <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title"></div>
+      <div class="fg"><label class="flabel">Years Experience</label><input class="finput" type="number" name="years_exp" value="0"></div>
+    </div>
+    <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills"></div>
+  </form>`;
+  $('m-submit').textContent='Submit Candidate';
+  $('m-submit').style.display='';
+  $('overlay').classList.add('open');
+}
+
+async function renderPortalJobs(){
+  try{
+    const reqs=await apiFetch('/api/requisitions?status=Active')||[];
+    setHtml('portal-content',`
+      <div style="font-size:18px;font-weight:700;margin-bottom:16px">📋 Open Job Requisitions (${reqs.length})</div>
+      ${reqs.length?`<div class="g2">${reqs.map(r=>`
+        <div class="card">
+          <div class="card-hd">
+            <div>
+              <div class="card-title">${r.title}</div>
+              <div style="font-size:11px;color:var(--txt2);margin-top:2px">${r.client_name||'Internal'} · ${r.location||'–'}</div>
+            </div>${pill(r.status||'Active','p-green')}
+          </div>
+          <div class="card-body" style="padding:10px 16px">
+            <div class="g2" style="gap:6px 16px;margin-bottom:8px">
+              <div><div class="org-field-label">Type</div><div style="font-size:12px">${r.engagement_type||'–'}</div></div>
+              <div><div class="org-field-label">Comp</div><div style="font-size:12px;font-family:var(--mono)">${r.comp_min?fmt.money(r.comp_min)+' – '+fmt.money(r.comp_max):'–'}</div></div>
+              <div><div class="org-field-label">Openings</div><div style="font-size:12px;font-weight:600">${r.headcount||1}</div></div>
+              <div><div class="org-field-label">Target Start</div><div style="font-size:12px">${fmt.date(r.target_start)||'ASAP'}</div></div>
+            </div>
+            ${r.description?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:8px">${r.description.substring(0,180)}${r.description.length>180?'…':''}</div>`:''}
+            <button class="btn btn-primary btn-xs" onclick="portalAddCandidateToReq(${r.id},'${(r.title||'').replace(/'/g,\`\\\\'\`)}')">+ Submit a Candidate</button>
+          </div>
+        </div>`).join('')}</div>`
+      :`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No open requisitions right now</div></div>`}`);
+  }catch(e){
+    setHtml('portal-content',`<div class="empty"><div class="empty-title">Could not load jobs</div><div class="empty-sub">${e.message}</div></div>`);
+  }
+}
+
+function portalAddCandidateToReq(reqId,reqTitle){
+  _curModalType='portal-add-cand';
+  window._portalReqId=reqId;
+  $('m-title').textContent='Submit Candidate — '+reqTitle;
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="frow">
+      <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required></div>
+      <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email"></div>
+      <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone"></div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title"></div>
+      <div class="fg"><label class="flabel">Years Exp</label><input class="finput" type="number" name="years_exp" value="0"></div>
+    </div>
+    <div class="fg"><label class="flabel">Skills (comma-separated)</label><input class="finput" name="skills"></div>
+  </form>`;
+  $('m-submit').textContent='Submit Candidate';
+  $('m-submit').style.display='';
+  $('overlay').classList.add('open');
 }
 
 async function renderPortalTeam(){
