@@ -4711,7 +4711,7 @@ async function viewCandidateCard(appId, candName){
             <td class="tmono" style="font-size:11px">${fmt.dt(i.scheduled_at)||'–'}</td>
             <td>${pill(i.scorecard_status||'Not Started')}</td>
             <td>${i.decision?pill(i.decision):'-'}</td>
-            <td><button class="btn btn-ghost btn-xs" onclick="closeModal();openScorecard(${i.id},'${(i.candidate_name||candName).replace(/'/g,"\\'")}','${i.round}','${i.scorecard_status||'Not Started'}','${i.decision||''}','${(i.notes||'').replace(/'/g,"\\'").replace(/\n/g,' ')}','${i.interviewer||''}')">Edit</button></td>
+            <td><button class="btn btn-ghost btn-xs" onclick="openScorecardById(${i.id})">Edit</button></td>
           </tr>`).join('')}</tbody></table>`
           :'<div style="color:var(--txt3);font-size:12px">No interviews yet</div>'}
       </div>
@@ -4798,40 +4798,14 @@ async function loadInterviews(){
         <td><span class="pill ${i.scorecard_status==='Completed'?'p-green':i.scorecard_status==='In Progress'?'p-blue':'p-gray'}">${i.scorecard_status||'Not Started'}</span></td>
         <td>${i.decision?`<span class="pill ${decColor[i.decision]||'p-gray'}">${i.decision}</span>`:'<span style="color:var(--txt3)">Pending</span>'}</td>
         <td><div class="tact">
-          <button class="btn btn-primary btn-xs" onclick="openScorecard(${i.id},'${(i.candidate_name||'').replace(/'/g,"\'")}','${i.round}','${i.scorecard_status||'Not Started'}','${i.decision||''}','${(i.notes||'').replace(/'/g,"\'").replace(/
-/g,' ')}','${i.interviewer||''}')">✏️ Update</button>
+          <button class="btn btn-primary btn-xs" onclick="openScorecardById(${i.id})">✏️ Update</button>
           ${i.decision==='Pass'?`<button class="btn btn-ghost btn-xs" onclick="advanceCandFromInt(${i.id})">→ Advance</button>`:''}
         </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
 }
 
-// ── Scorecard / Interview update modal ──────────────────────────────────────
-function openScorecard(iid, candName, round, scorecard, decision, notes, interviewer){
-  _curModalType='update-interview';
-  window._editIntId=iid;
-  $('m-title').textContent=`${round} — ${candName}`;
-  const so=(arr,val)=>arr.map(v=>`<option${v===val?' selected':''}>${v}</option>`).join('');
-  $('m-body').innerHTML=`<form id="mform">
-    <div class="fg"><label class="flabel">Interviewer(s)</label>
-      <input class="finput" name="interviewer" value="${interviewer}" placeholder="Ravi Kumar, Priya M."></div>
-    <div class="frow">
-      <div class="fg"><label class="flabel">Scorecard Status</label>
-        <select class="fselect" name="scorecard_status">
-          ${so(['Not Started','In Progress','Completed','Overdue'],scorecard)}
-        </select></div>
-      <div class="fg"><label class="flabel">Decision</label>
-        <select class="fselect" name="decision">
-          <option value="">Pending…</option>
-          ${so(['Pass','Fail','Hold','No Show','Offer'],decision)}
-        </select></div>
-    </div>
-    <div class="fg"><label class="flabel">Feedback / Notes</label>
-      <textarea class="ftextarea" name="notes" rows="4" placeholder="Technical assessment, strengths, concerns…">${notes}</textarea></div>
-  </form>`;
-  $('m-submit').textContent='Save Scorecard';
-  $('overlay').classList.add('open');
-}
+
 
 async function advanceCandFromInt(iid){
   // Find the application for this interview and move to next stage
@@ -4842,6 +4816,17 @@ async function advanceCandFromInt(iid){
     toast('Candidate moved to Offer stage!','success');
     loadInterviews();loadPipeline();
   }catch(e){toast('Error: '+e.message,'error');}
+}
+
+
+// Safe opener - fetches interview data from API instead of passing in onclick attrs
+async function openScorecardById(iid){
+  try{
+    const i=await apiFetch(`/api/interviews/${iid}`);
+    if(!i)return toast('Interview not found','error');
+    openScorecard(i.id, i.candidate_name||'Candidate', i.round||'Interview',
+      i.scorecard_status||'Not Started', i.decision||'', i.notes||'', i.interviewer||'');
+  }catch(e){toast('Error loading interview: '+e.message,'error');}
 }
 
 // ── Scorecard / Interview update modal ───────────────────────────────────────
