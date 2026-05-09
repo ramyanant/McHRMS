@@ -1752,21 +1752,9 @@ def add_application():
 @app.route('/api/requisitions/<int:rid>/applications', methods=['GET'])
 @require_auth
 def req_applications(rid):
-    """Get all candidates who applied to a specific requisition."""    return ok(rows("""SELECT a.id as application_id, a.stage_id,
-        c.id as candidate_id, c.first_name||' '||c.last_name as candidate_name,
-        c.current_title, c.years_exp, c.skills, s.name as stage
-        FROM applications a
-        JOIN candidates c ON c.id=a.candidate_id
-        LEFT JOIN master_application_stages s ON s.id=a.stage_id
-        WHERE a.requisition_id=%s ORDER BY a.applied_at DESC""",(rid,)))
-
-@app.route('/api/requisitions/<int:rid>/applications', methods=['GET'])
-@require_auth
-def req_applications(rid):
-    """Get all candidates applied to a requisition — for interview scheduling."""
     return ok(rows("""SELECT a.id as application_id, a.stage_id,
         c.id as candidate_id, c.first_name||' '||c.last_name as candidate_name,
-        c.current_title, c.years_exp, s.name as stage
+        c.current_title, c.years_exp, c.skills, s.name as stage
         FROM applications a
         JOIN candidates c ON c.id=a.candidate_id
         LEFT JOIN master_application_stages s ON s.id=a.stage_id
@@ -2198,15 +2186,6 @@ def project_risk_detail(rid):
             (d['title'],d.get('description'),d.get('probability','Medium'),d.get('impact','Medium'),d.get('mitigation'),d.get('status','Open'),d.get('owner_id'),rid))
     get_db().commit(); return ok(msg="Done")
 
-# Project Documents
-@app.route('/api/projects/<int:pid>/documents', methods=['POST'])
-@require_auth
-def project_upload_doc(pid):
-    d=request.get_json()
-    cur=_cur()
-    cur.execute("INSERT INTO project_documents(project_id,doc_type,doc_name,file_data,file_size,mime_type) VALUES(%s,%s,%s,%s,%s,%s) RETURNING id",
-        (pid,d.get('doc_type','Other'),d['doc_name'],d.get('file_data'),d.get('file_size'),d.get('mime_type')))
-    get_db().commit(); return ok({"id":cur.fetchone()['id']},"Uploaded",201)
 
 
 # ═══════════════════════════════════════════════════

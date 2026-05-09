@@ -5521,12 +5521,12 @@ const modalDefs={
   },
   'upload-proj-doc':{
     title:'Upload Project Document',submit:'Upload',
-    endpoint:()=>`/api/projects/${window._uploadProjId||window._curProj?.id}/documents`,method:'POST',
+    endpoint:()=>`/api/projects/${window._uploadProjId||window._curProj?.id}/documents`,method:'POST',wide:false,
     fields:()=>`
       <div class="fg"><label class="flabel">Document Type</label>
         <select class="fselect" name="doc_type"><option>SOW</option><option>Contract</option><option>Requirements</option><option>Design</option><option>Test Plan</option><option>Meeting Notes</option><option>Invoice</option><option>Other</option></select></div>
       <div class="fg"><label class="flabel">Document Name</label><input class="finput" name="doc_name" placeholder="e.g. SOW_v2.pdf"></div>
-      <div class="fg"><label class="flabel">File</label><input class="finput" type="file" id="proj-doc-file" onchange="loadFileData('proj','proj-doc-file')"></div>`,
+      <div class="fg"><label class="flabel">File</label><input type="file" id="proj-doc-file" onchange="loadFileData('proj','proj-doc-file')" style="font-size:12px;color:var(--txt2);width:100%"></div>`,
     afterSave:async()=>{const pid=window._uploadProjId||window._curProj?.id;if(pid){const fresh=await apiFetch('/api/projects/'+pid);window._curProj=fresh;renderProjDetail(fresh,'docs');}}
   },
   'upload-emp-doc':{
@@ -5845,11 +5845,18 @@ async function submitModal(){
     const form=$('mform');if(!form)return;
     if(!form.checkValidity()){form.reportValidity();return;}
     const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
-    const projId=data._proj_id;delete data._proj_id;
-    if(window._projDocData){data.file_data=window._projDocData.data;data.file_size=window._projDocData.size;data.mime_type=window._projDocData.mime;delete window._projDocData;}
-    try{await apiFetch(`/api/projects/${projId}/documents`,{method:'POST',body:JSON.stringify(data)});
-      toast('Uploaded!','success');closeModal();
-      if(window._curProj){const p=await apiFetch(`/api/projects/${projId}`);window._curProj=p;renderProjDetail(p,'docs');}
+    const pid=window._uploadProjId||window._curProj?.id;
+    // Pick up file data from either storage path
+    const fd=window._fileData&&window._fileData['proj'];
+    const legacy=window._projDocData;
+    if(fd){data.file_data=fd.data;data.file_size=fd.size;data.mime_type=fd.mime;if(!data.doc_name)data.doc_name=fd.name;delete window._fileData['proj'];}
+    else if(legacy){data.file_data=legacy.data;data.file_size=legacy.size;data.mime_type=legacy.mime;delete window._projDocData;}
+    if(!data.file_data){toast('Please select a file to upload','error');return;}
+    if(!data.doc_name){toast('Please enter a document name','error');return;}
+    try{
+      await apiFetch(`/api/projects/${pid}/documents`,{method:'POST',body:JSON.stringify(data)});
+      toast('Document uploaded!','success');closeModal();
+      if(window._curProj){const p=await apiFetch(`/api/projects/${pid}`);window._curProj=p;renderProjDetail(p,'docs');}
     }catch(e){toast('Error: '+e.message,'error');}
     return;
   }
@@ -6002,7 +6009,7 @@ async function submitModal(){
     else if(data[f]==='')data[f]=null;
   });
   // Handle file uploads — attach base64 data if present
-  const fileKeys=['emp','cli','vend','org'];
+  const fileKeys=['emp','cli','vend','org','proj'];
   fileKeys.forEach(k=>{
     if(window._fileData[k]){
       data.file_data=window._fileData[k].data;
@@ -6012,7 +6019,7 @@ async function submitModal(){
       delete window._fileData[k];
     }
   });
-  const fileModalTypes=['add-org-doc','upload-emp-doc','upload-client-doc','upload-vendor-doc'];
+  const fileModalTypes=['add-org-doc','upload-emp-doc','upload-client-doc','upload-vendor-doc','upload-proj-doc'];
   if(fileModalTypes.includes(_curModalType)&&!data.file_data){
     toast('Please wait for the file to finish loading, then try again','error');return;
   }
