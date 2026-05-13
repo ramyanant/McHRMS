@@ -3080,7 +3080,7 @@ def employee_dashboard():
             return err(f"No employee profile linked. Login: {user_email or username}. Ask admin to link your account in Users & Access.",403)
     emp = row1("""SELECT e.*,
         d.name as department_name,
-        COALESCE(c.name, e.client_name_override) as client_name,
+        c.name as client_name,
         et.name as employment_type,
         rm.first_name||' '||rm.last_name as reporting_manager_name,
         bu.name as business_unit_name
