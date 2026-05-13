@@ -2986,6 +2986,31 @@ def employee_self_profile():
         db.commit()
     return ok(msg="Profile updated")
 
+@app.route('/api/admin/reset-emp-password')
+def reset_emp_password():
+    """Reset any employee user password - no auth needed"""
+    username = request.args.get('u','')
+    password = request.args.get('p','')
+    secret   = request.args.get('s','')
+    if secret != 'reset2026':
+        return '<h3>Add ?s=reset2026&u=USERNAME&p=NEWPASSWORD</h3>', 200
+    if not username or not password:
+        return '<h3>Missing u= or p= parameters</h3>', 200
+    try:
+        import hashlib
+        conn = get_pg_conn(); conn.autocommit = True
+        cur  = conn.cursor()
+        cur.execute("UPDATE users SET password_hash=%s WHERE username=%s RETURNING id",
+                   (hashlib.sha256(password.encode()).hexdigest(), username))
+        row = cur.fetchone()
+        conn.close()
+        if row:
+            return f'<h2 style="color:green;font-family:sans-serif;padding:40px">✅ Password for "{username}" reset to "{password}".<br><br><a href="/">Log in →</a></h2>', 200
+        else:
+            return f'<h2 style="color:red;font-family:sans-serif;padding:40px">User "{username}" not found.</h2>', 404
+    except Exception as ex:
+        return f'<h2 style="color:red">Error: {ex}</h2>', 500
+
 @app.route('/api/employee/dashboard-test')
 def employee_dashboard_test():
     """No-auth test - shows what dashboard returns for any linked user"""
@@ -3053,7 +3078,19 @@ def employee_dashboard():
             except: pass
         else:
             return err(f"No employee profile linked. Login: {user_email or username}. Ask admin to link your account in Users & Access.",403)
-    emp = row1("SELECT * FROM employees WHERE id=%s",(uid,))
+    emp = row1("""SELECT e.*,
+        d.name as department_name,
+        COALESCE(c.name, e.client_name_override) as client_name,
+        et.name as employment_type,
+        rm.first_name||' '||rm.last_name as reporting_manager_name,
+        bu.name as business_unit_name
+        FROM employees e
+        LEFT JOIN departments d ON d.id=e.department_id
+        LEFT JOIN clients c ON c.id=e.client_id
+        LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
+        LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
+        LEFT JOIN business_units bu ON bu.id=e.business_unit_id
+        WHERE e.id=%s""",(uid,))
     if not emp: return err("Employee not found",404)
     # Pending timesheets
     pending_ts = _scalar("SELECT COUNT(*) FROM timesheets t LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE t.employee_id=%s AND (s.name='Pending' OR (t.status_id IS NULL))",(uid,))
