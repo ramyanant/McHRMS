@@ -1188,16 +1188,22 @@ function afterLogin(){
     if(u.role==='Employee'){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
-      window._isManager = false; // will be set after checking team
-      // Show ONLY the portal nav
-      document.querySelectorAll('.ni').forEach(el=>el.style.display='none');
+      window._isManager = false;
+      // Hide ALL sidebar navigation - employee sees portal only
+      document.querySelectorAll('.ni,.nav-section-label,.nav-group').forEach(el=>el.style.display='none');
+      // Hide sidebar section headers
+      document.querySelectorAll('.sb-section').forEach(el=>el.style.display='none');
+      // Hide top bar Add New button
+      document.querySelectorAll('.tb-add,.tb-right button,[class*="btn-primary"]').forEach(b=>b.style.display='none');
+      // Hide search bar
+      const srch=document.querySelector('.tb-search');
+      if(srch)srch.style.display='none';
+      // Show only portal nav item
       const portalNav=document.getElementById('nav-emp-portal');
-      if(portalNav) portalNav.style.display='flex';
-      // Also ensure sidebar logo stays visible
+      if(portalNav)portalNav.style.display='flex';
+      // Keep logo visible
       const slogo=document.querySelector('.slogo');
-      if(slogo) slogo.style.display='flex';
-      // Hide Add New button
-      document.querySelectorAll('.tb-add,.tb-right button').forEach(b=>b.style.display='none');
+      if(slogo)slogo.style.display='flex';
       nav('emp-portal');
     } else {
       window._isEmployee = false;

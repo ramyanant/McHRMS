@@ -3080,16 +3080,16 @@ def employee_dashboard():
             return err(f"No employee profile linked. Login: {user_email or username}. Ask admin to link your account in Users & Access.",403)
     emp = row1("""SELECT e.*,
         d.name as department_name,
+        b.name as business_unit_name,
         c.name as client_name,
         et.name as employment_type,
-        rm.first_name||' '||rm.last_name as reporting_manager_name,
-        bu.name as business_unit_name
+        rm.first_name||' '||rm.last_name as reporting_manager_name
         FROM employees e
         LEFT JOIN departments d ON d.id=e.department_id
+        LEFT JOIN business_units b ON b.id=d.business_unit_id
         LEFT JOIN clients c ON c.id=e.client_id
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
         LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
-        LEFT JOIN business_units bu ON bu.id=e.business_unit_id
         WHERE e.id=%s""",(uid,))
     if not emp: return err("Employee not found",404)
     # Pending timesheets
