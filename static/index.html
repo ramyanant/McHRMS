@@ -1189,21 +1189,16 @@ function afterLogin(){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
       window._isManager = false;
-      // Hide ALL sidebar navigation - employee sees portal only
-      document.querySelectorAll('.ni,.nav-section-label,.nav-group').forEach(el=>el.style.display='none');
-      // Hide sidebar section headers
-      document.querySelectorAll('.sb-section').forEach(el=>el.style.display='none');
-      // Hide top bar Add New button
-      document.querySelectorAll('.tb-add,.tb-right button,[class*="btn-primary"]').forEach(b=>b.style.display='none');
-      // Hide search bar
-      const srch=document.querySelector('.tb-search');
-      if(srch)srch.style.display='none';
-      // Show only portal nav item
-      const portalNav=document.getElementById('nav-emp-portal');
-      if(portalNav)portalNav.style.display='flex';
-      // Keep logo visible
-      const slogo=document.querySelector('.slogo');
-      if(slogo)slogo.style.display='flex';
+      // Hide all nav items except portal
+      document.querySelectorAll('.ni').forEach(el=>{
+        el.style.display = el.id==='nav-emp-portal' ? 'flex' : 'none';
+      });
+      // Hide section labels in sidebar
+      document.querySelectorAll('.sb-section-label').forEach(el=>el.style.display='none');
+      // Hide topbar buttons (but not inside portal content)
+      const addBtn=document.querySelector('.tb-right>.btn-primary');
+      if(addBtn)addBtn.style.display='none';
+      // Navigate to portal
       nav('emp-portal');
     } else {
       window._isEmployee = false;
