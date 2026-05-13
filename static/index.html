@@ -1219,7 +1219,7 @@ async function doLogout(){
   $('lu').value='';$('lp').value='';
 }
 
-async async function tryAutoLogin(){
+async function tryAutoLogin(){
   const token=localStorage.getItem('mch_token'),userStr=localStorage.getItem('mch_user');
   if(!token||!userStr)return;
   _auth={token,user:JSON.parse(userStr)};
@@ -4663,6 +4663,178 @@ async function closeReq(id){if(!confirm('Close this requisition?'))return;await 
 // ═══════════════════════════════════════════════════
 // SOURCING
 // ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════
+// CANDIDATES MODULE
+// ═══════════════════════════════════════
+async function loadCandidates(){
+  const q=($('cand-search')?.value||'').trim();
+  const stage=$('cand-stage-filter')?.value||'';
+  try{
+    const all=await apiFetch('/api/candidates'+(q?'?q='+encodeURIComponent(q):''))||[];
+    const emailCount={};
+    all.forEach(x=>{if(x.email)emailCount[x.email]=(emailCount[x.email]||0)+1;});
+    const rows=stage?all.filter(x=>x.latest_stage===stage):all;
+    setHtml('cand-kpis',`
+      <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Total</div><div class="kpi-value">${all.length}</div></div>
+      <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Active</div><div class="kpi-value">${all.filter(x=>x.latest_stage&&!['Placed','Rejected'].includes(x.latest_stage)).length}</div></div>
+      <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Placed</div><div class="kpi-value">${all.filter(x=>x.latest_stage==='Placed').length}</div></div>
+      <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">New</div><div class="kpi-value">${all.filter(x=>!x.latest_stage).length}</div></div>`);
+    if(!rows.length){
+      setHtml('cand-tbl','<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No candidates found</div></div>');
+      return;
+    }
+    setHtml('cand-tbl',`<table><thead><tr>
+      <th class="sortable" onclick="sortTable('cand-tbl',0,this)">Candidate ↕</th>
+      <th class="sortable" onclick="sortTable('cand-tbl',1,this)">Title ↕</th>
+      <th class="sortable" onclick="sortTable('cand-tbl',2,this)">Location ↕</th>
+      <th class="sortable" onclick="sortTable('cand-tbl',3,this)">Exp ↕</th>
+      <th>Skills</th>
+      <th class="sortable" onclick="sortTable('cand-tbl',5,this)">Stage ↕</th>
+      <th>Actions</th>
+    </tr></thead><tbody>${rows.map(x=>{
+      const name=((x.first_name||'')+' '+(x.last_name||'')).trim();
+      const av=fmt.avCol(name);
+      const stC={'Placed':'p-green','Rejected':'p-red','Offer':'p-amber','Technical':'p-purple','Screening':'p-blue','Applied':'p-teal'}[x.latest_stage]||'p-gray';
+      const skills=(x.skills||'').split(',').slice(0,3).filter(Boolean).map(s=>`<span class="pill p-green" style="font-size:9px">${s.trim()}</span>`).join('');
+      const isDupe=emailCount[x.email]>1;
+      return `<tr style="cursor:pointer" onclick="openCandDetail(${x.id})">
+        <td><div class="avrow">
+          <div class="av ${av}" style="width:30px;height:30px;font-size:10px;flex-shrink:0">${fmt.ini(name)}</div>
+          <div><div class="av-name">${name}${isDupe?'<span class="pill p-red" style="font-size:9px;margin-left:4px">Dup</span>':''}</div>
+          <div class="av-meta">${x.email||'–'}</div></div></div></td>
+        <td style="font-size:12px">${x.current_title||'–'}</td>
+        <td style="font-size:12px;color:var(--txt2)">${x.location||'–'}</td>
+        <td class="tmono" style="font-size:12px">${x.years_exp||0}y</td>
+        <td><div style="display:flex;gap:3px;flex-wrap:wrap">${skills}</div></td>
+        <td>${x.latest_stage?`<span class="pill ${stC}">${x.latest_stage}</span>`:'<span class="pill p-gray">New</span>'}</td>
+        <td onclick="event.stopPropagation()"><div class="tact">
+          <button class="btn btn-ghost btn-xs" onclick="openCandDetail(${x.id})">Open</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteCandRow(${x.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">Del</button>
+        </div></td>
+      </tr>`;
+    }).join('')}</tbody></table>`);
+  }catch(e){
+    console.error(e);
+    setHtml('cand-tbl','<div class="empty"><div class="empty-title">Error loading candidates</div></div>');
+  }
+}
+
+async function openCandDetail(id){
+  const cand=await apiFetch('/api/candidates/'+id);
+  if(!cand)return;
+  window._curCand=cand;
+  const name=((cand.first_name||'')+' '+(cand.last_name||'')).trim();
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub');
+  if(tbTitle)tbTitle.innerHTML=`<span class="bc-item bc-link" onclick="closeCandDetail()">Candidates</span><span class="bc-sep">›</span><span class="bc-item bc-current">${name}</span>`;
+  if(tbSub)tbSub.style.display='none';
+  const lv=$('cand-list-view'),dv=$('cand-detail-view');
+  if(lv)lv.style.display='none';
+  if(dv)dv.style.display='';
+  const apps=cand.applications||[];
+  const field=(l,v,m)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${m?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
+  const av=fmt.avCol(name);
+  setHtml('cand-detail-view',`
+    <div class="detail-action-bar">
+      <button class="btn btn-ghost btn-sm" onclick="closeCandDetail()">← Candidates</button>
+      <span class="bc-sep">›</span>
+      <span style="font-size:13px;font-weight:600;color:var(--txt)">${name}</span>
+      <span style="font-size:12px;color:var(--txt2)">${cand.current_title||''}</span>
+      <div style="flex:1"></div>
+      <button class="btn btn-primary btn-sm" onclick="submitCandToReq(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">+ Submit to Job</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCandRow(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">Delete</button>
+    </div>
+    <div style="background:linear-gradient(135deg,#2d1b69,#1a0f42);border-radius:var(--rl);padding:24px;margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+      <div class="av" style="width:72px;height:72px;font-size:26px;font-weight:800;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">${fmt.ini(name)}</div>
+      <div style="flex:1">
+        <div style="font-size:22px;font-weight:900">${name}</div>
+        <div style="opacity:.85;font-size:13px;margin-top:4px">${cand.current_title||'–'} · ${cand.years_exp||0} yrs exp</div>
+        <div style="opacity:.7;font-size:12px;margin-top:2px">📍 ${cand.location||'–'}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">${(cand.skills||'').split(',').filter(Boolean).map(s=>`<span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:20px;font-size:10px">${s.trim()}</span>`).join('')}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="card"><div class="card-hd"><div class="card-title">📞 Contact</div></div><div class="card-body">
+        ${field('Email',cand.email?`<a href="mailto:${cand.email}" style="color:var(--blue)">${cand.email}</a>`:'')}
+        ${field('Phone',cand.phone)}${field('Location',cand.location)}
+        ${field('Source',cand.source)}${field('Added',fmt.date(cand.created_at))}
+      </div></div>
+      <div class="card"><div class="card-hd"><div class="card-title">💼 Professional</div></div><div class="card-body">
+        ${field('Current Title',cand.current_title)}
+        ${field('Experience',(cand.years_exp||0)+' years')}
+        ${field('Current CTC',cand.current_ctc?fmt.money(cand.current_ctc):'')}
+        ${field('Expected CTC',cand.expected_ctc?fmt.money(cand.expected_ctc):'')}
+        ${field('Notice Period',cand.notice_period?(cand.notice_period+' days'):'')}
+      </div></div>
+    </div>
+    <div class="card"><div class="card-hd">
+      <div class="card-title">📋 Applications (${apps.length})</div>
+      <button class="btn btn-primary btn-xs" onclick="submitCandToReq(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">+ Submit to Job</button>
+    </div>
+    ${apps.length?`<div class="tbl-wrap"><table><thead><tr><th>Role</th><th>Client</th><th>Stage</th><th>Applied</th></tr></thead>
+      <tbody>${apps.map(a=>`<tr><td class="tbold">${a.role||'–'}</td><td>${a.client_name||'–'}</td>
+        <td>${pill(a.stage||'Applied')}</td>
+        <td style="font-size:11px">${fmt.date(a.applied_at)}</td>
+      </tr>`).join('')}</tbody></table></div>`
+    :`<div class="card-body" style="text-align:center;color:var(--txt3)">No applications yet</div>`}
+    </div>`);
+}
+
+function closeCandDetail(){
+  const lv=$('cand-list-view'),dv=$('cand-detail-view');
+  if(dv)dv.style.display='none';
+  if(lv)lv.style.display='';
+  window._curCand=null;
+  const tbTitle=$('tb-title'),tbSub=$('tb-sub');
+  if(tbTitle)tbTitle.textContent='Candidates';
+  if(tbSub){tbSub.textContent='Talent Database & Pipeline';tbSub.style.display='';}
+}
+
+async function deleteCandRow(id,name){
+  if(!confirm('Delete "'+name+'"?'))return;
+  await apiFetch('/api/candidates/'+id,{method:'DELETE'});
+  toast(name+' deleted','success');
+  if(window._curCand&&window._curCand.id===id)closeCandDetail();
+  loadCandidates();
+}
+
+async function deleteDuplicateCandidates(){
+  const all=await apiFetch('/api/candidates')||[];
+  const em={};
+  all.forEach(x=>{if(x.email){if(!em[x.email])em[x.email]=[];em[x.email].push(x);}});
+  const grps=Object.values(em).filter(g=>g.length>1);
+  if(!grps.length){toast('No duplicates found ✅','success');return;}
+  const cnt=grps.reduce((s,g)=>s+g.length-1,0);
+  if(!confirm('Remove '+cnt+' duplicate(s)? Keeps oldest record.'))return;
+  let deleted=0;
+  for(const g of grps){
+    const toDel=g.sort((a,b)=>a.id-b.id).slice(1);
+    for(const x of toDel){try{await apiFetch('/api/candidates/'+x.id,{method:'DELETE'});deleted++;}catch(e){}}
+  }
+  toast('Removed '+deleted+' duplicate(s)','success');
+  loadCandidates();
+}
+
+async function submitCandToReq(candId,candName){
+  const reqs=await apiFetch('/api/requisitions')||[];
+  const active=reqs.filter(r=>r.status==='Active'||!r.status);
+  if(!active.length){toast('No active requisitions found','error');return;}
+  _curModalType='submit-cand-to-req';
+  window._submitCandId=candId;
+  $('m-title').textContent='Submit '+candName+' to Job';
+  $('m-body').innerHTML=`<form id="mform">
+    <div class="fg"><label class="flabel">Job Requisition *</label>
+      <select class="fselect" name="requisition_id" required>
+        <option value="">Select job…</option>
+        ${active.map(r=>`<option value="${r.id}">${r.title} — ${r.client_name||'Internal'}</option>`).join('')}
+      </select></div>
+    <div class="fg"><label class="flabel">Notes</label>
+      <textarea class="ftextarea" name="notes" rows="2" placeholder="Add any notes for the recruiter…"></textarea></div>
+  </form>`;
+  $('m-submit').textContent='Submit';
+  $('m-submit').style.display='';
+  $('overlay').classList.add('open');
+}
+
 async function loadSourcing(){
   try{
     const rows=await apiFetch('/api/sourcing/stats');
@@ -6619,6 +6791,21 @@ async function submitModal(){
     return;
   }
   if(_curModalType==='payslip'){closeModal();return;}
+  if(_curModalType==='submit-cand-to-req'){
+    const form=$('mform');if(!form)return;
+    if(!form.checkValidity()){form.reportValidity();return;}
+    const data={};new FormData(form).forEach((v,k)=>{data[k]=v||null;});
+    data.candidate_id=parseInt(window._submitCandId);
+    if(data.requisition_id)data.requisition_id=parseInt(data.requisition_id);
+    if(!data.candidate_id||!data.requisition_id){toast('Missing candidate or requisition','error');return;}
+    try{
+      await apiFetch('/api/applications',{method:'POST',body:JSON.stringify(data)});
+      toast('Submitted to job!','success');closeModal();
+      if(window._curCand){const fr=await apiFetch('/api/candidates/'+window._curCand.id);window._curCand=fr;openCandDetail(window._curCand.id);}
+      loadCandidates();
+    }catch(e){toast('Error: '+e.message,'error');}
+    return;
+  }
   const def=modalDefs[_curModalType];if(!def)return;
   const form=$('mform');if(!form)return;
   if(!form.checkValidity()){form.reportValidity();return;}
