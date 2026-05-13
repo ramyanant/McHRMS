@@ -2078,7 +2078,7 @@ async function loadOrgStructure(){
         <td style="font-size:11px">${d.cost_centre_name||'–'}</td>
         <td><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('dept',${d.id})">Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('dept',${d.id},'${d.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntryById('dept',${d.id})">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--txt2)">No departments added yet</td></tr>`
     }</tbody></table>`);
     setHtml('bu-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('bu-tbl',0,this)">Business Unit ↕</th><th class="sortable" onclick="sortTable('bu-tbl',1,this)">Head ↕</th><th class="sortable" onclick="sortTable('bu-tbl',2,this)">Depts ↕</th><th class="sortable" onclick="sortTable('bu-tbl',3,this)">Staff ↕</th><th>Actions</th></tr></thead><tbody>${
@@ -2087,7 +2087,7 @@ async function loadOrgStructure(){
         <td class="tmono">${b.dept_count||0}</td><td class="tmono">${b.headcount||0}</td>
         <td><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('bu',${b.id})">Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('bu',${b.id},'${b.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntryById('bu',${b.id})">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No business units added yet</td></tr>`
     }</tbody></table>`);
     setHtml('cc-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('cc-tbl',0,this)">Code ↕</th><th class="sortable" onclick="sortTable('cc-tbl',1,this)">Name ↕</th><th class="sortable" onclick="sortTable('cc-tbl',2,this)">Business Unit ↕</th><th class="sortable" onclick="sortTable('cc-tbl',3,this)">Budget ↕</th><th>Actions</th></tr></thead><tbody>${
@@ -2097,7 +2097,7 @@ async function loadOrgStructure(){
         <td class="tmono">${fmt.moneyK(c.budget)}</td>
         <td><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('cc',${c.id})">Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('cc',${c.id},'${c.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntryById('cc',${c.id})">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No cost centres added yet</td></tr>`
     }</tbody></table>`);
     setHtml('office-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('office-tbl',0,this)">Location ↕</th><th>Type</th><th class="sortable" onclick="sortTable('office-tbl',2,this)">City ↕</th><th>Country</th><th class="sortable" onclick="sortTable('office-tbl',4,this)">Staff ↕</th><th>Actions</th></tr></thead><tbody>${
@@ -2106,7 +2106,7 @@ async function loadOrgStructure(){
         <td>${o.country_name||'–'}</td><td class="tmono">${o.headcount}</td>
         <td><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="editOrgEntry('location',${o.id})">Edit</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('location',${o.id},'${o.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteOrgEntryById('location',${o.id})">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--txt2)">No offices added yet</td></tr>`
     }</tbody></table>`);
   }catch(e){console.error(e);}
@@ -2230,7 +2230,7 @@ async function loadClients(){
         <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
         <td onclick="event.stopPropagation()"><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="viewClient(${c.id})">Open</button>
-          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteClient(${c.id},'${c.name.replace(/'/g,\"\\'\")}')">Del</button>
+          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteClient(${c.id})">Del</button>
         </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
@@ -2450,7 +2450,7 @@ function renderClientDetail(c, tab){
     ${pill(c.status||'Active')}
     <div style="flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="editClientInline()">✏️ Edit</button>
-    <button class="btn btn-danger btn-sm" onclick="archiveClient(${c.id},'${c.name.replace(/'/g,"\'") }')">Archive</button>
+    <button class="btn btn-danger btn-sm" onclick="archiveClient(${c.id})">Archive</button>
   </div>`;
 
   setHtml('cli-detail-view', actionBar+`
@@ -2687,7 +2687,7 @@ async function loadVendors(){
           <td style="font-weight:700;color:${sc};font-family:var(--mono)">${v.sla_score}%</td>
           <td onclick="event.stopPropagation()"><div class="tact">
             <button class="btn btn-ghost btn-xs" onclick="viewVendor(${v.id})">Open</button>
-            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteVendor(${v.id},'${v.name.replace(/'/g,\"\\'\")}')">Del</button>
+            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteVendor(${v.id})">Del</button>
           </div></td>
         </tr>`;
       }).join('')}</tbody></table>`);
@@ -2872,7 +2872,7 @@ function renderVendorDetail(v,tab){
     ${pill(v.status||'Active')}
     <div style="flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="editVendorInline()">✏️ Edit</button>
-    <button class="btn btn-danger btn-sm" onclick="archiveVendor(${v.id},'${v.name.replace(/'/g,"\'") }')">Archive</button>
+    <button class="btn btn-danger btn-sm" onclick="archiveVendor(${v.id})">Archive</button>
   </div>`;
 
   setHtml('vnd-detail-view', actionBar+`
@@ -3598,7 +3598,7 @@ function renderProjDetail(p,tab){
     <span class="pill ${p.status==='Active'?'p-green':p.status==='On Hold'?'p-amber':p.status==='Completed'?'p-teal':'p-gray'}">${p.status||'Draft'}</span>
     <div style="flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="editProjectInline()">✏️ Edit</button>
-    <button class="btn btn-danger btn-sm" onclick="archProj(${p.id},'${p.name.replace(/'/g,"\\'")}')">Archive</button>
+    <button class="btn btn-danger btn-sm" onclick="archProj(${p.id})">Archive</button>
   </div>`;
 
   setHtml('proj-detail-view', actionBar+`
@@ -4333,7 +4333,7 @@ function renderEmpDetail(e, tab){
     ${pill(e.employment_type||'–')}${pill(e.status||'Active')}
     <div style="flex:1"></div>
     <button class="btn btn-ghost btn-sm" onclick="editEmployee(${e.id})">✏️ Edit</button>
-    ${e.status==='Active'?`<button class="btn btn-danger btn-sm" onclick="termEmp(${e.id},'${name.replace(/'/g,"\\'")}')">Terminate</button>`:''}
+    ${e.status==='Active'?`<button class="btn btn-danger btn-sm" onclick="termEmp(${e.id})">Terminate</button>`:''}
   </div>`;
 
   setHtml('emp-detail-view', actionBar+`
@@ -4709,7 +4709,7 @@ async function loadCandidates(){
         <td>${x.latest_stage?`<span class="pill ${stC}">${x.latest_stage}</span>`:'<span class="pill p-gray">New</span>'}</td>
         <td onclick="event.stopPropagation()"><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="openCandDetail(${x.id})">Open</button>
-          <button class="btn btn-danger btn-xs" onclick="deleteCandRow(${x.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">Del</button>
+          <button class="btn btn-danger btn-xs" onclick="deleteCandRow(${x.id})">Del</button>
         </div></td>
       </tr>`;
     }).join('')}</tbody></table>`);
@@ -4740,8 +4740,8 @@ async function openCandDetail(id){
       <span style="font-size:13px;font-weight:600;color:var(--txt)">${name}</span>
       <span style="font-size:12px;color:var(--txt2)">${cand.current_title||''}</span>
       <div style="flex:1"></div>
-      <button class="btn btn-primary btn-sm" onclick="submitCandToReq(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">+ Submit to Job</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteCandRow(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">Delete</button>
+      <button class="btn btn-primary btn-sm" onclick="submitCandToReq(${cand.id})">+ Submit to Job</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCandRow(${cand.id})">Delete</button>
     </div>
     <div style="background:linear-gradient(135deg,#2d1b69,#1a0f42);border-radius:var(--rl);padding:24px;margin-bottom:16px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
       <div class="av" style="width:72px;height:72px;font-size:26px;font-weight:800;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0">${fmt.ini(name)}</div>
@@ -4768,7 +4768,7 @@ async function openCandDetail(id){
     </div>
     <div class="card"><div class="card-hd">
       <div class="card-title">📋 Applications (${apps.length})</div>
-      <button class="btn btn-primary btn-xs" onclick="submitCandToReq(${cand.id},'${name.replace(/'/g,"\\'").replace(/`/g,'\\`')}')">+ Submit to Job</button>
+      <button class="btn btn-primary btn-xs" onclick="submitCandToReq(${cand.id})">+ Submit to Job</button>
     </div>
     ${apps.length?`<div class="tbl-wrap"><table><thead><tr><th>Role</th><th>Client</th><th>Stage</th><th>Applied</th></tr></thead>
       <tbody>${apps.map(a=>`<tr><td class="tbold">${a.role||'–'}</td><td>${a.client_name||'–'}</td>
@@ -7470,7 +7470,7 @@ async function renderPortalJobs(){
               <div><div class="org-field-label">Target Start</div><div style="font-size:12px">${fmt.date(r.target_start)||'ASAP'}</div></div>
             </div>
             ${r.description?`<div style="font-size:12px;color:var(--txt2);line-height:1.5;margin-bottom:8px">${r.description.substring(0,180)}${r.description.length>180?'…':''}</div>`:''}
-            <button class="btn btn-primary btn-xs" onclick="portalAddCandidateToReq(${r.id},'${(r.title||'').replace(/'/g,\`\\\\'\`)}')">+ Submit a Candidate</button>
+            <button class="btn btn-primary btn-xs" onclick="portalAddCandidateToReq(${r.id})">+ Submit a Candidate</button>
           </div>
         </div>`).join('')}</div>`
       :`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No open requisitions right now</div></div>`}`);
