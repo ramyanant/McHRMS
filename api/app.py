@@ -2986,6 +2986,34 @@ def employee_self_profile():
         db.commit()
     return ok(msg="Profile updated")
 
+@app.route('/api/employee/dashboard-test')
+def employee_dashboard_test():
+    """No-auth test - shows what dashboard returns for any linked user"""
+    try:
+        conn = get_pg_conn()
+        conn.autocommit = True
+        import psycopg2.extras
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("SELECT u.id,u.username,u.email,u.employee_id,r.name as role FROM users u JOIN master_user_roles r ON r.id=u.role_id WHERE u.is_active=1 ORDER BY u.id")
+        users = cur.fetchall()
+        cur.execute("SELECT id,first_name,last_name,email,emp_id FROM employees ORDER BY id")
+        emps = cur.fetchall()
+        rows = ''.join(f'<tr><td>{u["id"]}</td><td>{u["username"]}</td><td>{u["email"]}</td><td>{u["employee_id"]}</td><td>{u["role"]}</td></tr>' for u in users)
+        emp_rows = ''.join(f'<tr><td>{e["id"]}</td><td>{e["first_name"]} {e["last_name"]}</td><td>{e["email"]}</td><td>{e["emp_id"]}</td></tr>' for e in emps)
+        conn.close()
+        return f"""<html><body style="font-family:sans-serif;padding:24px">
+        <h2>Dashboard Diagnostic</h2>
+        <h3>Users</h3>
+        <table border=1 cellpadding=6 style="border-collapse:collapse">
+        <tr><th>ID</th><th>Username</th><th>Email</th><th>employee_id</th><th>Role</th></tr>{rows}</table>
+        <h3>Employees</h3>
+        <table border=1 cellpadding=6 style="border-collapse:collapse">
+        <tr><th>ID</th><th>Name</th><th>Email</th><th>emp_id</th></tr>{emp_rows}</table>
+        <br><a href="/">App →</a>
+        </body></html>"""
+    except Exception as ex:
+        return f'<h2 style="color:red">Error: {ex}</h2>', 500
+
 @app.route('/api/employee/dashboard', methods=['GET'])
 @require_auth
 def employee_dashboard():
