@@ -7152,10 +7152,13 @@ function empPortalAfterNav(id){
 }
 
 async function loadEmployeePortal(){
+  console.log('loadEmployeePortal called, _auth:', JSON.stringify(_auth?.user));
   const el=document.getElementById('portal-content');
+  console.log('portal-content el:', el);
   if(el)el.innerHTML='<div style="text-align:center;padding:48px;color:var(--txt3)">Loading your portal…</div>';
   try{
     const d=await apiFetch('/api/employee/dashboard');
+    console.log('dashboard API result:', d ? 'GOT DATA' : 'NULL/FAILED', d);
     if(!d){
       const elp=document.getElementById('portal-content');
       if(elp)elp.innerHTML='<div style="text-align:center;padding:60px 24px"><div style="font-size:48px">⚠️</div><div style="font-size:18px;font-weight:700;margin-top:12px;color:var(--txt)">Session Expired</div><div style="color:var(--txt2);margin-top:8px">Please log out and log back in.</div><button class="btn btn-primary" style="margin-top:16px" onclick="doLogout()">Log Out</button></div>';
