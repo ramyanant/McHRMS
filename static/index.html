@@ -485,6 +485,9 @@ tbody tr:hover td{background:var(--green-lt)}
     <div class="ni" data-mod="applicants" onclick="nav('applicants')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Applicants
     </div>
+    <div class="ni" data-mod="candidates" onclick="nav('candidates')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Candidates
+    </div>
     <div class="ni" data-mod="sourcing" onclick="nav('sourcing')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Sourcing
     </div>
@@ -769,6 +772,27 @@ tbody tr:hover td{background:var(--green-lt)}
   </div>
   <!-- Detail view -->
   <div id="appl-detail-view" style="display:none"></div>
+</div>
+
+<div id="mod-candidates" class="mod">
+  <div class="hero"><div class="hero-icon" style="background:var(--purple-dim)">👥</div>
+    <div><div class="hero-title">Candidates</div><div class="hero-desc">Talent database — view, edit, manage pipeline and submissions.</div></div>
+    <div class="hero-actions">
+      <button class="btn btn-ghost btn-sm" onclick="deleteDuplicateCandidates()" style="margin-right:8px">🗑 Remove Dupes</button>
+      <button class="btn btn-primary btn-sm" onclick="openModal('add-cand')">+ Add Candidate</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <input class="finput" id="cand-search" placeholder="🔍 Search name, title, skills…" style="flex:1;min-width:200px" oninput="loadCandidates()">
+    <select class="fselect" id="cand-stage-filter" style="width:150px" onchange="loadCandidates()">
+      <option value="">All Stages</option>
+      <option>Applied</option><option>Screening</option><option>Technical</option>
+      <option>Offer</option><option>Placed</option><option>Rejected</option>
+    </select>
+  </div>
+  <div id="cand-kpis" class="kpi-row" style="margin-bottom:14px"></div>
+  <div id="cand-list-view"><div id="cand-tbl"></div></div>
+  <div id="cand-detail-view" style="display:none"></div>
 </div>
 
 <div id="mod-sourcing" class="mod">
@@ -1241,6 +1265,7 @@ const modCfg={
   'timesheets':   {title:'Timesheets',          sub:'Hours & Approvals'},
   'payroll':      {title:'Payroll',             sub:'Processing & Compliance'},
   'jobs':         {title:'Job Requisitions',    sub:'Open Positions'},
+  'candidates':   {title:'Candidates',     sub:'Talent Database & Pipeline'},
   'sourcing':     {title:'Sourcing',            sub:'Talent Pipeline Analytics'},
   'applicants':   {title:'Applicants',          sub:'Candidate Database & Project Mapping'},
   'pipeline':     {title:'ATS Pipeline',        sub:'Candidate Tracking'},
@@ -1330,7 +1355,7 @@ function nav(id){
     'employees':()=>{closeEmpDetail&&closeEmpDetail();loadEmployees();},
     'projects':()=>{closeProjDetail&&closeProjDetail();loadProjects();},
     'timesheets':()=>{loadTsKpis();loadTimesheets('Pending');},'payroll':()=>{loadPayroll();},
-    'jobs':loadJobs,'sourcing':loadSourcing,'applicants':()=>{closeApplDetail&&closeApplDetail();loadApplicants();},'pipeline':loadPipeline,
+    'jobs':loadJobs,'candidates':()=>{closeCandDetail&&closeCandDetail();loadCandidates();},'sourcing':loadSourcing,'applicants':()=>{closeApplDetail&&closeApplDetail();loadApplicants();},'pipeline':loadPipeline,
     'interviews':loadInterviews,'onboarding':loadOnboarding,'invoices':loadInvoices,
     'users':loadUsers,'reports':()=>loadReport('financial'),'bulk-upload':loadBulkUpload,
   };
@@ -2045,7 +2070,7 @@ async function loadOrgStructure(){
       <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Cost Centres</div><div class="kpi-value">${summary.cost_centres||0}</div></div>
       <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Offices</div><div class="kpi-value">${summary.offices||0}</div></div>`);
     $('dept-count')&&($('dept-count').textContent=depts.length+' departments');
-    setHtml('dept-tbl',`<table><thead><tr><th>Department</th><th>Head</th><th>HC</th><th>Budget</th><th>BU</th><th>Cost Centre</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('dept-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('dept-tbl',0,this)">Department ↕</th><th class="sortable" onclick="sortTable('dept-tbl',1,this)">Head ↕</th><th class="sortable" onclick="sortTable('dept-tbl',2,this)">HC ↕</th><th class="sortable" onclick="sortTable('dept-tbl',3,this)">Budget ↕</th><th>BU</th><th>Cost Centre</th><th>Actions</th></tr></thead><tbody>${
       depts.map(d=>`<tr>
         <td class="tbold">${d.name}</td><td>${d.head_name||'–'}</td>
         <td class="tmono">${d.headcount||0}</td><td class="tmono">${fmt.moneyK(d.budget)}</td>
@@ -2056,7 +2081,7 @@ async function loadOrgStructure(){
           <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('dept',${d.id},'${d.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--txt2)">No departments added yet</td></tr>`
     }</tbody></table>`);
-    setHtml('bu-tbl',`<table><thead><tr><th>Business Unit</th><th>Head</th><th>Depts</th><th>Staff</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('bu-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('bu-tbl',0,this)">Business Unit ↕</th><th class="sortable" onclick="sortTable('bu-tbl',1,this)">Head ↕</th><th class="sortable" onclick="sortTable('bu-tbl',2,this)">Depts ↕</th><th class="sortable" onclick="sortTable('bu-tbl',3,this)">Staff ↕</th><th>Actions</th></tr></thead><tbody>${
       bus.map(b=>`<tr>
         <td class="tbold">${b.name}</td><td>${b.head_name||'–'}</td>
         <td class="tmono">${b.dept_count||0}</td><td class="tmono">${b.headcount||0}</td>
@@ -2065,7 +2090,7 @@ async function loadOrgStructure(){
           <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('bu',${b.id},'${b.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No business units added yet</td></tr>`
     }</tbody></table>`);
-    setHtml('cc-tbl',`<table><thead><tr><th>Code</th><th>Name</th><th>Business Unit</th><th>Budget</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('cc-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('cc-tbl',0,this)">Code ↕</th><th class="sortable" onclick="sortTable('cc-tbl',1,this)">Name ↕</th><th class="sortable" onclick="sortTable('cc-tbl',2,this)">Business Unit ↕</th><th class="sortable" onclick="sortTable('cc-tbl',3,this)">Budget ↕</th><th>Actions</th></tr></thead><tbody>${
       ccs.map(c=>`<tr>
         <td class="tbold tmono">${c.code}</td><td>${c.name}</td>
         <td style="font-size:11px">${c.business_unit||'–'}</td>
@@ -2075,7 +2100,7 @@ async function loadOrgStructure(){
           <button class="btn btn-danger btn-xs" onclick="deleteOrgEntry('cc',${c.id},'${c.name.replace(/'/g,"\\'").replace(/"/g,"&quot;")}')">Remove</button>
         </div></td></tr>`).join('')||`<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--txt2)">No cost centres added yet</td></tr>`
     }</tbody></table>`);
-    setHtml('office-tbl',`<table><thead><tr><th>Location</th><th>Type</th><th>City</th><th>Country</th><th>Staff</th><th>Actions</th></tr></thead><tbody>${
+    setHtml('office-tbl',`<table><thead><tr><th class="sortable" onclick="sortTable('office-tbl',0,this)">Location ↕</th><th>Type</th><th class="sortable" onclick="sortTable('office-tbl',2,this)">City ↕</th><th>Country</th><th class="sortable" onclick="sortTable('office-tbl',4,this)">Staff ↕</th><th>Actions</th></tr></thead><tbody>${
       offices.map(o=>`<tr>
         <td class="tbold">${o.name}</td><td>${o.type}</td><td>${o.city||'–'}</td>
         <td>${o.country_name||'–'}</td><td class="tmono">${o.headcount}</td>
@@ -2136,6 +2161,30 @@ async function editOrgEntry(type,id){
 let _clientsCache = [];
 let _vendorsCache = [];
 
+// ── Universal table sort ─────────────────────────────────────────────────────
+const _sortState={};
+function sortTable(tableId,colIdx,th){
+  const tbl=document.getElementById(tableId);if(!tbl)return;
+  const tbody=tbl.querySelector('tbody');if(!tbody)return;
+  const key=tableId+'_'+colIdx;const asc=_sortState[key]=!_sortState[key];
+  tbl.querySelectorAll('th.sortable').forEach(h=>{
+    h.textContent=h.textContent.replace(' ▲','').replace(' ▼','').replace(' ↕','');
+    if(!h.textContent.endsWith(' ↕'))h.textContent+=' ↕';
+  });
+  th.textContent=th.textContent.replace(' ↕','').replace(' ▲','').replace(' ▼','')+(asc?' ▲':' ▼');
+  const rows=Array.from(tbody.querySelectorAll('tr'));
+  rows.sort((a,b)=>{
+    const ca=a.cells[colIdx]?.textContent.trim()||'';
+    const cb=b.cells[colIdx]?.textContent.trim()||'';
+    const na=parseFloat(ca.replace(/[₹,K%★☆]/g,''));const nb=parseFloat(cb.replace(/[₹,K%★☆]/g,''));
+    if(!isNaN(na)&&!isNaN(nb))return asc?na-nb:nb-na;
+    return asc?ca.localeCompare(cb):cb.localeCompare(ca);
+  });
+  rows.forEach(r=>tbody.appendChild(r));
+}
+(function(){if(!document.getElementById('sort-style')){const s=document.createElement('style');s.id='sort-style';s.textContent='th.sortable{cursor:pointer;user-select:none;white-space:nowrap}th.sortable:hover{background:var(--green-lt);color:var(--green-dk)}';document.head.appendChild(s);}})();
+
+let _cliSpocCtr=0;function cliAddSpoc(){_cliSpocCtr++;const id='spoc'+_cliSpocCtr;const list=document.getElementById('cli-spoc-list');if(!list)return;const div=document.createElement('div');div.id=id;div.style.cssText='background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:8px';div.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:8px"><strong style="font-size:11px;color:var(--txt2)">Contact #${_cliSpocCtr}</strong><button type="button" onclick="this.closest('[id]').remove()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">×</button></div><div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="spoc_name_${_cliSpocCtr}"></div><div class="fg"><label class="flabel">Designation</label><input class="finput" name="spoc_designation_${_cliSpocCtr}"></div></div><div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="spoc_email_${_cliSpocCtr}"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="spoc_phone_${_cliSpocCtr}"></div></div>`;list.appendChild(div);}
 async function loadClients(){
   const status=$('cl-status')?.value||'';
   const type=$('cl-type')?.value||'';
@@ -2599,7 +2648,9 @@ async function loadVendors(){
   const status=$('vnd-status')?.value||'';
   const search=($('vnd-search')?.value||'').toLowerCase();
   try{
-    const rows=await apiFetch('/api/vendors');
+    const _vs=document.getElementById('vnd-status-filter')?.value||'';
+    const _av=await apiFetch('/api/vendors')||[];
+    const rows=_vs?_av.filter(v=>v.status===_vs):_av;
     _vendorsCache=rows;
     let filtered=rows;
     if(type) filtered=filtered.filter(v=>v.vendor_type===type);
@@ -4430,6 +4481,10 @@ async function createEmpLogin(empId,empName,suggestedUsername){
   }catch(e){toast('Error: '+e.message,'error');}
 }
 
+async function deleteEmployee(id,name){
+  if(!confirm('Permanently delete "'+name+'"?'))return;
+  try{await apiFetch('/api/employees/'+id,{method:'DELETE'});toast(name+' deleted','success');if(typeof closeEmpDetail==='function')closeEmpDetail();loadEmployees();}catch(e){toast('Error: '+e.message,'error');}
+}
 async function termEmp(id,name){
   if(!confirm(`Terminate "${name}"? This cannot be undone.`))return;
   await apiFetch(`/api/employees/${id}`,{method:'DELETE'});
@@ -5606,6 +5661,9 @@ const modalDefs={
         </div>
         <div class="frow">
           <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+          <div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id" id="emp-cc-sel"><option value="">Loading…</option></select></div>
+        </div>
+        <div class="frow">
           <div class="fg"><label class="flabel">Referred By</label><input class="finput" name="referred_by" placeholder="Source"></div>
         </div>
       </div>
