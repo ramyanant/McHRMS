@@ -1219,7 +1219,7 @@ async function doLogout(){
   $('lu').value='';$('lp').value='';
 }
 
-async function tryAutoLogin(){
+async async function tryAutoLogin(){
   const token=localStorage.getItem('mch_token'),userStr=localStorage.getItem('mch_user');
   if(!token||!userStr)return;
   _auth={token,user:JSON.parse(userStr)};
