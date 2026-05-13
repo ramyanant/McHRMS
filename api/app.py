@@ -2998,32 +2998,30 @@ def employee_dashboard():
         emp = None
         # 1. Match by official email
         if user_email:
-            emp = row1("SELECT id FROM employees WHERE email=%s AND is_active=1",(user_email,))
+            emp = row1("SELECT id FROM employees WHERE email=%s",(user_email,))
         # 2. Match by personal email
         if not emp and user_email:
-            emp = row1("SELECT id FROM employees WHERE personal_email=%s AND is_active=1",(user_email,))
+            emp = row1("SELECT id FROM employees WHERE personal_email=%s",(user_email,))
         # 3. Match username as emp_id (e.g. username='EMP-001')
         if not emp and username:
-            emp = row1("SELECT id FROM employees WHERE emp_id ILIKE %s AND is_active=1",(username,))
+            emp = row1("SELECT id FROM employees WHERE emp_id ILIKE %s",(username,))
         # 4. Match username against first/last name slug (jagsmamidi → jagsmamidi)
         if not emp and username:
-            emp = row1("""SELECT id FROM employees WHERE is_active=1
-                AND LOWER(REPLACE(first_name||last_name,' ','')) ILIKE %s""",(username.lower(),))
+            emp = row1("""SELECT id FROM employees WHERE LOWER(REPLACE(first_name||last_name,' ','')) ILIKE %s""",(username.lower(),))
         # 5. Match "firstname.lastname" pattern (shreyas.iyer → shreyas + iyer)
         if not emp and username and '.' in username:
             parts=username.split('.',1)
-            emp=row1("""SELECT id FROM employees WHERE is_active=1
-                AND LOWER(first_name) ILIKE %s AND LOWER(last_name) ILIKE %s""",
+            emp=row1("""SELECT id FROM employees WHERE LOWER(first_name) ILIKE %s AND LOWER(last_name) ILIKE %s""",
                 (parts[0].lower(),parts[1].lower()))
         # 6. Match by first name alone (last resort, only if unique)
         if not emp and username:
-            matches=rows("""SELECT id FROM employees WHERE is_active=1
-                AND LOWER(first_name) ILIKE %s""",(username.split('.')[0].lower()+'%',))
+            matches=rows("""SELECT id FROM employees WHERE LOWER(first_name) ILIKE %s""",(username.split('.')[0].lower()+'%',))
             if len(matches)==1: emp=matches[0]
         if emp:
             uid = emp['id']
             try:
                 _cur().execute("UPDATE users SET employee_id=%s WHERE id=%s",(uid,g.user['id']))
+                get_db().commit()
             except: pass
         else:
             return err(f"No employee profile linked. Login: {user_email or username}. Ask admin to link your account in Users & Access.",403)

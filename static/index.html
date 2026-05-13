@@ -2213,9 +2213,9 @@ async function loadClients(){
     }
     setHtml('client-tbl',`<table>
       <thead><tr>
-        <th>Company</th><th>Type</th><th>Industry</th><th>Status</th>
-        <th>Currency</th><th>Account Mgr</th><th>Employees</th><th>Open Reqs</th>
-        <th>Revenue MTD</th><th>Health</th><th>Actions</th>
+        <th class="sortable" onclick="sortTable('client-tbl',0,this)">Company ↕</th><th>Type</th><th class="sortable" onclick="sortTable('client-tbl',2,this)">Industry ↕</th><th class="sortable" onclick="sortTable('client-tbl',3,this)">Status ↕</th>
+        <th>Currency</th><th class="sortable" onclick="sortTable('client-tbl',5,this)">Account Mgr ↕</th><th>Employees</th><th>Open Reqs</th>
+        <th class="sortable" onclick="sortTable('client-tbl',8,this)">Revenue MTD ↕</th><th class="sortable" onclick="sortTable('client-tbl',9,this)">Health ↕</th><th>Actions</th>
       </tr></thead>
       <tbody>${filtered.map(c=>`<tr style="cursor:pointer" onclick="viewClient(${c.id})">
         <td><div class="avrow"><div class="av av-blue" style="width:28px;height:28px;font-size:10px">${fmt.ini(c.name)}</div><div><div class="av-name">${c.name}</div><div class="av-meta">${c.primary_contact||''}</div></div></div></td>
@@ -2230,7 +2230,7 @@ async function loadClients(){
         <td><div class="prow"><div class="ptrack"><div class="pfill" style="width:${c.health_score}%;background:${c.health_score>70?'var(--green)':c.health_score>50?'var(--amber)':'var(--red)'}"></div></div><span class="pval">${c.health_score}</span></div></td>
         <td onclick="event.stopPropagation()"><div class="tact">
           <button class="btn btn-ghost btn-xs" onclick="viewClient(${c.id})">Open</button>
-          <button class="btn btn-danger btn-xs" onclick="archiveClient(${c.id},'${c.name}')">×</button>
+          <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteClient(${c.id},'${c.name.replace(/'/g,\"\\'\")}')">Del</button>
         </div></td>
       </tr>`).join('')}</tbody></table>`);
   }catch(e){console.error(e);}
@@ -2670,8 +2670,8 @@ async function loadVendors(){
     }
     setHtml('vendor-tbl',`<table>
       <thead><tr>
-        <th>Vendor</th><th>Type</th><th>Category</th><th>Status</th><th>Rating</th>
-        <th>Account Mgr</th><th>Contract End</th><th>Spend MTD</th><th>SLA</th><th>Actions</th>
+        <th class="sortable" onclick="sortTable('vendor-tbl',0,this)">Vendor ↕</th><th>Type</th><th>Category</th><th class="sortable" onclick="sortTable('vendor-tbl',3,this)">Status ↕</th><th>Rating</th>
+        <th class="sortable" onclick="sortTable('vendor-tbl',5,this)">Account Mgr ↕</th><th class="sortable" onclick="sortTable('vendor-tbl',6,this)">Contract End ↕</th><th>Spend MTD</th><th class="sortable" onclick="sortTable('vendor-tbl',8,this)">SLA ↕</th><th>Actions</th>
       </tr></thead>
       <tbody>${filtered.map(v=>{
         const sc=v.sla_score>=90?'var(--green-dk)':v.sla_score>=80?'var(--amber)':'var(--red)';
@@ -2687,7 +2687,7 @@ async function loadVendors(){
           <td style="font-weight:700;color:${sc};font-family:var(--mono)">${v.sla_score}%</td>
           <td onclick="event.stopPropagation()"><div class="tact">
             <button class="btn btn-ghost btn-xs" onclick="viewVendor(${v.id})">Open</button>
-            <button class="btn btn-danger btn-xs" onclick="archiveVendor(${v.id},'${v.name}')">×</button>
+            <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteVendor(${v.id},'${v.name.replace(/'/g,\"\\'\")}')">Del</button>
           </div></td>
         </tr>`;
       }).join('')}</tbody></table>`);
@@ -3946,7 +3946,7 @@ async function loadEmployees(){
             <td onclick="event.stopPropagation()"><div class="tact">
               <button class="btn btn-ghost btn-xs" onclick="viewEmployee(${e.id})">Open</button>
               <button class="btn btn-ghost btn-xs" onclick="editEmployee(${e.id})">Edit</button>
-              ${e.status==='Active'?`<button class="btn btn-danger btn-xs" onclick="termEmp(${e.id},'${name.replace(/'/g,"\\'")}')">Term.</button>`:''}
+              <button class="btn btn-danger btn-xs" onclick="event.stopPropagation();deleteEmployee(${e.id},'${name.replace(/'/g,"\\'")}')" >Del</button>
             </div></td>
           </tr>`;
         }).join('')}</tbody></table>`);
@@ -5897,8 +5897,14 @@ const modalDefs={
     fields:()=>`
       <div class="fg"><label class="flabel">Department Name *</label><input class="finput" name="name" required placeholder="Customer Success"></div>
       <div class="frow"><div class="fg"><label class="flabel">Department Head</label><input class="finput" name="head_name" placeholder="Jane Smith"></div><div class="fg"><label class="flabel">Annual Budget (₹)</label><input class="finput" type="number" name="budget" placeholder="5000000"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad"></div><div class="fg"><label class="flabel">Cost Center Code</label><input class="finput" name="cost_center" placeholder="CC-042"></div></div>`,
-    afterSave:loadOrgStructure
+      <div class="frow"><div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id" id="dept-bu-sel"><option value="">Loading…</option></select></div><div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id" id="dept-cc-sel"><option value="">Loading…</option></select></div></div>
+      <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" placeholder="Hyderabad"></div>`,
+    afterSave:loadOrgStructure,
+    afterRender:async()=>{
+      const[bus,ccs]=await Promise.all([apiFetch('/api/business-units'),apiFetch('/api/cost-centres')]);
+      const bs=$('dept-bu-sel');if(bs)bs.innerHTML='<option value="">None</option>'+(bus||[]).map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
+      const cs=$('dept-cc-sel');if(cs)cs.innerHTML='<option value="">None</option>'+(ccs||[]).map(cc=>`<option value="${cc.id}">${cc.code} — ${cc.name}</option>`).join('');
+    }
   },
   'add-org-doc':{
     title:'Upload Organisation Document',submit:'Upload',method:'POST',
@@ -6892,6 +6898,11 @@ function bulkStep(step) {
 // ═══════════════════════════════════════════════════
 let _portalEmpData=null;
 let _portalCurrentTab='dashboard';
+
+// empPortalAfterNav — called by nav() when _isEmployee=true
+function empPortalAfterNav(id){
+  if(id==='emp-portal') loadEmployeePortal();
+}
 
 async function loadEmployeePortal(){
   const el=document.getElementById('portal-content');
