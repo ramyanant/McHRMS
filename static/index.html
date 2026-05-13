@@ -2185,6 +2185,15 @@ function sortTable(tableId,colIdx,th){
 (function(){if(!document.getElementById('sort-style')){const s=document.createElement('style');s.id='sort-style';s.textContent='th.sortable{cursor:pointer;user-select:none;white-space:nowrap}th.sortable:hover{background:var(--green-lt);color:var(--green-dk)}';document.head.appendChild(s);}})();
 
 let _cliSpocCtr=0;function cliAddSpoc(){_cliSpocCtr++;const id='spoc'+_cliSpocCtr;const list=document.getElementById('cli-spoc-list');if(!list)return;const div=document.createElement('div');div.id=id;div.style.cssText='background:var(--s2);border:1px solid var(--bdr);border-radius:var(--r);padding:12px;margin-bottom:8px';div.innerHTML=`<div style="display:flex;justify-content:space-between;margin-bottom:8px"><strong style="font-size:11px;color:var(--txt2)">Contact #${_cliSpocCtr}</strong><button type="button" onclick="this.closest('[id]').remove()" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:16px">×</button></div><div class="frow"><div class="fg"><label class="flabel">Name</label><input class="finput" name="spoc_name_${_cliSpocCtr}"></div><div class="fg"><label class="flabel">Designation</label><input class="finput" name="spoc_designation_${_cliSpocCtr}"></div></div><div class="frow"><div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="spoc_email_${_cliSpocCtr}"></div><div class="fg"><label class="flabel">Phone</label><input class="finput" name="spoc_phone_${_cliSpocCtr}"></div></div>`;list.appendChild(div);}
+function empHandleFile(input,type){
+  const files=Array.from(input.files);if(!files.length)return;
+  const names={photo:'emp-photo-name',resume:'emp-resume-name',docs:'emp-docs-name'};
+  const el=document.getElementById(names[type]);
+  if(el)el.textContent=files.map(f=>f.name).join(', ');
+  if(type==='photo'&&files[0]){const r=new FileReader();r.onload=e=>{window._empPhotoData=e.target.result;};r.readAsDataURL(files[0]);}
+  if(type==='resume'&&files[0]){const r=new FileReader();r.onload=e=>{window._empResumeData=e.target.result;};r.readAsDataURL(files[0]);}
+}
+
 async function loadClients(){
   const status=$('cl-status')?.value||'';
   const type=$('cl-type')?.value||'';
@@ -3220,7 +3229,7 @@ async function loadProjects(){
       <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Est. Revenue</div><div class="kpi-value">${fmt.moneyK(totalRev)}</div><div class="kpi-delta">Pipeline</div></div>`);
     if(!filtered.length){setHtml('proj-tbl','<div class="empty"><div class="empty-icon">📂</div><div class="empty-title">No projects found</div></div>');return;}
     setHtml('proj-tbl',`<table><thead><tr>
-        <th>Project</th><th>Type</th><th>Client</th><th>PM</th><th>Status</th><th>Health</th><th>Progress</th><th>Budget</th><th>Team</th><th>Actions</th>
+        <th class="sortable" onclick="sortTable('proj-tbl',0,this)">Project ↕</th><th>Type</th><th>Client</th><th>PM</th><th class="sortable" onclick="sortTable('proj-tbl',3,this)">Status ↕</th><th>Health</th><th>Progress</th><th>Budget</th><th>Team</th><th>Actions</th>
       </tr></thead><tbody>${filtered.map(p=>{
       const hc=p.health_score>70?'var(--green)':p.health_score>50?'var(--amber)':'var(--red)';
       const sc={'Active':'var(--green-dk)','On Hold':'var(--amber)','Completed':'var(--blue)','Cancelled':'var(--red)','Draft':'var(--txt3)'}[p.status]||'var(--txt3)';
@@ -3924,7 +3933,7 @@ async function loadEmployees(){
     setHtml('emp-tbl', filtered.length===0
       ? `<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>`
       : `<table><thead><tr>
-          <th>Employee</th><th>Title / Department</th><th>Type</th>
+          <th class="sortable" onclick="sortTable('emp-tbl',0,this)">Employee ↕</th><th class="sortable" onclick="sortTable('emp-tbl',1,this)">Title / Dept ↕</th><th>Type</th>
           <th>Client</th><th>BU</th><th>Status</th><th>Actions</th>
         </tr></thead><tbody>${filtered.map(e=>{
           const name=`${e.first_name} ${e.middle_name?e.middle_name+' ':''}${e.last_name}`;
@@ -5810,6 +5819,7 @@ const modalDefs={
         <div class="mtab" onclick="switchMTab('ae2',this)">💼 Role & Org</div>
         <div class="mtab" onclick="switchMTab('ae3',this)">🪪 Personal</div>
         <div class="mtab" onclick="switchMTab('ae4',this)">🏦 Finance</div>
+        <div class="mtab" onclick="switchMTab('ae5',this)">📎 Documents</div>
       </div>
       <!-- IDENTITY -->
       <div class="mtab-panel active" id="ae1">
@@ -5901,6 +5911,33 @@ const modalDefs={
           <div class="fg"><label class="flabel">Annual CTC (₹)</label><input class="finput" type="number" name="salary" placeholder="1200000"></div>
           <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" placeholder="0"></div>
         </div>
+      <div class="mtab-panel" id="ae5">
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:12px;text-transform:uppercase">📎 Upload Documents</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">📷 Profile Photo</label>
+            <input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="empHandleFile(this,'photo')">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('emp-photo-file').click()">Choose Photo</button>
+              <span id="emp-photo-name" style="font-size:11px;color:var(--txt3)">No file</span>
+            </div>
+          </div>
+          <div class="fg"><label class="flabel">📄 Resume / CV</label>
+            <input type="file" id="emp-resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="empHandleFile(this,'resume')">
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('emp-resume-file').click()">Choose Resume</button>
+              <span id="emp-resume-name" style="font-size:11px;color:var(--txt3)">No file</span>
+            </div>
+          </div>
+        </div>
+        <div class="fg" style="margin-top:8px"><label class="flabel">📂 Other Documents (Offer Letter, ID Proof, etc.)</label>
+          <input type="file" id="emp-docs-file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="empHandleFile(this,'docs')">
+          <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('emp-docs-file').click()">Choose Files</button>
+            <span id="emp-docs-name" style="font-size:11px;color:var(--txt3)">No files selected</span>
+          </div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:4px">PDF, JPG, PNG, DOC — max 5MB each</div>
+        </div>
+      </div>
         <div class="frow">
           <div class="fg"><label class="flabel">Billable?</label>
             <select class="fselect" name="billable"><option value="0">No</option><option value="1">Yes</option></select></div>
@@ -5914,6 +5951,28 @@ const modalDefs={
         <div class="frow">
           <div class="fg"><label class="flabel">Account Number</label><input class="finput" name="bank_account_number"></div>
           <div class="fg"><label class="flabel">IFSC</label><input class="finput" name="bank_ifsc" placeholder="HDFC0001234" oninput="this.value=this.value.toUpperCase()"></div>
+        </div>
+      </div>
+      <div class="mtab-panel" id="ae5">
+        <div style="font-size:11px;font-weight:700;color:var(--txt2);margin-bottom:16px;text-transform:uppercase">📎 Upload Documents</div>
+        <div class="frow">
+          <div class="fg"><label class="flabel">📷 Profile Photo</label>
+            <input type="file" id="emp-photo-file" accept="image/*" style="display:none" onchange="empHandleFile(this,'photo')">
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="document.getElementById('emp-photo-file').click()">📷 Choose Photo</button>
+            <div id="emp-photo-name" style="font-size:11px;color:var(--txt3);margin-top:4px">No file selected</div>
+          </div>
+          <div class="fg"><label class="flabel">📄 Resume / CV</label>
+            <input type="file" id="emp-resume-file" accept=".pdf,.doc,.docx" style="display:none" onchange="empHandleFile(this,'resume')">
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;width:100%" onclick="document.getElementById('emp-resume-file').click()">📄 Choose Resume</button>
+            <div id="emp-resume-name" style="font-size:11px;color:var(--txt3);margin-top:4px">No file selected</div>
+          </div>
+        </div>
+        <div class="fg" style="margin-top:14px"><label class="flabel">📂 Other Documents</label>
+          <div style="font-size:11px;color:var(--txt3);margin-bottom:8px">Offer Letter · ID Proof · Certificates · Experience Letters</div>
+          <input type="file" id="emp-docs-file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none" onchange="empHandleFile(this,'docs')">
+          <button type="button" class="btn btn-ghost btn-sm" style="width:100%" onclick="document.getElementById('emp-docs-file').click()">📂 Choose Files</button>
+          <div id="emp-docs-name" style="font-size:11px;color:var(--txt3);margin-top:4px">No files selected</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:4px">PDF, JPG, PNG, DOC — max 5MB each</div>
         </div>
       </div>`,
     afterSave:()=>{loadEmployees();toast('Employee created! Default password: Employee@123','info');},
@@ -7096,6 +7155,11 @@ async function loadEmployeePortal(){
   if(el)el.innerHTML='<div style="text-align:center;padding:48px;color:var(--txt3)">Loading your portal…</div>';
   try{
     const d=await apiFetch('/api/employee/dashboard');
+    if(!d){
+      const elp=document.getElementById('portal-content');
+      if(elp)elp.innerHTML='<div style="text-align:center;padding:60px 24px"><div style="font-size:48px">⚠️</div><div style="font-size:18px;font-weight:700;margin-top:12px;color:var(--txt)">Session Expired</div><div style="color:var(--txt2);margin-top:8px">Please log out and log back in.</div><button class="btn btn-primary" style="margin-top:16px" onclick="doLogout()">Log Out</button></div>';
+      return;
+    }
     _portalEmpData=d;
     try{
       const team=await apiFetch('/api/manager/team');
@@ -7509,7 +7573,7 @@ async function renderPortalTeam(){
     setHtml('portal-content',`
       <div style="font-size:18px;font-weight:700;margin-bottom:16px">👥 My Team (${team.length})</div>
       ${team.length?`<div class="card"><div class="tbl-wrap"><table>
-        <thead><tr><th>Employee</th><th>Title</th><th>Department</th><th>Status</th><th>Since</th></tr></thead>
+        <thead><tr><th class="sortable" onclick="sortTable('emp-tbl',0,this)">Employee ↕</th><th class="sortable" onclick="sortTable('emp-tbl',1,this)">Title ↕</th><th class="sortable" onclick="sortTable('emp-tbl',2,this)">Department ↕</th><th>Status</th><th>Since</th></tr></thead>
         <tbody>${team.map(m=>{const n=`${m.first_name} ${m.last_name}`;return`<tr>
           <td><div class="avrow"><div class="av ${fmt.avCol(n)}" style="width:28px;height:28px;font-size:10px">${fmt.ini(n)}</div>
             <div><div class="av-name">${n}</div><div class="av-meta">${m.emp_id||''}</div></div></div></td>

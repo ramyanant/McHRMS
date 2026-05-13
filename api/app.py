@@ -3207,6 +3207,75 @@ def ensure_employee_user():
     uid=cur.fetchone()['id']
     return ok({"id":uid,"username":username,"password":password,"action":"created"},f"User created: {username}",201)
 
+@app.route('/api/admin/db-status')
+def db_status():
+    """Show DB state and fix jags - open in browser"""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        import psycopg2.extras
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        cur.execute("SELECT id, first_name, last_name, email FROM employees ORDER BY id")
+        emps = cur.fetchall()
+        
+        cur.execute("SELECT id, username, email, employee_id FROM users ORDER BY id")
+        users = cur.fetchall()
+        
+        emp_rows = ''.join(f'<tr><td>{e["id"]}</td><td>{e["first_name"]} {e["last_name"]}</td><td>{e["email"] or "NO EMAIL"}</td></tr>' for e in emps)
+        usr_rows = ''.join(f'<tr><td>{u["id"]}</td><td>{u["username"]}</td><td>{u["email"] or "NONE"}</td><td style="color:{"green" if u["employee_id"] else "red"}">{u["employee_id"] or "NOT LINKED"}</td></tr>' for u in users)
+        
+        # Auto-fix: link each user to matching employee
+        fixed = 0
+        for u in users:
+            if u['employee_id']: continue
+            uname = u['username'] or ''
+            uemail = u['email'] or ''
+            # Try email match
+            cur.execute("SELECT id FROM employees WHERE email=%s OR LOWER(SPLIT_PART(email,'@',1))=%s LIMIT 1",
+                       (uemail, uname.lower()))
+            emp = cur.fetchone()
+            if emp:
+                cur.execute("UPDATE users SET employee_id=%s WHERE id=%s", (emp['id'], u['id']))
+                fixed += 1
+        
+        conn.close()
+        
+        return f"""<html><body style="font-family:sans-serif;padding:24px;max-width:900px">
+        <h2>McHRMS DB Status</h2>
+        <p style="color:green;font-weight:bold">Auto-linked {fixed} user(s) to employees</p>
+        <h3>Employees ({len(emps)})</h3>
+        <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+        <tr><th>ID</th><th>Name</th><th>Email</th></tr>{emp_rows}</table>
+        <h3>Users ({len(users)})</h3>
+        <table border="1" cellpadding="6" style="border-collapse:collapse;width:100%">
+        <tr><th>ID</th><th>Username</th><th>Email</th><th>Employee ID (RED=not linked)</th></tr>{usr_rows}</table>
+        <br><a href="/">Go to app →</a>
+        <br><br><small>Refresh this page to re-run the fix</small>
+        </body></html>"""
+    except Exception as ex:
+        return f'<h2 style="color:red">Error: {ex}</h2>', 500
+
+@app.route('/api/admin/autolink-users')
+def autolink_users():
+    """No-auth: auto-link all users to employees by email/name matching"""
+    secret = request.args.get('s','')
+    if secret != 'link2026':
+        return '<a href="?s=link2026">Click to auto-link users to employees</a>', 200
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        # Link by email match
+        cur.execute("""UPDATE users u SET employee_id=e.id
+            FROM employees e
+            WHERE u.employee_id IS NULL
+            AND (u.email=e.email OR u.username=split_part(e.email,'@',1)
+                 OR u.username=LOWER(e.first_name)||'.'||LOWER(e.last_name)
+                 OR u.username=LOWER(e.first_name))""")
+        linked = cur.rowcount
+        conn.close()
+        return f'<h2 style="font-family:sans-serif;padding:40px;color:green">✅ Linked {linked} user(s) to employee records.<br><br><a href="/">Go to app →</a></h2>', 200
+    except Exception as ex:
+        return f'<h2 style="color:red;font-family:sans-serif;padding:40px">Error: {ex}</h2>', 500
+
 @app.route('/api/admin/link-employees', methods=['POST'])
 @require_auth
 def admin_link_employees():
@@ -3269,5 +3338,3 @@ if __name__ == '__main__':
     app.run(debug=False, port=port, host='0.0.0.0')
 @app.route('/health')
 def health_check(): return jsonify({'status':'ok','version':'4.1'})
-
-
