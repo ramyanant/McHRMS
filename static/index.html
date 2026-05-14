@@ -1171,6 +1171,90 @@ async function submitForcePwdChange(){
   }catch(e){errEl.textContent=e.message||'Incorrect current password';errEl.style.display='';}
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// ROLE-BASED ACCESS CONTROL
+// ═══════════════════════════════════════════════════════════════════
+const ROLE_ACCESS = {
+  'Admin': {
+    nav: ['dashboard','org-profile','org-structure','clients','vendors',
+          'employees','projects','timesheets','payroll',
+          'jobs','applicants','candidates','sourcing','pipeline','interviews','onboarding',
+          'invoices','users','bulk-upload','reports'],
+    hideTopbar: false
+  },
+  'Employee': {
+    nav: ['emp-portal'],
+    hideTopbar: true,
+    isPortal: true
+  },
+  'Account Manager': {
+    nav: ['dashboard','jobs','candidates','interviews','onboarding'],
+    hideTopbar: false
+  },
+  'Recruiting Manager': {
+    nav: ['dashboard','jobs','applicants','candidates','sourcing','pipeline','interviews','onboarding'],
+    hideTopbar: false
+  },
+  'Recruiter': {
+    nav: ['dashboard','jobs','applicants','candidates','sourcing','pipeline','interviews','onboarding'],
+    hideTopbar: false
+  },
+  'HR Manager': {
+    nav: ['dashboard','jobs','candidates','pipeline','interviews','onboarding','employees'],
+    hideTopbar: false
+  },
+  'Finance': {
+    nav: ['dashboard','onboarding','invoices'],
+    hideTopbar: false
+  },
+  'Finance Manager': {
+    nav: ['dashboard','onboarding','invoices'],
+    hideTopbar: false
+  },
+};
+
+function applyRBAC(role){
+  const access = ROLE_ACCESS[role] || ROLE_ACCESS['Employee'];
+  const allowedNav = new Set(access.nav);
+
+  // Show/hide all nav items
+  document.querySelectorAll('.ni[data-mod]').forEach(el=>{
+    const mod = el.dataset.mod;
+    el.style.display = allowedNav.has(mod) ? 'flex' : 'none';
+  });
+
+  // Show/hide section labels based on whether any item in section is visible
+  // Sections: Overview(dashboard), Organisation(org-*), People(employees,projects,timesheets,payroll),
+  //           Talent Acquisition(jobs,applicants,candidates,sourcing,pipeline,interviews,onboarding),
+  //           Finance(invoices), Settings(users,bulk-upload), Analytics(reports)
+  const sectionMap = {
+    'OVERVIEW':           ['dashboard'],
+    'ORGANISATION':       ['org-profile','org-structure','clients','vendors'],
+    'PEOPLE':             ['employees','projects','timesheets','payroll','emp-portal'],
+    'TALENT ACQUISITION': ['jobs','applicants','candidates','sourcing','pipeline','interviews','onboarding'],
+    'FINANCE':            ['invoices'],
+    'SETTINGS':           ['users','bulk-upload'],
+    'ANALYTICS':          ['reports'],
+  };
+
+  // Find all section label elements and show/hide based on access
+  const nglEls = document.querySelectorAll('.ngl');
+  nglEls.forEach(el=>{
+    const label = el.textContent.trim().toUpperCase();
+    const mods = sectionMap[label] || [];
+    const hasAccess = mods.some(m=>allowedNav.has(m));
+    el.style.display = hasAccess ? '' : 'none';
+  });
+
+  // Hide topbar for pure portal users
+  if(access.hideTopbar){
+    document.querySelectorAll('.topbar .btn,.topbar input,.topbar .tb-search').forEach(el=>el.style.display='none');
+  }
+
+  return access;
+}
+
 function afterLogin(){
   const _u=_auth?.user;
   if(_u?.must_change_pwd){showForcePwdChange();return;}
@@ -1182,26 +1266,20 @@ function afterLogin(){
   $('sb-av').textContent=fmt.ini(u.full_name||u.username);
   if(u.role!=='Admin')$('nav-users').style.display='none';
   loadMasters().then(()=>{
+    // Apply role-based access control
+    const access = applyRBAC(u.role);
+
     if(u.role==='Employee'){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
       window._isManager = false;
-      // Hide ALL sidebar nav items except My Portal
-      document.querySelectorAll('.ni').forEach(el=>{
-        el.style.display = el.id==='nav-emp-portal' ? 'flex' : 'none';
-      });
-      // Hide ALL sidebar section labels (OVERVIEW, ORGANISATION, PEOPLE etc)
-      document.querySelectorAll('.ngl,.sb-section-label').forEach(el=>el.style.display='none');
-      // Hide topbar Add New button and search
-      document.querySelectorAll('.topbar .btn,.topbar input,.topbar .tb-search').forEach(el=>el.style.display='none');
-      // Navigate to portal
       nav('emp-portal');
     } else {
       window._isEmployee = false;
       window._isManager = false;
-      // Auto-link any orphaned user accounts to employees
+      // Auto-link orphaned accounts
       apiFetch('/api/admin/link-employees',{method:'POST'}).then(r=>{
-        if(r&&r.linked>0) toast(`Linked ${r.linked} user(s) to employee records`,'info');
+        if(r&&r.linked>0) toast(`Linked ${r.linked} user(s)`,'info');
       }).catch(()=>{});
       nav('dashboard');
     }
