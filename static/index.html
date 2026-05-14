@@ -1214,8 +1214,8 @@ const ROLE_ACCESS = {
 function applyRBAC(role){
   const access = ROLE_ACCESS[role] || ROLE_ACCESS['Employee'];
   const navList = [...access.nav];
-  const u = _auth?.user;
-  if(u?.employee_id && role !== 'Admin' && !navList.includes('emp-portal')) navList.push('emp-portal');
+  const _rbacUser = _auth?.user;
+  if(_rbacUser?.employee_id && role !== 'Admin' && !navList.includes('emp-portal')) navList.push('emp-portal');
   const allowedNav = new Set(navList);
 
   // Show/hide all nav items
@@ -1266,9 +1266,6 @@ function afterLogin(){
   $('sb-av').textContent=fmt.ini(u.full_name||u.username);
   if(u.role!=='Admin')$('nav-users').style.display='none';
   loadMasters().then(()=>{
-    // Apply role-based access control
-    const access = applyRBAC(u.role);
-
     applyRBAC(u.role);
     if(u.role==='Employee'){
       window._isEmployee=true;window._empUserId=u.employee_id;window._isManager=false;
