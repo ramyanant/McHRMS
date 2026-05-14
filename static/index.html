@@ -7210,9 +7210,11 @@ async function renderPortalTab(tab){
 }
 
 async function renderPortalDashboard(){
+  console.log('renderPortalDashboard called, _portalEmpData:', _portalEmpData);
   const d=_portalEmpData;
   if(!d){setHtml('portal-content','<div class="empty"><div class="empty-title">No data available</div></div>');return;}
   const e=d.employee||{};
+  console.log('employee data:', JSON.stringify(e));
   const name=`${e.first_name||''} ${e.last_name||''}`.trim()||_auth?.user?.full_name||'Employee';
   let html=`
   <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);border-radius:var(--rl);padding:24px;margin-bottom:20px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
@@ -7306,7 +7308,13 @@ async function renderPortalDashboard(){
       }
     }catch(ex){console.log('Approvals:',ex);}
   }
-  setHtml('portal-content',html);
+  try{
+    setHtml('portal-content',html);
+    console.log('portal rendered OK');
+  }catch(renderErr){
+    console.error('RENDER ERROR:', renderErr);
+    setHtml('portal-content','<div style="padding:24px;color:red;font-family:monospace">Render error: '+renderErr.message+'</div>');
+  }
 }
 
 async function renderPortalProfile(){
