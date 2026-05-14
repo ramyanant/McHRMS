@@ -356,7 +356,12 @@ def cors(r):
 @app.route('/<path:path>')
 def catch_all(path):
     if path.startswith('api/'): return err("Not found",404)
-    return send_from_directory(STATIC,'index.html')
+    from flask import make_response
+    resp = make_response(send_from_directory(STATIC,'index.html'))
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 @app.route('/api/options', methods=['OPTIONS'])
 def handle_options(): return '',204
