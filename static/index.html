@@ -7264,6 +7264,7 @@ let _portalCurrentTab='dashboard';
 async function loadEmployeePortal(){
   if(window._portalLoading)return;
   window._portalLoading=true;
+  window._portalEmpData=null; // reset so fresh data on each portal load
   const el=document.getElementById('portal-content');
   console.log('portal-content el:', el);
   if(el)el.innerHTML='<div style="text-align:center;padding:48px;color:var(--txt3)">Loading your portal…</div>';
@@ -7306,6 +7307,14 @@ function switchPortalTab(tab,el){
   document.querySelectorAll('.portal-tab').forEach(t=>t.classList.remove('active'));
   if(el)el.classList.add('active');
   renderPortalTab(tab);
+  // Refresh approval badge when switching to any tab
+  if(window._isManager && tab!=='approvals'){
+    apiFetch('/api/manager/pending-approvals').then(data=>{
+      const tot=(data?.timesheets?.length||0)+(data?.leaves?.length||0);
+      const b=document.getElementById('approval-badge');
+      if(b){b.textContent=tot;b.style.display=tot>0?'':'none';}
+    }).catch(()=>{});
+  }
 }
 
 async function renderPortalTab(tab){

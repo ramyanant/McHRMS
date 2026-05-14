@@ -3182,11 +3182,11 @@ def employee_leaves():
         _days = ((_dt.strptime(to_dt,'%Y-%m-%d') - _dt.strptime(from_dt,'%Y-%m-%d')).days + 1)
     except: _days = d.get('days', 1)
     actual_days = d.get('days', _days) or _days
-    _cur().execute("""INSERT INTO employee_leaves(employee_id,leave_type,from_date,to_date,days,reason)
+    cur = get_db().cursor()
+    cur.execute("""INSERT INTO employee_leaves(employee_id,leave_type,from_date,to_date,days,reason)
         VALUES(%s,%s,%s,%s,%s,%s) RETURNING id""",
         (uid,d.get('leave_type','Casual'),from_dt,to_dt,actual_days,d.get('reason','')))
-    lid = _cur().fetchone()['id']
-    db.commit()
+    lid = cur.fetchone()['id']
     return ok({'id':lid}, "Leave applied", 201)
 
 @app.route('/api/employee/leaves/<int:lid>', methods=['PUT','DELETE'])
