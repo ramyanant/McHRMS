@@ -7327,8 +7327,8 @@ async function renderPortalTab(tab){
     else if(tab==='timesheets')await renderPortalTimesheets();
     else if(tab==='leaves')await renderPortalLeaves();
     else if(tab==='payslips')await renderPortalPayslips();
-    else if(tab==='jobs')await renderPortalJobs();
     else if(tab==='team')await renderPortalTeam();
+    else if(tab==='approvals')await renderPortalApprovals();
   }catch(e){
     if(el)el.innerHTML=`<div class="empty"><div class="empty-title">Error loading ${tab}</div><div class="empty-sub">${e.message}</div></div>`;
   }
