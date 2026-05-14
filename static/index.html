@@ -1038,6 +1038,7 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
 </div>
 <div id="toasts"></div>
 <script>
+
 // ═══════════════════════════════════════════════════
 // CORE
 // ════════════════════════════
@@ -7434,7 +7435,7 @@ async function renderPortalProfile(){
         fld('ESI Number',e.esi_number,true)+fld('UAN',e.uan,true)
       )}
       ${sec('finance','Finance & Banking','💰',
-        fld('Salary','₹'+fmt.money(e.salary||0))+fld('Salary Structure',e.salary_structure)+
+        fld('Salary',e.salary?'₹'+fmt.money(e.salary):null)+fld('Salary Structure',e.salary_structure)+
         fld('Bank Name',e.bank_name)+fld('Account Number',e.bank_account_number,true)+
         fld('IFSC Code',e.bank_ifsc,true)+fld('Bill Rate',e.bill_rate?'₹'+e.bill_rate+'/hr':null)
       )}
@@ -7494,7 +7495,7 @@ async function renderPortalTimesheets(){
     return true;
   });
   const totalHrs=filtered.reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
-  const approved=filtered.filter(t=>t.status==='Approved').reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
+  const appHrs=filtered.filter(t=>t.status==='Approved').reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
   const pending=filtered.filter(t=>!t.status||t.status==='Pending').length;
   setHtml('portal-content',`
     <div id="portal-ts-form"></div>
@@ -7516,7 +7517,7 @@ async function renderPortalTimesheets(){
       </div>
       <div class="card" style="text-align:center;padding:16px">
         <div style="font-size:12px;color:var(--txt2)">Approved</div>
-        <div style="font-size:28px;font-weight:800;color:var(--green)">${approved.toFixed(1)}h</div>
+        <div style="font-size:28px;font-weight:800;color:var(--green)">${appHrs.toFixed(1)}h</div>
       </div>
       <div class="card" style="text-align:center;padding:16px">
         <div style="font-size:12px;color:var(--txt2)">Pending</div>
@@ -7686,12 +7687,12 @@ async function renderPortalPayslips(){
     const filterY=window._payYear||'';
     const filterM=window._payMonth||'';
     const filtered=payroll.filter(p=>{
-      const d=new Date(p.pay_period||p.created_at);
-      if(filterY&&d.getFullYear()!==parseInt(filterY))return false;
-      if(filterM&&(d.getMonth()+1)!==parseInt(filterM))return false;
+      const dt=new Date(p.pay_period||p.month||p.created_at);
+      if(filterY&&dt.getFullYear()!==parseInt(filterY))return false;
+      if(filterM&&(dt.getMonth()+1)!==parseInt(filterM))return false;
       return true;
     });
-    const years=[...new Set(payroll.map(p=>new Date(p.pay_period||p.created_at).getFullYear()))].sort((a,b)=>b-a);
+    const years=[...new Set(payroll.map(p=>new Date(p.pay_period||p.month||p.created_at).getFullYear()))].sort((a,b)=>b-a);
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     setHtml('portal-content',`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -7708,28 +7709,25 @@ async function renderPortalPayslips(){
         </div>
       </div>
       ${filtered.length?`<div class="card"><div class="tbl-wrap"><table>
-        <thead><tr>
-          <th>Pay Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th>
-        </tr></thead>
-        <tbody>${filtered.sort((a,b)=>new Date(b.pay_period||b.created_at)-new Date(a.pay_period||a.created_at)).map(p=>`
+        <thead><tr><th>Pay Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>${filtered.map(p=>`
           <tr>
-            <td class="tmono" style="font-size:12px">${fmt.date(p.pay_period||p.created_at)}</td>
+            <td class="tmono" style="font-size:12px">${fmt.date(p.pay_period||p.month||p.created_at)}</td>
             <td class="tmono">₹${fmt.money(p.gross_salary||p.amount||0)}</td>
             <td class="tmono" style="color:var(--red)">₹${fmt.money(p.total_deductions||0)}</td>
             <td class="tmono" style="font-weight:700;color:var(--green)">₹${fmt.money(p.net_salary||p.amount||0)}</td>
             <td><span class="pill p-green">${p.status||'Paid'}</span></td>
-            <td><button class="btn btn-ghost btn-xs" onclick="alert('Payslip download coming soon')">↓ Download</button></td>
+            <td><button class="btn btn-ghost btn-xs" onclick="alert('Download coming soon')">↓</button></td>
           </tr>`).join('')}
         </tbody></table></div></div>`
-      :`<div class="empty"><div class="empty-icon">💰</div>
-        <div class="empty-title">No payslips yet</div>
-        <div class="empty-sub">Payslips will appear here once processed by Finance</div>
-      </div>`}
-    `);
+      :`<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div>
+        <div class="empty-sub">Payslips appear here once processed by Finance</div>
+      </div>`}`);
   }catch(ex){
     setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading payslips</div></div>');
   }
 }
+
 
 
 
@@ -7822,7 +7820,7 @@ async function renderPortalTeam(){
       ${grp('My Reportees','👤',reportees,'Reportee','#059669')}
       ${!manager&&!peers.length&&!reportees.length?`<div class="empty">
         <div class="empty-icon">👥</div><div class="empty-title">No team configured</div>
-        <div class="empty-sub">Ask your admin to set reporting managers</div>
+        <div class="empty-sub">Ask admin to set reporting managers in employee profiles</div>
       </div>`:''}
     `);
   }catch(ex){
@@ -7868,7 +7866,8 @@ function showPortalPwdChange(){
 // INIT
 // ═══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();initResponsive();});
-ay:none">
+
+</script>ay:none">
     <button class="mob-nav-item active" id="mn-dashboard" onclick="nav('dashboard');mobNavActive('mn-dashboard')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Dashboard
