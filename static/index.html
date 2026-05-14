@@ -7147,18 +7147,15 @@ let _portalEmpData=null;
 let _portalCurrentTab='dashboard';
 
 // empPortalAfterNav — called by nav() when _isEmployee=true
-function empPortalAfterNav(id){
-  if(id==='emp-portal') loadEmployeePortal();
-}
-
 async function loadEmployeePortal(){
-  console.log('loadEmployeePortal called, _auth:', JSON.stringify(_auth?.user));
+  if(window._portalLoading)return;
+  window._portalLoading=true;
   const el=document.getElementById('portal-content');
   console.log('portal-content el:', el);
   if(el)el.innerHTML='<div style="text-align:center;padding:48px;color:var(--txt3)">Loading your portal…</div>';
   try{
     const d=await apiFetch('/api/employee/dashboard');
-    console.log('dashboard API result:', d ? 'GOT DATA' : 'NULL/FAILED', d);
+
     if(!d){
       const elp=document.getElementById('portal-content');
       if(elp)elp.innerHTML='<div style="text-align:center;padding:60px 24px"><div style="font-size:48px">⚠️</div><div style="font-size:18px;font-weight:700;margin-top:12px;color:var(--txt)">Session Expired</div><div style="color:var(--txt2);margin-top:8px">Please log out and log back in.</div><button class="btn btn-primary" style="margin-top:16px" onclick="doLogout()">Log Out</button></div>';
@@ -7171,8 +7168,10 @@ async function loadEmployeePortal(){
       const tt=document.getElementById('ptab-team');
       if(tt)tt.style.display=window._isManager?'':'none';
     }catch(ex){window._isManager=false;}
+    window._portalLoading=false;
     switchPortalTab('dashboard',document.getElementById('ptab-dashboard'));
   }catch(e){
+    window._portalLoading=false;
     console.error('Portal error:',e);
     const el=document.getElementById('portal-content');
     if(el)el.innerHTML=`<div style="text-align:center;padding:60px 24px">
@@ -7210,11 +7209,10 @@ async function renderPortalTab(tab){
 }
 
 async function renderPortalDashboard(){
-  console.log('renderPortalDashboard called, _portalEmpData:', _portalEmpData);
   const d=_portalEmpData;
   if(!d){setHtml('portal-content','<div class="empty"><div class="empty-title">No data available</div></div>');return;}
   const e=d.employee||{};
-  console.log('employee data:', JSON.stringify(e));
+
   const name=`${e.first_name||''} ${e.last_name||''}`.trim()||_auth?.user?.full_name||'Employee';
   let html=`
   <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);border-radius:var(--rl);padding:24px;margin-bottom:20px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
@@ -7308,13 +7306,7 @@ async function renderPortalDashboard(){
       }
     }catch(ex){console.log('Approvals:',ex);}
   }
-  try{
-    setHtml('portal-content',html);
-    console.log('portal rendered OK');
-  }catch(renderErr){
-    console.error('RENDER ERROR:', renderErr);
-    setHtml('portal-content','<div style="padding:24px;color:red;font-family:monospace">Render error: '+renderErr.message+'</div>');
-  }
+  setHtml('portal-content',html);
 }
 
 async function renderPortalProfile(){
