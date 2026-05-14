@@ -7210,104 +7210,44 @@ async function renderPortalTab(tab){
 
 async function renderPortalDashboard(){
   const d=_portalEmpData;
-  if(!d){setHtml('portal-content','<div class="empty"><div class="empty-title">No data available</div></div>');return;}
+  if(!d){setHtml('portal-content','<div style="padding:40px;font-size:20px;color:red">No data</div>');return;}
   const e=d.employee||{};
-
-  const name=`${e.first_name||''} ${e.last_name||''}`.trim()||_auth?.user?.full_name||'Employee';
-  let html=`
-  <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);border-radius:var(--rl);padding:24px;margin-bottom:20px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-    <div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;flex-shrink:0">${fmt.ini(name)}</div>
-    <div style="flex:1;min-width:200px">
-      <div style="font-size:22px;font-weight:900">${name}</div>
-      <div style="opacity:.85;font-size:13px;margin-top:4px">${e.job_title||'–'} · ${e.department_name||'–'}</div>
-      <div style="opacity:.7;font-size:12px;margin-top:2px;font-family:var(--mono)">${e.emp_id||''}</div>
-      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-        <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${e.employment_type||''}</span>
-        <span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${e.status||'Active'}</span>
-        ${e.client_name?`<span style="background:rgba(255,255,255,.2);padding:3px 10px;border-radius:20px;font-size:10px">${e.client_name}</span>`:''}
+  const name=((e.first_name||'')+' '+(e.last_name||'')).trim()||'Employee';
+  setHtml('portal-content',`
+    <div style="padding:32px">
+      <div style="background:#1a5c2e;color:#fff;border-radius:12px;padding:32px;margin-bottom:24px">
+        <div style="font-size:28px;font-weight:900">${name}</div>
+        <div style="opacity:.8;margin-top:8px">${e.job_title||'–'} · ${e.department_name||'–'}</div>
+        <div style="opacity:.6;font-size:12px;margin-top:4px">${e.emp_id||''} · ${e.employment_type||''}</div>
+        <div style="opacity:.6;font-size:12px;margin-top:4px">📧 ${e.email||'–'} · 📍 ${e.location||'–'}</div>
       </div>
-    </div>
-    <div style="text-align:right;flex-shrink:0">
-      <div style="font-size:10px;opacity:.6;text-transform:uppercase;letter-spacing:.7px">Since</div>
-      <div style="font-size:18px;font-weight:700;margin-top:4px">${fmt.date(e.start_date)||'–'}</div>
-      <div style="font-size:10px;opacity:.6;margin-top:4px">Reporting to: ${e.reporting_manager_name||'–'}</div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
-    <div class="kpi" style="--kc:var(--amber)"><div class="kpi-label">Pending Timesheets</div><div class="kpi-value">${d.pending_timesheets||0}</div></div>
-    <div class="kpi" style="--kc:var(--green)"><div class="kpi-label">Hours MTD</div><div class="kpi-value">${d.approved_hours_mtd||0}h</div></div>
-    <div class="kpi" style="--kc:var(--blue)"><div class="kpi-label">Leave Balance</div><div class="kpi-value">${d.leave_balance??18}d</div></div>
-    <div class="kpi" style="--kc:var(--purple)"><div class="kpi-label">Leave Taken</div><div class="kpi-value">${d.leaves_taken||0}d</div></div>
-  </div>
-  <div class="g2">
-    <div class="card">
-      <div class="card-hd"><div class="card-title">⏱️ Recent Timesheets</div>
-        <button class="btn btn-ghost btn-xs" onclick="switchPortalTab('timesheets',document.getElementById('ptab-timesheets'))">View All →</button></div>
-      <div style="padding:0">
-        ${(d.recent_timesheets||[]).length?`<table style="width:100%"><tbody>${(d.recent_timesheets||[]).map(t=>`<tr style="border-bottom:1px solid var(--bdr)">
-          <td style="padding:8px 16px;font-size:11px;font-family:var(--mono)">${fmt.date(t.week_ending)||'–'}</td>
-          <td style="padding:8px 4px;font-size:11px;color:var(--txt2)">${t.client_name||t.project||'–'}</td>
-          <td style="padding:8px 4px;font-size:12px;font-family:var(--mono);font-weight:700">${t.total_hours||0}h</td>
-          <td style="padding:8px 16px 8px 4px">${pill(t.status||'Pending')}</td>
-        </tr>`).join('')}</tbody></table>`
-        :`<div style="padding:20px 16px;color:var(--txt3);font-size:13px;text-align:center">No timesheets yet</div>`}
-        <div style="padding:12px 16px;border-top:1px solid var(--bdr)">
-          <button class="btn btn-primary btn-sm" onclick="showPortalTsForm()">+ Submit Timesheet</button>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+        <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;text-align:center">
+          <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">Pending Timesheets</div>
+          <div style="font-size:32px;font-weight:800;color:var(--amber)">${d.pending_timesheets||0}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;text-align:center">
+          <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">Hours MTD</div>
+          <div style="font-size:32px;font-weight:800;color:var(--green)">${d.approved_hours_mtd||0}h</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;text-align:center">
+          <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">Leave Balance</div>
+          <div style="font-size:32px;font-weight:800;color:var(--blue)">${d.leave_balance??18}d</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--bdr);border-radius:10px;padding:20px;text-align:center">
+          <div style="font-size:13px;color:var(--txt2);margin-bottom:8px">Leave Taken</div>
+          <div style="font-size:32px;font-weight:800;color:var(--purple)">${d.leaves_taken||0}d</div>
         </div>
       </div>
-    </div>
-    <div class="card">
-      <div class="card-hd"><div class="card-title">🏖️ Leave Requests</div>
-        <button class="btn btn-ghost btn-xs" onclick="switchPortalTab('leaves',document.getElementById('ptab-leaves'))">View All →</button></div>
-      <div style="padding:0">
-        ${(d.pending_leaves||[]).length?`<table style="width:100%"><tbody>${(d.pending_leaves||[]).map(l=>`<tr style="border-bottom:1px solid var(--bdr)">
-          <td style="padding:8px 16px;font-size:12px">${l.leave_type||'Annual'}</td>
-          <td style="padding:8px 4px;font-size:11px;color:var(--txt3);font-family:var(--mono)">${fmt.date(l.from_date)}–${fmt.date(l.to_date)}</td>
-          <td style="padding:8px 4px;font-size:12px;font-family:var(--mono)">${l.days||1}d</td>
-          <td style="padding:8px 16px 8px 4px">${pill(l.status||'Pending')}</td>
-        </tr>`).join('')}</tbody></table>`
-        :`<div style="padding:20px 16px;color:var(--txt3);font-size:13px;text-align:center">No leave requests</div>`}
-        <div style="padding:12px 16px;border-top:1px solid var(--bdr)">
-          <button class="btn btn-primary btn-sm" onclick="switchPortalTab('leaves',document.getElementById('ptab-leaves'))">+ Apply for Leave</button>
-        </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-primary" onclick="switchPortalTab('timesheets',document.getElementById('ptab-timesheets'))">⏱ Timesheets</button>
+        <button class="btn btn-ghost" onclick="switchPortalTab('leaves',document.getElementById('ptab-leaves'))">🏖 Leave</button>
+        <button class="btn btn-ghost" onclick="switchPortalTab('profile',document.getElementById('ptab-profile'))">👤 My Profile</button>
       </div>
     </div>
-  </div>`;
-
-  if(window._isManager){
-    try{
-      const[pts,pls]=await Promise.all([apiFetch('/api/manager/timesheets?status=Pending'),apiFetch('/api/manager/leaves')]);
-      const plf=(pls||[]).filter(l=>l.status==='Pending');
-      if((pts||[]).length||plf.length){
-        html+=`<div class="card" style="margin-top:16px;border:2px solid var(--amber)">
-          <div class="card-hd" style="background:rgba(180,83,9,.06)"><div class="card-title" style="color:var(--amber-dk)">🔔 Pending Team Approvals (${(pts||[]).length+plf.length})</div></div>
-          <div style="padding:0">
-          ${(pts||[]).length?`<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px">Timesheets</div>
-          <table style="width:100%"><tbody>${(pts||[]).map(t=>`<tr style="border-bottom:1px solid var(--bdr)">
-            <td style="padding:8px 16px;font-size:12px;font-weight:600">${t.employee_name||'–'}</td>
-            <td style="padding:8px 4px;font-size:11px;font-family:var(--mono)">${fmt.date(t.week_ending)}</td>
-            <td style="padding:8px 4px;font-size:12px;font-family:var(--mono);font-weight:700">${t.total_hours||0}h</td>
-            <td style="padding:8px 16px 8px 4px"><div class="tact">
-              <button class="btn btn-primary btn-xs" onclick="portalApproveTs(${t.id})">✓</button>
-              <button class="btn btn-warning btn-xs" onclick="portalReturnTs(${t.id})">↩</button>
-            </div></td>
-          </tr>`).join('')}</tbody></table>`:''}
-          ${plf.length?`<div style="padding:8px 16px 4px;font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.7px">Leave Requests</div>
-          <table style="width:100%"><tbody>${plf.map(l=>`<tr style="border-bottom:1px solid var(--bdr)">
-            <td style="padding:8px 16px;font-size:12px;font-weight:600">${l.employee_name||'–'}</td>
-            <td style="padding:8px 4px;font-size:12px">${l.leave_type||'Annual'}</td>
-            <td style="padding:8px 4px;font-size:11px;font-family:var(--mono)">${fmt.date(l.from_date)}–${fmt.date(l.to_date)} (${l.days}d)</td>
-            <td style="padding:8px 16px 8px 4px"><div class="tact">
-              <button class="btn btn-primary btn-xs" onclick="portalApproveLeave(${l.id})">✓</button>
-              <button class="btn btn-danger btn-xs" onclick="portalRejectLeave(${l.id})">✗</button>
-            </div></td>
-          </tr>`).join('')}</tbody></table>`:''}
-          </div></div>`;
-      }
-    }catch(ex){console.log('Approvals:',ex);}
-  }
-  setHtml('portal-content',html);
+  `);
 }
+
 
 async function renderPortalProfile(){
   const d=_portalEmpData;if(!d){await loadEmployeePortal();return;}
