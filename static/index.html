@@ -996,6 +996,7 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
     <div class="portal-tab" id="ptab-payslips" onclick="switchPortalTab('payslips',this)">💰 Payslips</div>
     
     <div class="portal-tab" id="ptab-team" onclick="switchPortalTab('team',this)" style="display:none">👥 My Team</div>
+    <div class="portal-tab" id="ptab-approvals" onclick="switchPortalTab('approvals',this)" style="display:none">✅ Approvals <span id="approval-badge" style="background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;margin-left:4px;display:none">0</span></div>
   </div>
   <!-- PORTAL CONTENT -->
   <div id="portal-content" style="padding:24px;max-width:1100px;margin:0 auto;flex:1;overflow-y:auto">
@@ -1033,15 +1034,7 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
   <div class="modal">
     <div class="mhd"><div class="m-title" id="m-title">Add</div><button class="mclose" onclick="closeModal()">✕</button></div>
     <div class="mbody" id="m-body"></div>
-    <div class="mfoot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" id="m-submit" onclick="submitModal()">Save</button></div>
-  </div>
-</div>
-<div id="toasts"></div>
-<script>
-
-// ═══════════════════════════════════════════════════
-// CORE
-// ════════════════════════════
+    <div class="mfoot"><button class="
 // ═══════════════════════════════════════════════════
 // CORE
 // ═══════════════════════════════════════════════════
@@ -1220,7 +1213,10 @@ const ROLE_ACCESS = {
 
 function applyRBAC(role){
   const access = ROLE_ACCESS[role] || ROLE_ACCESS['Employee'];
-  const allowedNav = new Set(access.nav);
+  const navList = [...access.nav];
+  const u = _auth?.user;
+  if(u?.employee_id && role !== 'Admin' && !navList.includes('emp-portal')) navList.push('emp-portal');
+  const allowedNav = new Set(navList);
 
   // Show/hide all nav items
   document.querySelectorAll('.ni[data-mod]').forEach(el=>{
@@ -1273,10 +1269,9 @@ function afterLogin(){
     // Apply role-based access control
     const access = applyRBAC(u.role);
 
+    applyRBAC(u.role);
     if(u.role==='Employee'){
-      window._isEmployee = true;
-      window._empUserId = u.employee_id;
-      window._isManager = false;
+      window._isEmployee=true;window._empUserId=u.employee_id;window._isManager=false;
       nav('emp-portal');
     } else {
       window._isEmployee = false;
@@ -7288,6 +7283,15 @@ async function loadEmployeePortal(){
       window._isManager=team&&team.length>0;
       const tt=document.getElementById('ptab-team');
       if(tt)tt.style.display=window._isManager?'':'none';
+      const ta=document.getElementById('ptab-approvals');
+      if(ta)ta.style.display=window._isManager?'':'none';
+      if(window._isManager){
+        apiFetch('/api/manager/pending-approvals').then(data=>{
+          const tot=(data?.timesheets?.length||0)+(data?.leaves?.length||0);
+          const b=document.getElementById('approval-badge');
+          if(b){b.textContent=tot;b.style.display=tot>0?'':'none';}
+        }).catch(()=>{});
+      }
     }catch(ex){window._isManager=false;}
     window._portalLoading=false;
     switchPortalTab('dashboard',document.getElementById('ptab-dashboard'));
@@ -7372,29 +7376,24 @@ async function renderPortalDashboard(){
 
 async function renderPortalProfile(){
   const d=_portalEmpData;if(!d){await loadEmployeePortal();return;}
-  const e=d.employee||{};
-  const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
+  const e=d.employee||{};const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
   const av=fmt.avCol(name);
   const fld=(l,v,m)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${m?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
   const sec=(id,title,icon,body)=>`<div class="card" id="psec-${id}" style="margin-bottom:16px;scroll-margin-top:80px">
-    <div class="card-hd"><div class="card-title">${icon} ${title}</div>
-    <button class="btn btn-ghost btn-xs" onclick="showEditProfileSection('${id}')">✏ Edit</button></div>
+    <div class="card-hd"><div class="card-title">${icon} ${title}</div><button class="btn btn-ghost btn-xs" onclick="showEditProfileSection('${id}')">✏ Edit</button></div>
     <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px">${body}</div></div>`;
   setHtml('portal-content',`<div style="display:flex;gap:20px;align-items:flex-start">
-    <div style="width:180px;flex-shrink:0;position:sticky;top:16px">
-      <div class="card" style="padding:0;overflow:hidden">
-        <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);padding:20px;text-align:center;color:#fff">
-          <div class="av ${av}" style="width:60px;height:60px;font-size:20px;font-weight:800;border:3px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${fmt.ini(name)}</div>
-          <div style="font-size:13px;font-weight:700">${name}</div>
-          <div style="font-size:10px;opacity:.7;margin-top:3px">${e.emp_id||''}</div>
-        </div>
-        <div style="padding:6px 0">${[['personal','👤 Personal'],['role','🏢 Role & Org'],['identity','🪪 Identity'],['finance','💰 Finance'],['documents','📎 Documents']].map(([id,lbl])=>`
-          <div onclick="document.getElementById('psec-${id}')?.scrollIntoView({behavior:'smooth'})"
-            style="padding:9px 16px;cursor:pointer;font-size:12px;color:var(--txt2);border-left:3px solid transparent;transition:.15s"
-            onmouseover="this.style.background='var(--s2)';this.style.borderLeftColor='var(--green)'"
-            onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">${lbl}</div>`).join('')}</div>
+    <div style="width:180px;flex-shrink:0;position:sticky;top:16px"><div class="card" style="padding:0;overflow:hidden">
+      <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);padding:20px;text-align:center;color:#fff">
+        <div class="av ${av}" style="width:60px;height:60px;font-size:20px;font-weight:800;border:3px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${fmt.ini(name)}</div>
+        <div style="font-size:13px;font-weight:700">${name}</div><div style="font-size:10px;opacity:.7;margin-top:3px">${e.emp_id||''}</div>
       </div>
-    </div>
+      <div style="padding:6px 0">${[['personal','👤 Personal'],['role','🏢 Role & Org'],['identity','🪪 Identity'],['finance','💰 Finance'],['documents','📎 Documents']].map(([id,lbl])=>`
+        <div onclick="document.getElementById('psec-${id}')?.scrollIntoView({behavior:'smooth'})"
+          style="padding:9px 16px;cursor:pointer;font-size:12px;color:var(--txt2);border-left:3px solid transparent;transition:.15s"
+          onmouseover="this.style.background='var(--s2)';this.style.borderLeftColor='var(--green)'"
+          onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">${lbl}</div>`).join('')}</div>
+    </div></div>
     <div style="flex:1;min-width:0">
       <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a5c2e,#0f3d1e);color:#fff;padding:24px">
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -7415,90 +7414,36 @@ async function renderPortalProfile(){
           </div>
         </div>
       </div>
-      ${sec('personal','Personal Information','👤',
-        fld('First Name',e.first_name)+fld('Last Name',e.last_name)+
-        fld('Middle Name',e.middle_name)+fld('Date of Birth',fmt.date(e.dob))+
-        fld('Gender',e.gender)+fld('Marital Status',e.marital_status)+
-        fld('Nationality',e.nationality)+fld('Blood Group',e.blood_group)+
-        fld('Personal Email',e.personal_email)+fld('Personal Phone',e.personal_phone)
-      )}
-      ${sec('role','Role & Organisation','🏢',
-        fld('Job Title',e.job_title)+fld('Department',e.department_name)+
-        fld('Business Unit',e.business_unit_name)+fld('Employment Type',e.employment_type)+
-        fld('Client',e.client_name)+fld('Location',e.location)+
-        fld('Start Date',fmt.date(e.start_date))+fld('Reporting Manager',e.reporting_manager_name)+
-        fld('Notice Period',e.notice_period?e.notice_period+' days':null)+fld('Work Email',e.email)
-      )}
-      ${sec('identity','Identity & Compliance','🪪',
-        fld('PAN',e.pan,true)+fld('Aadhaar',e.aadhaar,true)+
-        fld('Passport',e.passport_number,true)+fld('PF Number',e.pf_number,true)+
-        fld('ESI Number',e.esi_number,true)+fld('UAN',e.uan,true)
-      )}
-      ${sec('finance','Finance & Banking','💰',
-        fld('Salary',e.salary?'₹'+fmt.money(e.salary):null)+fld('Salary Structure',e.salary_structure)+
-        fld('Bank Name',e.bank_name)+fld('Account Number',e.bank_account_number,true)+
-        fld('IFSC Code',e.bank_ifsc,true)+fld('Bill Rate',e.bill_rate?'₹'+e.bill_rate+'/hr':null)
-      )}
-      ${sec('documents','Documents','📎',
-        `<div style="grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap">
-          ${e.photo_url?`<a href="${e.photo_url}" target="_blank" class="btn btn-ghost btn-sm">📷 Photo</a>`:''}
-          ${e.resume_url?`<a href="${e.resume_url}" target="_blank" class="btn btn-ghost btn-sm">📄 Resume</a>`:''}
-          ${!e.photo_url&&!e.resume_url?'<span style="color:var(--txt3);font-size:13px">No documents uploaded yet</span>':''}
-        </div>`
-      )}
+      ${sec('personal','Personal Information','👤',fld('First Name',e.first_name)+fld('Last Name',e.last_name)+fld('Middle Name',e.middle_name)+fld('Date of Birth',fmt.date(e.dob))+fld('Gender',e.gender)+fld('Marital Status',e.marital_status)+fld('Nationality',e.nationality)+fld('Blood Group',e.blood_group)+fld('Personal Email',e.personal_email)+fld('Personal Phone',e.personal_phone))}
+      ${sec('role','Role & Organisation','🏢',fld('Job Title',e.job_title)+fld('Department',e.department_name)+fld('Business Unit',e.business_unit_name)+fld('Employment Type',e.employment_type)+fld('Client',e.client_name)+fld('Location',e.location)+fld('Start Date',fmt.date(e.start_date))+fld('Reporting Manager',e.reporting_manager_name)+fld('Notice Period',e.notice_period?e.notice_period+' days':null)+fld('Work Email',e.email))}
+      ${sec('identity','Identity & Compliance','🪪',fld('PAN',e.pan,true)+fld('Aadhaar',e.aadhaar,true)+fld('Passport',e.passport_number,true)+fld('PF Number',e.pf_number,true)+fld('ESI Number',e.esi_number,true)+fld('UAN',e.uan,true))}
+      ${sec('finance','Finance & Banking','💰',fld('Salary',e.salary?'₹'+fmt.money(e.salary):null)+fld('Salary Structure',e.salary_structure)+fld('Bank Name',e.bank_name)+fld('Account Number',e.bank_account_number,true)+fld('IFSC Code',e.bank_ifsc,true)+fld('Bill Rate',e.bill_rate?'₹'+e.bill_rate+'/hr':null))}
+      ${sec('documents','Documents','📎',`<div style="grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap">${e.photo_url?`<a href="${e.photo_url}" target="_blank" class="btn btn-ghost btn-sm">📷 Photo</a>`:''}${e.resume_url?`<a href="${e.resume_url}" target="_blank" class="btn btn-ghost btn-sm">📄 Resume</a>`:''}${!e.photo_url&&!e.resume_url?'<span style="color:var(--txt3);font-size:13px">No documents uploaded yet</span>':''}</div>`)}
     </div>
   </div>`);
 }
-
 function showEditProfileSection(section){
   const e=_portalEmpData?.employee||{};
   const cfgs={
-    personal:{title:'Personal Information',fields:`
-      <div class="frow"><div class="fg"><label class="flabel">First Name</label><input class="finput" name="first_name" value="${e.first_name||''}"></div>
-      <div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name" value="${e.last_name||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob" value="${e.dob||''}"></div>
-      <div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">
-        ${['','Male','Female','Non-binary','Prefer not to say'].map(g=>`<option ${e.gender===g?'selected':''}>${g}</option>`).join('')}</select></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Marital Status</label><select class="fselect" name="marital_status">
-        ${['','Single','Married','Divorced','Widowed'].map(m=>`<option ${e.marital_status===m?'selected':''}>${m}</option>`).join('')}</select></div>
-      <div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="${e.nationality||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Blood Group</label><input class="finput" name="blood_group" value="${e.blood_group||''}"></div>
-      <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div></div>
-      <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>`},
-    identity:{title:'Identity & Compliance',fields:`
-      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}"></div>
-      <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" value="${e.passport_number||''}"></div>
-      <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div>
-      <div class="frow"><div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div>
-      <div class="fg"><label class="flabel">UAN</label><input class="finput" name="uan" value="${e.uan||''}"></div></div>`}
+    personal:{title:'Personal Information',fields:`<div class="frow"><div class="fg"><label class="flabel">First Name</label><input class="finput" name="first_name" value="${e.first_name||''}"></div><div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name" value="${e.last_name||''}"></div></div><div class="frow"><div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob" value="${e.dob||''}"></div><div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">${['','Male','Female','Non-binary','Prefer not to say'].map(g=>`<option ${e.gender===g?'selected':''}>${g}</option>`).join('')}</select></div></div><div class="frow"><div class="fg"><label class="flabel">Marital Status</label><select class="fselect" name="marital_status">${['','Single','Married','Divorced','Widowed'].map(m=>`<option ${e.marital_status===m?'selected':''}>${m}</option>`).join('')}</select></div><div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="${e.nationality||''}"></div></div><div class="frow"><div class="fg"><label class="flabel">Blood Group</label><input class="finput" name="blood_group" value="${e.blood_group||''}"></div><div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div></div><div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>`},
+    identity:{title:'Identity & Compliance',fields:`<div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}"></div><div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}"></div></div><div class="frow"><div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" value="${e.passport_number||''}"></div><div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div><div class="frow"><div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div><div class="fg"><label class="flabel">UAN</label><input class="finput" name="uan" value="${e.uan||''}"></div></div>`}
   };
   const cfg=cfgs[section]||cfgs.personal;
-  $('m-title').textContent='Edit '+cfg.title;
-  $('m-body').innerHTML=`<form id="mform">${cfg.fields}</form>`;
-  _curModalType='edit-portal-profile';
-  $('m-submit').textContent='Save';$('m-submit').style.display='';$('overlay').classList.add('open');
+  $('m-title').textContent='Edit '+cfg.title;$('m-body').innerHTML=`<form id="mform">${cfg.fields}</form>`;
+  _curModalType='edit-portal-profile';$('m-submit').textContent='Save';$('m-submit').style.display='';$('overlay').classList.add('open');
 }
 
 
 
 async function renderPortalTimesheets(){
-  const filter=window._tsFilter||'all';
-  const rows=await apiFetch('/api/my/timesheets')||[];
+  const filter=window._tsFilter||'all';const rows=await apiFetch('/api/my/timesheets')||[];
   const statC={'Approved':'p-green','Rejected':'p-red','Pending':'p-amber'};
   const now=new Date();
-  const filtered=rows.filter(t=>{
-    if(filter==='all')return true;
-    const d=new Date(t.week_ending);
-    if(filter==='month')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
-    if(filter==='year')return d.getFullYear()===now.getFullYear();
-    return true;
-  });
+  const filtered=rows.filter(t=>{if(filter==='all')return true;const d=new Date(t.week_ending);if(filter==='month')return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();if(filter==='year')return d.getFullYear()===now.getFullYear();return true;});
   const totalHrs=filtered.reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
   const appHrs=filtered.filter(t=>t.status==='Approved').reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
   const pending=filtered.filter(t=>!t.status||t.status==='Pending').length;
-  setHtml('portal-content',`
-    <div id="portal-ts-form"></div>
+  setHtml('portal-content',`<div id="portal-ts-form"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:18px;font-weight:700">⏱️ My Timesheets</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7511,36 +7456,21 @@ async function renderPortalTimesheets(){
       </div>
     </div>
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">
-      <div class="card" style="text-align:center;padding:16px">
-        <div style="font-size:12px;color:var(--txt2)">Total Hours</div>
-        <div style="font-size:28px;font-weight:800;color:var(--blue)">${totalHrs.toFixed(1)}h</div>
-      </div>
-      <div class="card" style="text-align:center;padding:16px">
-        <div style="font-size:12px;color:var(--txt2)">Approved</div>
-        <div style="font-size:28px;font-weight:800;color:var(--green)">${appHrs.toFixed(1)}h</div>
-      </div>
-      <div class="card" style="text-align:center;padding:16px">
-        <div style="font-size:12px;color:var(--txt2)">Pending</div>
-        <div style="font-size:28px;font-weight:800;color:var(--amber)">${pending}</div>
-      </div>
+      <div class="card" style="text-align:center;padding:16px"><div style="font-size:12px;color:var(--txt2)">Total Hours</div><div style="font-size:28px;font-weight:800;color:var(--blue)">${totalHrs.toFixed(1)}h</div></div>
+      <div class="card" style="text-align:center;padding:16px"><div style="font-size:12px;color:var(--txt2)">Approved</div><div style="font-size:28px;font-weight:800;color:var(--green)">${appHrs.toFixed(1)}h</div></div>
+      <div class="card" style="text-align:center;padding:16px"><div style="font-size:12px;color:var(--txt2)">Pending</div><div style="font-size:28px;font-weight:800;color:var(--amber)">${pending}</div></div>
     </div>
     ${filtered.length?`<div class="card"><div class="tbl-wrap"><table>
-      <thead><tr><th>Week Ending</th><th>Project / Client</th>
-        <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th>
-        <th>Total</th><th>Status</th><th>Notes</th></tr></thead>
-      <tbody>${filtered.sort((a,b)=>new Date(b.week_ending)-new Date(a.week_ending)).map(t=>`
-        <tr>
-          <td class="tmono" style="font-size:12px">${fmt.date(t.week_ending)}</td>
-          <td style="font-size:12px">${t.project_name||t.client_name||t.project||'–'}</td>
-          <td class="tmono">${t.mon||0}</td><td class="tmono">${t.tue||0}</td>
-          <td class="tmono">${t.wed||0}</td><td class="tmono">${t.thu||0}</td><td class="tmono">${t.fri||0}</td>
-          <td class="tmono" style="font-weight:700">${t.total_hours||0}h</td>
-          <td><span class="pill ${statC[t.status]||'p-gray'}">${t.status||'Pending'}</span></td>
-          <td style="font-size:11px;color:var(--txt3)">${t.notes||'–'}</td>
-        </tr>`).join('')}</tbody></table></div></div>`
-    :`<div class="empty"><div class="empty-icon">⏱️</div><div class="empty-title">No timesheets yet</div>
-      <button class="btn btn-primary btn-sm" onclick="showPortalTsForm()" style="margin-top:12px">Submit First Timesheet</button>
-    </div>`}`);
+      <thead><tr><th>Week Ending</th><th>Project / Client</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Total</th><th>Status</th><th>Notes</th></tr></thead>
+      <tbody>${filtered.sort((a,b)=>new Date(b.week_ending)-new Date(a.week_ending)).map(t=>`<tr>
+        <td class="tmono" style="font-size:12px">${fmt.date(t.week_ending)}</td>
+        <td style="font-size:12px">${t.project_name||t.client_name||t.project||'–'}</td>
+        <td class="tmono">${t.mon||0}</td><td class="tmono">${t.tue||0}</td><td class="tmono">${t.wed||0}</td><td class="tmono">${t.thu||0}</td><td class="tmono">${t.fri||0}</td>
+        <td class="tmono" style="font-weight:700">${t.total_hours||0}h</td>
+        <td><span class="pill ${statC[t.status]||'p-gray'}">${t.status||'Pending'}</span></td>
+        <td style="font-size:11px;color:var(--txt3)">${t.notes||'–'}</td>
+      </tr>`).join('')}</tbody></table></div></div>`
+    :`<div class="empty"><div class="empty-icon">⏱️</div><div class="empty-title">No timesheets yet</div><button class="btn btn-primary btn-sm" onclick="showPortalTsForm()" style="margin-top:12px">Submit First Timesheet</button></div>`}`);
 }
 
 
@@ -7587,56 +7517,30 @@ async function submitPortalTs(){
 
 async function renderPortalLeaves(){
   const leaves=await apiFetch('/api/employee/leaves')||[];
-  const d=_portalEmpData;
-  const balance=d?.leave_balance??18;
-  const taken=d?.leaves_taken??0;
-  const pending=leaves.filter(l=>l.status==='Pending').length;
-  const approved=leaves.filter(l=>l.status==='Approved').length;
+  const d=_portalEmpData;const balance=d?.leave_balance??18;const taken=d?.leaves_taken??0;
+  const pending=leaves.filter(l=>l.status==='Pending').length;const approved=leaves.filter(l=>l.status==='Approved').length;
   const statC={'Approved':'p-green','Rejected':'p-red','Pending':'p-amber'};
-  setHtml('portal-content',`
-    <div id="portal-leave-form"></div>
+  setHtml('portal-content',`<div id="portal-leave-form"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:18px;font-weight:700">🏖️ My Leave</div>
       <button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()">+ Apply for Leave</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
-      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--green)">
-        <div style="font-size:12px;color:var(--txt2)">Balance</div>
-        <div style="font-size:32px;font-weight:800;color:var(--green)">${balance}</div>
-        <div style="font-size:10px;color:var(--txt3)">days remaining</div>
-      </div>
-      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--blue)">
-        <div style="font-size:12px;color:var(--txt2)">Taken</div>
-        <div style="font-size:32px;font-weight:800;color:var(--blue)">${taken}</div>
-        <div style="font-size:10px;color:var(--txt3)">days used</div>
-      </div>
-      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--amber)">
-        <div style="font-size:12px;color:var(--txt2)">Pending</div>
-        <div style="font-size:32px;font-weight:800;color:var(--amber)">${pending}</div>
-        <div style="font-size:10px;color:var(--txt3)">awaiting approval</div>
-      </div>
-      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--purple)">
-        <div style="font-size:12px;color:var(--txt2)">Approved</div>
-        <div style="font-size:32px;font-weight:800;color:var(--purple)">${approved}</div>
-        <div style="font-size:10px;color:var(--txt3)">this year</div>
-      </div>
+      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--green)"><div style="font-size:12px;color:var(--txt2)">Balance</div><div style="font-size:32px;font-weight:800;color:var(--green)">${balance}</div><div style="font-size:10px;color:var(--txt3)">days remaining</div></div>
+      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--blue)"><div style="font-size:12px;color:var(--txt2)">Taken</div><div style="font-size:32px;font-weight:800;color:var(--blue)">${taken}</div><div style="font-size:10px;color:var(--txt3)">days used</div></div>
+      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--amber)"><div style="font-size:12px;color:var(--txt2)">Pending</div><div style="font-size:32px;font-weight:800;color:var(--amber)">${pending}</div><div style="font-size:10px;color:var(--txt3)">awaiting approval</div></div>
+      <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--purple)"><div style="font-size:12px;color:var(--txt2)">Approved</div><div style="font-size:32px;font-weight:800;color:var(--purple)">${approved}</div><div style="font-size:10px;color:var(--txt3)">this year</div></div>
     </div>
-    ${leaves.length?`<div class="card"><div class="card-hd"><div class="card-title">Leave History</div></div>
-      <div class="tbl-wrap"><table>
-        <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
-        <tbody>${leaves.sort((a,b)=>new Date(b.from_date)-new Date(a.from_date)).map(l=>`
-          <tr>
-            <td style="font-size:12px;font-weight:600">${l.leave_type||'Annual'}</td>
-            <td class="tmono" style="font-size:12px">${fmt.date(l.from_date)}</td>
-            <td class="tmono" style="font-size:12px">${fmt.date(l.to_date)}</td>
-            <td class="tmono" style="font-weight:700">${l.days||1}</td>
-            <td style="font-size:12px;color:var(--txt2)">${l.reason||'–'}</td>
-            <td><span class="pill ${statC[l.status]||'p-gray'}">${l.status||'Pending'}</span></td>
-          </tr>`).join('')}
-        </tbody></table></div></div>`
-    :`<div class="empty"><div class="empty-icon">🏖️</div><div class="empty-title">No leave requests yet</div>
-      <button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()" style="margin-top:12px">Apply for Leave</button>
-    </div>`}`);
+    ${leaves.length?`<div class="card"><div class="card-hd"><div class="card-title">Leave History</div></div><div class="tbl-wrap"><table>
+      <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
+      <tbody>${leaves.sort((a,b)=>new Date(b.from_date)-new Date(a.from_date)).map(l=>`<tr>
+        <td style="font-size:12px;font-weight:600">${l.leave_type||'Annual'}</td>
+        <td class="tmono" style="font-size:12px">${fmt.date(l.from_date)}</td><td class="tmono" style="font-size:12px">${fmt.date(l.to_date)}</td>
+        <td class="tmono" style="font-weight:700">${l.days||1}</td>
+        <td style="font-size:12px;color:var(--txt2)">${l.reason||'–'}</td>
+        <td><span class="pill ${statC[l.status]||'p-gray'}">${l.status||'Pending'}</span></td>
+      </tr>`).join('')}</tbody></table></div></div>`
+    :`<div class="empty"><div class="empty-icon">🏖️</div><div class="empty-title">No leave requests yet</div><button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()" style="margin-top:12px">Apply for Leave</button></div>`}`);
 }
 
 
@@ -7684,14 +7588,8 @@ async function renderPortalPayslips(){
     const empId=_portalEmpData?.employee?.id;
     if(!empId){setHtml('portal-content','<div class="empty"><div class="empty-title">No employee data</div></div>');return;}
     const payroll=await apiFetch(`/api/payroll/entries?employee_id=${empId}`)||[];
-    const filterY=window._payYear||'';
-    const filterM=window._payMonth||'';
-    const filtered=payroll.filter(p=>{
-      const dt=new Date(p.pay_period||p.month||p.created_at);
-      if(filterY&&dt.getFullYear()!==parseInt(filterY))return false;
-      if(filterM&&(dt.getMonth()+1)!==parseInt(filterM))return false;
-      return true;
-    });
+    const filterY=window._payYear||'';const filterM=window._payMonth||'';
+    const filtered=payroll.filter(p=>{const dt=new Date(p.pay_period||p.month||p.created_at);if(filterY&&dt.getFullYear()!==parseInt(filterY))return false;if(filterM&&(dt.getMonth()+1)!==parseInt(filterM))return false;return true;});
     const years=[...new Set(payroll.map(p=>new Date(p.pay_period||p.month||p.created_at).getFullYear()))].sort((a,b)=>b-a);
     const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     setHtml('portal-content',`
@@ -7710,22 +7608,16 @@ async function renderPortalPayslips(){
       </div>
       ${filtered.length?`<div class="card"><div class="tbl-wrap"><table>
         <thead><tr><th>Pay Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>${filtered.map(p=>`
-          <tr>
-            <td class="tmono" style="font-size:12px">${fmt.date(p.pay_period||p.month||p.created_at)}</td>
-            <td class="tmono">₹${fmt.money(p.gross_salary||p.amount||0)}</td>
-            <td class="tmono" style="color:var(--red)">₹${fmt.money(p.total_deductions||0)}</td>
-            <td class="tmono" style="font-weight:700;color:var(--green)">₹${fmt.money(p.net_salary||p.amount||0)}</td>
-            <td><span class="pill p-green">${p.status||'Paid'}</span></td>
-            <td><button class="btn btn-ghost btn-xs" onclick="alert('Download coming soon')">↓</button></td>
-          </tr>`).join('')}
-        </tbody></table></div></div>`
-      :`<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div>
-        <div class="empty-sub">Payslips appear here once processed by Finance</div>
-      </div>`}`);
-  }catch(ex){
-    setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading payslips</div></div>');
-  }
+        <tbody>${filtered.map(p=>`<tr>
+          <td class="tmono" style="font-size:12px">${fmt.date(p.pay_period||p.month||p.created_at)}</td>
+          <td class="tmono">₹${fmt.money(p.gross_salary||p.amount||0)}</td>
+          <td class="tmono" style="color:var(--red)">₹${fmt.money(p.total_deductions||0)}</td>
+          <td class="tmono" style="font-weight:700;color:var(--green)">₹${fmt.money(p.net_salary||p.amount||0)}</td>
+          <td><span class="pill p-green">${p.status||'Paid'}</span></td>
+          <td><button class="btn btn-ghost btn-xs" onclick="alert('Download coming soon')">↓</button></td>
+        </tr>`).join('')}</tbody></table></div></div>`
+      :`<div class="empty"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div><div class="empty-sub">Payslips appear here once processed by Finance</div></div>`}`);
+  }catch(ex){setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading payslips</div></div>');}
 }
 
 
@@ -7787,48 +7679,85 @@ function portalAddCandidateToReq(reqId,reqTitle){
 
 async function renderPortalTeam(){
   try{
-    const e=_portalEmpData?.employee||{};
-    const myId=e.id;const managerId=e.reporting_manager_id;
+    const e=_portalEmpData?.employee||{};const myId=e.id;const managerId=e.reporting_manager_id;
     const allEmps=await apiFetch('/api/employees')||[];
     const manager=managerId?allEmps.find(x=>x.id===managerId):null;
     const reportees=allEmps.filter(x=>x.reporting_manager_id===myId);
     const peers=managerId?allEmps.filter(x=>x.reporting_manager_id===managerId&&x.id!==myId):[];
-    const card=(emp,badge,color)=>{
-      const n=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
-      const av=fmt.avCol(n);
+    const card=(emp,badge,color)=>{const n=((emp.first_name||'')+' '+(emp.last_name||'')).trim();const av=fmt.avCol(n);
       return`<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px">
         <div class="av ${av}" style="width:44px;height:44px;font-size:15px;font-weight:800;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center">${fmt.ini(n)}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700">${n}</div>
-          <div style="font-size:11px;color:var(--txt2);margin-top:2px">${emp.job_title||'–'}</div>
-          <div style="font-size:10px;color:var(--txt3)">${emp.department_name||emp.location||'–'}</div>
-        </div>
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">${n}</div><div style="font-size:11px;color:var(--txt2);margin-top:2px">${emp.job_title||'–'}</div><div style="font-size:10px;color:var(--txt3)">${emp.department_name||emp.location||'–'}</div></div>
         <span class="pill" style="background:${color};color:#fff;font-size:10px">${badge}</span>
-      </div>`;
-    };
-    const grp=(title,icon,items,badge,color)=>!items.length?'':`
-      <div style="margin-bottom:24px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${icon} ${title} (${items.length})</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
-          ${items.map(x=>card(x,badge,color)).join('')}
-        </div>
-      </div>`;
-    setHtml('portal-content',`
-      <div style="font-size:18px;font-weight:700;margin-bottom:20px">👥 My Team</div>
+      </div>`;};
+    const grp=(title,icon,items,badge,color)=>!items.length?'':`<div style="margin-bottom:24px">
+      <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${icon} ${title} (${items.length})</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">${items.map(x=>card(x,badge,color)).join('')}</div></div>`;
+    setHtml('portal-content',`<div style="font-size:18px;font-weight:700;margin-bottom:20px">👥 My Team</div>
       ${manager?grp('Reporting Manager','📊',[manager],'Manager','#7c3aed'):''}
       ${grp('Peers','🤝',peers,'Peer','#2563eb')}
       ${grp('My Reportees','👤',reportees,'Reportee','#059669')}
-      ${!manager&&!peers.length&&!reportees.length?`<div class="empty">
-        <div class="empty-icon">👥</div><div class="empty-title">No team configured</div>
-        <div class="empty-sub">Ask admin to set reporting managers in employee profiles</div>
-      </div>`:''}
-    `);
-  }catch(ex){
-    setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading team</div></div>');
-  }
+      ${!manager&&!peers.length&&!reportees.length?'<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">No team configured</div><div class="empty-sub">Ask admin to set reporting managers</div></div>':''}`);
+  }catch(ex){setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading team</div></div>');}
 }
 
 
+
+async function renderPortalApprovals(){
+  try{
+    const data=await apiFetch('/api/manager/pending-approvals')||{timesheets:[],leaves:[]};
+    const ts=data.timesheets||[];const leaves=data.leaves||[];const total=ts.length+leaves.length;
+    const badge=$('approval-badge');if(badge){badge.textContent=total;badge.style.display=total>0?'':'none';}
+    setHtml('portal-content',`<div style="font-size:18px;font-weight:700;margin-bottom:20px">✅ Pending Approvals (${total})</div>
+      ${ts.length?`<div style="font-size:13px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">⏱️ Timesheets (${ts.length})</div>
+        <div class="card" style="margin-bottom:20px"><div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>Week Ending</th><th>Total</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody>${ts.map(t=>`<tr>
+            <td><div class="av-name">${t.employee_name||'–'}</div><div class="av-meta">${t.emp_id||''}</div></td>
+            <td class="tmono" style="font-size:12px">${fmt.date(t.week_ending)}</td>
+            <td class="tmono" style="font-weight:700">${t.total_hours||0}h</td>
+            <td style="font-size:12px;color:var(--txt2)">${t.notes||'–'}</td>
+            <td><div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-xs" onclick="managerApproveTs(${t.id})">✓ Approve</button>
+              <button class="btn btn-danger btn-xs" onclick="managerRejectTs(${t.id})">✗ Reject</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table></div></div>`:''}
+      ${leaves.length?`<div style="font-size:13px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">🏖️ Leave Requests (${leaves.length})</div>
+        <div class="card"><div class="tbl-wrap"><table>
+          <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Actions</th></tr></thead>
+          <tbody>${leaves.map(l=>`<tr>
+            <td><div class="av-name">${l.employee_name||'–'}</div><div class="av-meta">${l.emp_id||''}</div></td>
+            <td style="font-size:12px">${l.leave_type||'Annual'}</td>
+            <td class="tmono" style="font-size:12px">${fmt.date(l.from_date)}</td>
+            <td class="tmono" style="font-size:12px">${fmt.date(l.to_date)}</td>
+            <td class="tmono" style="font-weight:700">${l.days||1}</td>
+            <td style="font-size:12px;color:var(--txt2)">${l.reason||'–'}</td>
+            <td><div style="display:flex;gap:6px">
+              <button class="btn btn-primary btn-xs" onclick="managerApproveLeave(${l.id})">✓ Approve</button>
+              <button class="btn btn-danger btn-xs" onclick="managerRejectLeave(${l.id})">✗ Reject</button>
+            </div></td>
+          </tr>`).join('')}</tbody></table></div></div>`:''}
+      ${total===0?'<div class="empty"><div class="empty-icon">✅</div><div class="empty-title">All caught up!</div><div class="empty-sub">No pending approvals from your team</div></div>':''}`);
+  }catch(ex){setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading approvals</div></div>');}
+}
+async function managerApproveTs(id){
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
+  toast('Timesheet approved','success');renderPortalApprovals();
+}
+async function managerRejectTs(id){
+  const reason=prompt('Reason for rejection:');if(reason===null)return;
+  await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Rejected',notes:reason})});
+  toast('Timesheet rejected','info');renderPortalApprovals();
+}
+async function managerApproveLeave(id){
+  await apiFetch(`/api/manager/approve-leave/${id}`,{method:'PUT',body:JSON.stringify({action:'approve'})});
+  toast('Leave approved','success');renderPortalApprovals();
+}
+async function managerRejectLeave(id){
+  const reason=prompt('Reason for rejection:');if(reason===null)return;
+  await apiFetch(`/api/manager/approve-leave/${id}`,{method:'PUT',body:JSON.stringify({action:'reject',reason})});
+  toast('Leave rejected','info');renderPortalApprovals();
+}
 
 async function portalApproveTs(id){
   await apiFetch(`/api/timesheets/${id}`,{method:'PUT',body:JSON.stringify({status:'Approved'})});
@@ -7866,8 +7795,14 @@ function showPortalPwdChange(){
 // INIT
 // ═══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();initResponsive();});
+═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();initResponsive();});
+</script>
 
-</script>ay:none">
+  <!-- Mobile bottom navigation -->
+  <nav class="mob-nav" id="mob-nav" style="display:none">
     <button class="mob-nav-item active" id="mn-dashboard" onclick="nav('dashboard');mobNavActive('mn-dashboard')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Dashboard

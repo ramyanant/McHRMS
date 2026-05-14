@@ -3170,9 +3170,16 @@ def employee_leaves():
             ORDER BY created_at DESC""",(uid,)))
     d = request.get_json()
     if not d.get('from_date') or not d.get('to_date'): return err("from_date and to_date required")
-    _cur().execute("""INSERT INTO employee_leaves(employee_id,leave_type,from_date,to_date,reason)
-        VALUES(%s,%s,%s,%s,%s) RETURNING id""",
-        (uid,d.get('leave_type','Casual'),d['from_date'],d['to_date'],d.get('reason','')))
+    # Calculate days if not provided
+    from_dt = d['from_date']; to_dt = d['to_date']
+    try:
+        from datetime import datetime as _dt
+        _days = ((_dt.strptime(to_dt,'%Y-%m-%d') - _dt.strptime(from_dt,'%Y-%m-%d')).days + 1)
+    except: _days = d.get('days', 1)
+    actual_days = d.get('days', _days) or _days
+    _cur().execute("""INSERT INTO employee_leaves(employee_id,leave_type,from_date,to_date,days,reason)
+        VALUES(%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (uid,d.get('leave_type','Casual'),from_dt,to_dt,actual_days,d.get('reason','')))
     lid = _cur().fetchone()['id']
     db.commit()
     return ok({'id':lid}, "Leave applied", 201)
@@ -3199,6 +3206,62 @@ def employee_leave_detail(lid):
         _cur().execute("DELETE FROM employee_leaves WHERE id=%s",(lid,))
         db.commit()
         return ok(msg="Leave cancelled")
+
+
+@app.route('/api/manager/pending-approvals', methods=['GET'])
+@require_auth
+def manager_pending_approvals():
+    """Get pending timesheets and leave requests from direct reports"""
+    uid = g.user.get('employee_id')
+    if not uid:
+        emp = row1("SELECT id FROM employees WHERE email=%s",(g.user.get('email',''),))
+        if emp: uid = emp['id']
+        else: return ok({'timesheets':[],'leaves':[]})
+    
+    # Get direct reports
+    team_ids = [r['id'] for r in rows("SELECT id FROM employees WHERE reporting_manager_id=%s",(uid,))]
+    if not team_ids:
+        return ok({'timesheets':[],'leaves':[]})
+    
+    placeholders = ','.join(['%s']*len(team_ids))
+    
+    # Pending timesheets from direct reports
+    pending_ts = rows(f"""SELECT t.*, 
+        e.first_name||' '||e.last_name as employee_name,
+        e.emp_id, s.name as status
+        FROM timesheets t
+        JOIN employees e ON e.id=t.employee_id
+        LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
+        WHERE t.employee_id IN ({placeholders})
+        AND (s.name='Pending' OR t.status_id IS NULL)
+        ORDER BY t.week_ending DESC""", team_ids)
+    
+    # Pending leave requests from direct reports
+    pending_leaves = rows(f"""SELECT l.*,
+        e.first_name||' '||e.last_name as employee_name,
+        e.emp_id
+        FROM employee_leaves l
+        JOIN employees e ON e.id=l.employee_id
+        WHERE l.employee_id IN ({placeholders})
+        AND l.status='Pending'
+        ORDER BY l.applied_at DESC""", team_ids)
+    
+    return ok({'timesheets': pending_ts, 'leaves': pending_leaves})
+
+@app.route('/api/manager/approve-leave/<int:lid>', methods=['PUT'])
+@require_auth  
+def manager_approve_leave(lid):
+    """Approve or reject a leave request"""
+    d = request.get_json()
+    action = d.get('action','approve')  # approve or reject
+    reason = d.get('reason','')
+    status = 'Approved' if action=='approve' else 'Rejected'
+    db = get_db()
+    _cur().execute(
+        "UPDATE employee_leaves SET status=%s,rejection_reason=%s WHERE id=%s",
+        (status, reason, lid))
+    db.commit()
+    return ok(msg=f"Leave {status}")
 
 @app.route('/api/manager/team', methods=['GET'])
 @require_auth
