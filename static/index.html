@@ -1330,7 +1330,10 @@ window.addEventListener('resize',()=>{
 
 function nav(id){
   document.querySelectorAll('.mod').forEach(m=>m.classList.remove('active'));
-  const mod=$('mod-'+id);if(mod)mod.classList.add('active');
+  const mod=$('mod-'+id);
+  console.log('NAV id='+id+' mod=',mod);
+  if(mod)mod.classList.add('active');
+  console.log('NAV after active: mod class=',mod?mod.className:'null');
   document.querySelectorAll('.ni').forEach(n=>n.classList.toggle('active',n.dataset.mod===id));
   const cfg=modCfg[id]||{};
   // Update breadcrumb
