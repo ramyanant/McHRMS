@@ -1343,7 +1343,7 @@ function nav(id){
     bcSep.style.display=sub?'':'none';
   }
   _curMod=id;
-  if(window._isEmployee) setTimeout(()=>empPortalAfterNav(id),150);
+  // portal loaded by loaders map
   // Hide/show topbar Add New button based on module
   const hideAddBtn=['org-profile','reports','sourcing','dashboard'];
   const addBtn=document.querySelector('.tb-right .btn-primary');
