@@ -192,7 +192,7 @@ def _seed_pg(cur):
         cur.execute("INSERT INTO master_timesheet_statuses(name) VALUES(%s)",(n,))
     for n in ["Semi-Monthly FTE","Contractor Bi-Weekly","Monthly","Supplemental"]:
         cur.execute("INSERT INTO master_payroll_run_types(name) VALUES(%s)",(n,))
-    for n,d in [("Admin","Full access"),("HR Manager","HR modules"),("Recruiter","ATS modules"),("Finance","Finance modules"),("Employee","Self-service"),("Client","Client portal"),("Vendor","Vendor portal")]:
+    for n,d in [("Admin","Full access"),("HR Manager","HR access"),("Recruiter","ATS access"),("Recruiting Manager","ATS full access"),("Account Manager","Client & ATS access"),("Finance","Finance access"),("Finance Manager","Finance full access"),("Employee","Self-service"),("Client","Client portal"),("Vendor","Vendor portal")]:
         cur.execute("INSERT INTO master_user_roles(name,description) VALUES(%s,%s)",(n,d))
     for n in ["Spouse","Parent","Sibling","Child","Friend","Colleague","Other"]:
         cur.execute("INSERT INTO master_relationship_types(name) VALUES(%s)",(n,))
@@ -3271,6 +3271,27 @@ def ensure_employee_user():
         (username,email,hash_pw(password),emp_role['id'],emp_id,full_name))
     uid=cur.fetchone()['id']
     return ok({"id":uid,"username":username,"password":password,"action":"created"},f"User created: {username}",201)
+
+@app.route('/api/admin/add-roles')
+def add_missing_roles():
+    """Add missing roles without resetting data"""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        roles = [
+            ('Recruiting Manager','ATS full access'),
+            ('Account Manager','Client & ATS access'),
+            ('Finance Manager','Finance full access'),
+            ('Recruiter Manager','Recruiter lead access'),
+        ]
+        added = 0
+        for name, desc in roles:
+            cur.execute("INSERT INTO master_user_roles(name,description) VALUES(%s,%s) ON CONFLICT(name) DO NOTHING RETURNING id", (name, desc))
+            if cur.fetchone():
+                added += 1
+        conn.close()
+        return f'<h2 style="font-family:sans-serif;padding:40px;color:green">Added {added} role(s). <a href="/">App →</a></h2>', 200
+    except Exception as ex:
+        return f'<h2 style="color:red;font-family:sans-serif;padding:40px">Error: {ex}</h2>', 500
 
 @app.route('/api/admin/db-status')
 def db_status():
