@@ -3363,6 +3363,34 @@ def add_missing_roles():
     except Exception as ex:
         return f'<h2 style="color:red;font-family:sans-serif;padding:40px">Error: {ex}</h2>', 500
 
+@app.route('/api/admin/set-reporting-manager')
+def set_reporting_manager():
+    """Show employees and their reporting managers. Pass ?emp=ID&mgr=ID to set one."""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor(cursor_factory=__import__('psycopg2.extras',fromlist=['RealDictCursor']).RealDictCursor)
+        emp_id = request.args.get('emp','')
+        mgr_id = request.args.get('mgr','')
+        msg = ''
+        if emp_id and mgr_id:
+            cur.execute("UPDATE employees SET reporting_manager_id=%s WHERE id=%s", (int(mgr_id), int(emp_id)))
+            msg = f'<p style="color:green">✅ Set reporting_manager_id={mgr_id} for employee id={emp_id}</p>'
+        cur.execute("""SELECT e.id, e.emp_id, e.first_name||' '||e.last_name as name,
+            e.reporting_manager_id,
+            m.first_name||' '||m.last_name as manager_name
+            FROM employees e
+            LEFT JOIN employees m ON m.id=e.reporting_manager_id
+            ORDER BY e.id""")
+        emps = cur.fetchall()
+        rows_html = ''.join(f'<tr><td>{e["id"]}</td><td>{e["emp_id"]}</td><td>{e["name"]}</td><td>{e["reporting_manager_id"] or "–"}</td><td>{e["manager_name"] or "–"}</td><td><a href="?emp={e["id"]}&mgr=SET_MGR_ID">Set</a></td></tr>' for e in emps)
+        conn.close()
+        return f'''<html><body style="font-family:sans-serif;padding:40px">
+            <h2>Employee Reporting Managers</h2>{msg}
+            <p>To set: <code>?emp=EMPLOYEE_ID&mgr=MANAGER_EMPLOYEE_ID</code></p>
+            <table border="1" cellpadding="6"><tr><th>ID</th><th>Emp ID</th><th>Name</th><th>Manager ID</th><th>Manager Name</th><th>Action</th></tr>{rows_html}</table>
+            <br><a href="/">← App</a></body></html>''', 200
+    except Exception as ex:
+        return f'<h2 style="color:red;font-family:sans-serif;padding:40px">Error: {ex}</h2>', 500
+
 @app.route('/api/admin/db-status')
 def db_status():
     """Show DB state and fix jags - open in browser"""
