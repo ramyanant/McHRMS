@@ -1186,15 +1186,14 @@ function afterLogin(){
       window._isEmployee = true;
       window._empUserId = u.employee_id;
       window._isManager = false;
-      // Hide all nav items except portal
+      // Hide ALL sidebar nav items except My Portal
       document.querySelectorAll('.ni').forEach(el=>{
         el.style.display = el.id==='nav-emp-portal' ? 'flex' : 'none';
       });
-      // Hide section labels in sidebar
-      document.querySelectorAll('.sb-section-label').forEach(el=>el.style.display='none');
-      // Hide topbar buttons (but not inside portal content)
-      const addBtn=document.querySelector('.tb-right>.btn-primary');
-      if(addBtn)addBtn.style.display='none';
+      // Hide ALL sidebar section labels (OVERVIEW, ORGANISATION, PEOPLE etc)
+      document.querySelectorAll('.ngl,.sb-section-label').forEach(el=>el.style.display='none');
+      // Hide topbar Add New button and search
+      document.querySelectorAll('.topbar .btn,.topbar input,.topbar .tb-search').forEach(el=>el.style.display='none');
       // Navigate to portal
       nav('emp-portal');
     } else {
