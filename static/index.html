@@ -1343,6 +1343,11 @@ function nav(id){
     bcSep.style.display=sub?'':'none';
   }
   _curMod=id;
+  // Fix portal layout - remove .page padding so portal fills correctly
+  const pageEl=document.getElementById('page');
+  if(pageEl){
+    pageEl.style.padding = id==='emp-portal' ? '0' : '';
+  }
   // portal loaded by loaders map
   // Hide/show topbar Add New button based on module
   const hideAddBtn=['org-profile','reports','sourcing','dashboard'];
