@@ -994,7 +994,7 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
     <div class="portal-tab" id="ptab-timesheets" onclick="switchPortalTab('timesheets',this)">⏱️ Timesheets</div>
     <div class="portal-tab" id="ptab-leaves" onclick="switchPortalTab('leaves',this)">🏖️ Leave</div>
     <div class="portal-tab" id="ptab-payslips" onclick="switchPortalTab('payslips',this)">💰 Payslips</div>
-    <div class="portal-tab" id="ptab-jobs" onclick="switchPortalTab('jobs',this)">📋 Open Jobs</div>
+    
     <div class="portal-tab" id="ptab-team" onclick="switchPortalTab('team',this)" style="display:none">👥 My Team</div>
   </div>
   <!-- PORTAL CONTENT -->
@@ -1038,6 +1038,9 @@ Jane,Doe,jane@example.com,HR Manager"></textarea>
 </div>
 <div id="toasts"></div>
 <script>
+// ═══════════════════════════════════════════════════
+// CORE
+// ════════════════════════════
 // ═══════════════════════════════════════════════════
 // CORE
 // ═══════════════════════════════════════════════════
@@ -6080,7 +6083,7 @@ const modalDefs={
         apiFetch('/api/lookup/departments'),apiFetch('/api/lookup/employees'),
         apiFetch('/api/lookup/business-units'),apiFetch('/api/lookup/cost-centres'),
         apiFetch('/api/lookup/clients')]);
-      const s=(el,opts,ph)=>{if(el)el.innerHTML=ph+(opts||[]).map(o=>`<option value="${o.id}">${o.name||o.code+' – '+o.name2||o.code}</option>`).join('');};
+      const s=(el,opts,ph)=>{if(el)el.innerHTML=ph+(opts||[]).map(o=>`<option value="${o.id}">${o.code?o.code+' – ':''} ${o.name||''}</option>`).join('');};
       const d=$('ae-dept');if(d)d.innerHTML='<option value="">No department</option>'+(depts||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
       const r=$('ae-rm');if(r)r.innerHTML='<option value="">None</option>'+(emps||[]).map(r=>`<option value="${r.id}">${r.name} (${r.emp_id})</option>`).join('');
       const b=$('ae-bu');if(b)b.innerHTML='<option value="">No BU</option>'+(bus||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('');
@@ -6964,6 +6967,25 @@ async function submitModal(){
     }catch(e){toast('Error: '+e.message,'error');}
     return;
   }
+  if(_curModalType==='edit-user-role'){
+    const d2={};new FormData($('mform')).forEach((v,k)=>{d2[k]=v||null;});
+    if(d2.role_id)d2.role_id=parseInt(d2.role_id);
+    if(d2.employee_id)d2.employee_id=parseInt(d2.employee_id)||null;
+    if(d2.is_active!==undefined)d2.is_active=parseInt(d2.is_active);
+    if(!d2.password)delete d2.password;
+    try{await apiFetch('/api/users/'+window._editUserId,{method:'PUT',body:JSON.stringify(d2)});
+      toast('User updated','success');closeModal();loadUsers();}
+    catch(e){toast('Error: '+e.message,'error');}return;
+  }
+  if(_curModalType==='edit-portal-profile'){
+    const d3={};new FormData($('mform')).forEach((v,k)=>{d3[k]=v||null;});
+    const empId=_portalEmpData?.employee?.id;if(!empId)return;
+    try{await apiFetch('/api/employees/'+empId,{method:'PUT',body:JSON.stringify(d3)});
+      toast('Profile updated','success');closeModal();
+      const fresh=await apiFetch('/api/employee/dashboard');
+      if(fresh){_portalEmpData=fresh;await renderPortalProfile();}}
+    catch(e){toast('Error: '+e.message,'error');}return;
+  }
   const def=modalDefs[_curModalType];if(!def)return;
   const form=$('mform');if(!form)return;
   if(!form.checkValidity()){form.reportValidity();return;}
@@ -7352,86 +7374,117 @@ async function renderPortalProfile(){
   const e=d.employee||{};
   const name=((e.first_name||'')+' '+(e.last_name||'')).trim();
   const av=fmt.avCol(name);
-  const field=(l,v,m)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${m?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
-  const sec=(title,icon,fields)=>`<div class="card" style="margin-bottom:16px">
-    <div class="card-hd"><div class="card-title">${icon} ${title}</div></div>
-    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${fields}</div>
-  </div>`;
-  setHtml('portal-content',`
-    <!-- Hero Banner -->
-    <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);border-radius:12px;padding:28px;margin-bottom:20px;color:#fff;display:flex;align-items:center;gap:20px;flex-wrap:wrap">
-      <div class="av ${av}" style="width:80px;height:80px;font-size:28px;font-weight:800;border:3px solid rgba(255,255,255,.4);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center">${fmt.ini(name)}</div>
-      <div style="flex:1;min-width:200px">
-        <div style="font-size:24px;font-weight:900">${name}</div>
-        <div style="opacity:.85;font-size:14px;margin-top:4px">${e.job_title||'–'}</div>
-        <div style="opacity:.7;font-size:12px;margin-top:2px">${e.department_name||'–'} · ${e.business_unit_name||'–'}</div>
-        <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-          <span style="background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;font-size:11px">${e.employment_type||'–'}</span>
-          <span style="background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;font-size:11px">${e.status||'Active'}</span>
-          <span style="background:rgba(255,255,255,.2);padding:3px 12px;border-radius:20px;font-size:11px;font-family:var(--mono)">${e.emp_id||'–'}</span>
+  const fld=(l,v,m)=>`<div class="org-field"><div class="org-field-label">${l}</div><div class="org-field-value${m?' tmono':''}${!v?' empty':''}">${v||'—'}</div></div>`;
+  const sec=(id,title,icon,body)=>`<div class="card" id="psec-${id}" style="margin-bottom:16px;scroll-margin-top:80px">
+    <div class="card-hd"><div class="card-title">${icon} ${title}</div>
+    <button class="btn btn-ghost btn-xs" onclick="showEditProfileSection('${id}')">✏ Edit</button></div>
+    <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px">${body}</div></div>`;
+  setHtml('portal-content',`<div style="display:flex;gap:20px;align-items:flex-start">
+    <div style="width:180px;flex-shrink:0;position:sticky;top:16px">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);padding:20px;text-align:center;color:#fff">
+          <div class="av ${av}" style="width:60px;height:60px;font-size:20px;font-weight:800;border:3px solid rgba(255,255,255,.4);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">${fmt.ini(name)}</div>
+          <div style="font-size:13px;font-weight:700">${name}</div>
+          <div style="font-size:10px;opacity:.7;margin-top:3px">${e.emp_id||''}</div>
         </div>
-      </div>
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-size:10px;opacity:.6;text-transform:uppercase">Since</div>
-        <div style="font-size:20px;font-weight:700">${fmt.date(e.start_date)||'–'}</div>
-        <div style="font-size:11px;opacity:.6;margin-top:4px">Reports to: ${e.reporting_manager_name||'–'}</div>
+        <div style="padding:6px 0">${[['personal','👤 Personal'],['role','🏢 Role & Org'],['identity','🪪 Identity'],['finance','💰 Finance'],['documents','📎 Documents']].map(([id,lbl])=>`
+          <div onclick="document.getElementById('psec-${id}')?.scrollIntoView({behavior:'smooth'})"
+            style="padding:9px 16px;cursor:pointer;font-size:12px;color:var(--txt2);border-left:3px solid transparent;transition:.15s"
+            onmouseover="this.style.background='var(--s2)';this.style.borderLeftColor='var(--green)'"
+            onmouseout="this.style.background='';this.style.borderLeftColor='transparent'">${lbl}</div>`).join('')}</div>
       </div>
     </div>
-    <!-- Sections -->
-    ${sec('Personal Information','👤',
-      field('First Name',e.first_name)+
-      field('Last Name',e.last_name)+
-      field('Middle Name',e.middle_name)+
-      field('Date of Birth',fmt.date(e.dob))+
-      field('Gender',e.gender)+
-      field('Marital Status',e.marital_status)+
-      field('Nationality',e.nationality)+
-      field('Blood Group',e.blood_group)+
-      field('Personal Email',e.personal_email)+
-      field('Personal Phone',e.personal_phone)
-    )}
-    ${sec('Role & Organisation','🏢',
-      field('Job Title',e.job_title)+
-      field('Department',e.department_name)+
-      field('Business Unit',e.business_unit_name)+
-      field('Employment Type',e.employment_type)+
-      field('Client',e.client_name)+
-      field('Location',e.location)+
-      field('Start Date',fmt.date(e.start_date))+
-      field('Reporting Manager',e.reporting_manager_name)+
-      field('Notice Period',(e.notice_period?e.notice_period+' days':null))+
-      field('Status',e.status)
-    )}
-    ${sec('Identity','🪪',
-      field('PAN',e.pan,true)+
-      field('Aadhaar',e.aadhaar,true)+
-      field('Passport',e.passport_number,true)+
-      field('PF Number',e.pf_number,true)+
-      field('ESI Number',e.esi_number,true)+
-      field('UAN',e.uan,true)
-    )}
-    ${sec('Finance','💰',
-      field('Salary',e.salary?'₹'+fmt.money(e.salary):null)+
-      field('Salary Structure',e.salary_structure)+
-      field('Bill Rate',e.bill_rate?'₹'+e.bill_rate+'/hr':null)+
-      field('Bank Name',e.bank_name)+
-      field('Account Number',e.bank_account_number,true)+
-      field('IFSC',e.bank_ifsc,true)
-    )}
-    ${sec('Documents','📎',
-      `<div style="grid-column:1/-1;display:flex;gap:12px;flex-wrap:wrap">
-        ${e.photo_url?`<a href="${e.photo_url}" target="_blank" class="btn btn-ghost btn-sm">📷 Photo</a>`:'<span style="color:var(--txt3);font-size:12px">No documents uploaded yet.</span>'}
-      </div>`
-    )}
-  `);
+    <div style="flex:1;min-width:0">
+      <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,#1a5c2e,#0f3d1e);color:#fff;padding:24px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
+            <div style="font-size:22px;font-weight:900">${name}</div>
+            <div style="opacity:.85;margin-top:4px">${e.job_title||'–'} · ${e.department_name||'–'}</div>
+            <div style="opacity:.65;font-size:12px;margin-top:3px">${e.employment_type||''} · Since ${fmt.date(e.start_date)||'–'}</div>
+            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:20px;font-size:11px">${e.status||'Active'}</span>
+              ${e.client_name?`<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:20px;font-size:11px">${e.client_name}</span>`:''}
+              ${e.location?`<span style="background:rgba(255,255,255,.2);padding:2px 10px;border-radius:20px;font-size:11px">📍 ${e.location}</span>`:''}
+            </div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:10px;opacity:.5;text-transform:uppercase">Reports to</div>
+            <div style="font-size:14px;font-weight:600;margin-top:4px">${e.reporting_manager_name||'–'}</div>
+            <div style="font-size:11px;opacity:.6;margin-top:2px">${e.email||''}</div>
+          </div>
+        </div>
+      </div>
+      ${sec('personal','Personal Information','👤',
+        fld('First Name',e.first_name)+fld('Last Name',e.last_name)+
+        fld('Middle Name',e.middle_name)+fld('Date of Birth',fmt.date(e.dob))+
+        fld('Gender',e.gender)+fld('Marital Status',e.marital_status)+
+        fld('Nationality',e.nationality)+fld('Blood Group',e.blood_group)+
+        fld('Personal Email',e.personal_email)+fld('Personal Phone',e.personal_phone)
+      )}
+      ${sec('role','Role & Organisation','🏢',
+        fld('Job Title',e.job_title)+fld('Department',e.department_name)+
+        fld('Business Unit',e.business_unit_name)+fld('Employment Type',e.employment_type)+
+        fld('Client',e.client_name)+fld('Location',e.location)+
+        fld('Start Date',fmt.date(e.start_date))+fld('Reporting Manager',e.reporting_manager_name)+
+        fld('Notice Period',e.notice_period?e.notice_period+' days':null)+fld('Work Email',e.email)
+      )}
+      ${sec('identity','Identity & Compliance','🪪',
+        fld('PAN',e.pan,true)+fld('Aadhaar',e.aadhaar,true)+
+        fld('Passport',e.passport_number,true)+fld('PF Number',e.pf_number,true)+
+        fld('ESI Number',e.esi_number,true)+fld('UAN',e.uan,true)
+      )}
+      ${sec('finance','Finance & Banking','💰',
+        fld('Salary','₹'+fmt.money(e.salary||0))+fld('Salary Structure',e.salary_structure)+
+        fld('Bank Name',e.bank_name)+fld('Account Number',e.bank_account_number,true)+
+        fld('IFSC Code',e.bank_ifsc,true)+fld('Bill Rate',e.bill_rate?'₹'+e.bill_rate+'/hr':null)
+      )}
+      ${sec('documents','Documents','📎',
+        `<div style="grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap">
+          ${e.photo_url?`<a href="${e.photo_url}" target="_blank" class="btn btn-ghost btn-sm">📷 Photo</a>`:''}
+          ${e.resume_url?`<a href="${e.resume_url}" target="_blank" class="btn btn-ghost btn-sm">📄 Resume</a>`:''}
+          ${!e.photo_url&&!e.resume_url?'<span style="color:var(--txt3);font-size:13px">No documents uploaded yet</span>':''}
+        </div>`
+      )}
+    </div>
+  </div>`);
 }
+
+function showEditProfileSection(section){
+  const e=_portalEmpData?.employee||{};
+  const cfgs={
+    personal:{title:'Personal Information',fields:`
+      <div class="frow"><div class="fg"><label class="flabel">First Name</label><input class="finput" name="first_name" value="${e.first_name||''}"></div>
+      <div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name" value="${e.last_name||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob" value="${e.dob||''}"></div>
+      <div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">
+        ${['','Male','Female','Non-binary','Prefer not to say'].map(g=>`<option ${e.gender===g?'selected':''}>${g}</option>`).join('')}</select></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Marital Status</label><select class="fselect" name="marital_status">
+        ${['','Single','Married','Divorced','Widowed'].map(m=>`<option ${e.marital_status===m?'selected':''}>${m}</option>`).join('')}</select></div>
+      <div class="fg"><label class="flabel">Nationality</label><input class="finput" name="nationality" value="${e.nationality||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Blood Group</label><input class="finput" name="blood_group" value="${e.blood_group||''}"></div>
+      <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div></div>
+      <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>`},
+    identity:{title:'Identity & Compliance',fields:`
+      <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}"></div>
+      <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" value="${e.passport_number||''}"></div>
+      <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div>
+      <div class="frow"><div class="fg"><label class="flabel">ESI Number</label><input class="finput" name="esi_number" value="${e.esi_number||''}"></div>
+      <div class="fg"><label class="flabel">UAN</label><input class="finput" name="uan" value="${e.uan||''}"></div></div>`}
+  };
+  const cfg=cfgs[section]||cfgs.personal;
+  $('m-title').textContent='Edit '+cfg.title;
+  $('m-body').innerHTML=`<form id="mform">${cfg.fields}</form>`;
+  _curModalType='edit-portal-profile';
+  $('m-submit').textContent='Save';$('m-submit').style.display='';$('overlay').classList.add('open');
+}
+
 
 
 async function renderPortalTimesheets(){
   const filter=window._tsFilter||'all';
   const rows=await apiFetch('/api/my/timesheets')||[];
   const statC={'Approved':'p-green','Rejected':'p-red','Pending':'p-amber'};
-  // Filter rows
   const now=new Date();
   const filtered=rows.filter(t=>{
     if(filter==='all')return true;
@@ -7442,8 +7495,9 @@ async function renderPortalTimesheets(){
   });
   const totalHrs=filtered.reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
   const approved=filtered.filter(t=>t.status==='Approved').reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0);
-  const pending=filtered.filter(t=>t.status==='Pending'||!t.status).length;
+  const pending=filtered.filter(t=>!t.status||t.status==='Pending').length;
   setHtml('portal-content',`
+    <div id="portal-ts-form"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:18px;font-weight:700">⏱️ My Timesheets</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -7470,28 +7524,24 @@ async function renderPortalTimesheets(){
       </div>
     </div>
     ${filtered.length?`<div class="card"><div class="tbl-wrap"><table>
-      <thead><tr>
-        <th>Week Ending</th><th>Project / Client</th>
+      <thead><tr><th>Week Ending</th><th>Project / Client</th>
         <th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th>
-        <th>Total</th><th>Status</th><th>Notes</th>
-      </tr></thead>
+        <th>Total</th><th>Status</th><th>Notes</th></tr></thead>
       <tbody>${filtered.sort((a,b)=>new Date(b.week_ending)-new Date(a.week_ending)).map(t=>`
         <tr>
           <td class="tmono" style="font-size:12px">${fmt.date(t.week_ending)}</td>
-          <td style="font-size:12px">${t.project_name||t.client_name||'–'}</td>
+          <td style="font-size:12px">${t.project_name||t.client_name||t.project||'–'}</td>
           <td class="tmono">${t.mon||0}</td><td class="tmono">${t.tue||0}</td>
-          <td class="tmono">${t.wed||0}</td><td class="tmono">${t.thu||0}</td>
-          <td class="tmono">${t.fri||0}</td>
+          <td class="tmono">${t.wed||0}</td><td class="tmono">${t.thu||0}</td><td class="tmono">${t.fri||0}</td>
           <td class="tmono" style="font-weight:700">${t.total_hours||0}h</td>
           <td><span class="pill ${statC[t.status]||'p-gray'}">${t.status||'Pending'}</span></td>
-          <td style="font-size:11px;color:var(--txt3);max-width:120px;overflow:hidden;text-overflow:ellipsis">${t.notes||'–'}</td>
-        </tr>`).join('')}
-      </tbody></table></div></div>`
+          <td style="font-size:11px;color:var(--txt3)">${t.notes||'–'}</td>
+        </tr>`).join('')}</tbody></table></div></div>`
     :`<div class="empty"><div class="empty-icon">⏱️</div><div class="empty-title">No timesheets yet</div>
-      <button class="btn btn-primary btn-sm" onclick="showPortalTsForm()" style="margin-top:12px">Submit Your First Timesheet</button>
-    </div>`}
-  `);
+      <button class="btn btn-primary btn-sm" onclick="showPortalTsForm()" style="margin-top:12px">Submit First Timesheet</button>
+    </div>`}`);
 }
+
 
 
 function showPortalTsForm(){
@@ -7542,13 +7592,12 @@ async function renderPortalLeaves(){
   const pending=leaves.filter(l=>l.status==='Pending').length;
   const approved=leaves.filter(l=>l.status==='Approved').length;
   const statC={'Approved':'p-green','Rejected':'p-red','Pending':'p-amber'};
-  const leaveTypes=['Annual Leave','Sick Leave','Personal Leave','Maternity Leave','Paternity Leave','Unpaid Leave'];
   setHtml('portal-content',`
+    <div id="portal-leave-form"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div style="font-size:18px;font-weight:700">🏖️ My Leave</div>
       <button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()">+ Apply for Leave</button>
     </div>
-    <!-- Balance cards -->
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">
       <div class="card" style="text-align:center;padding:16px;border-top:3px solid var(--green)">
         <div style="font-size:12px;color:var(--txt2)">Balance</div>
@@ -7571,7 +7620,6 @@ async function renderPortalLeaves(){
         <div style="font-size:10px;color:var(--txt3)">this year</div>
       </div>
     </div>
-    <!-- Leave history -->
     ${leaves.length?`<div class="card"><div class="card-hd"><div class="card-title">Leave History</div></div>
       <div class="tbl-wrap"><table>
         <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
@@ -7587,9 +7635,9 @@ async function renderPortalLeaves(){
         </tbody></table></div></div>`
     :`<div class="empty"><div class="empty-icon">🏖️</div><div class="empty-title">No leave requests yet</div>
       <button class="btn btn-primary btn-sm" onclick="showPortalLeaveForm()" style="margin-top:12px">Apply for Leave</button>
-    </div>`}
-  `);
+    </div>`}`);
 }
+
 
 
 function showPortalLeaveForm(){
@@ -7742,63 +7790,46 @@ function portalAddCandidateToReq(reqId,reqTitle){
 async function renderPortalTeam(){
   try{
     const e=_portalEmpData?.employee||{};
-    const myId=e.id;
-    const managerId=e.reporting_manager_id;
-    // Fetch team data
-    const [team, allEmps]=await Promise.all([
-      apiFetch('/api/manager/team')||[],
-      apiFetch('/api/employees')||[]
-    ]);
-    // Find reporting manager
+    const myId=e.id;const managerId=e.reporting_manager_id;
+    const allEmps=await apiFetch('/api/employees')||[];
     const manager=managerId?allEmps.find(x=>x.id===managerId):null;
-    // Reportees (team)
-    const reportees=team||[];
-    // Peers (same manager, not me)
+    const reportees=allEmps.filter(x=>x.reporting_manager_id===myId);
     const peers=managerId?allEmps.filter(x=>x.reporting_manager_id===managerId&&x.id!==myId):[];
-
-    const empCard=(emp,badge)=>{
-      const n=`${emp.first_name||''} ${emp.last_name||''}`.trim();
+    const card=(emp,badge,color)=>{
+      const n=((emp.first_name||'')+' '+(emp.last_name||'')).trim();
       const av=fmt.avCol(n);
       return`<div class="card" style="display:flex;align-items:center;gap:14px;padding:16px">
         <div class="av ${av}" style="width:44px;height:44px;font-size:15px;font-weight:800;flex-shrink:0;border-radius:50%;display:flex;align-items:center;justify-content:center">${fmt.ini(n)}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">${n}</div>
+          <div style="font-size:13px;font-weight:700">${n}</div>
           <div style="font-size:11px;color:var(--txt2);margin-top:2px">${emp.job_title||'–'}</div>
           <div style="font-size:10px;color:var(--txt3)">${emp.department_name||emp.location||'–'}</div>
         </div>
-        <span class="pill ${badge==='Manager'?'p-purple':badge==='Peer'?'p-blue':'p-green'}" style="font-size:10px">${badge}</span>
+        <span class="pill" style="background:${color};color:#fff;font-size:10px">${badge}</span>
       </div>`;
     };
-
+    const grp=(title,icon,items,badge,color)=>!items.length?'':`
+      <div style="margin-bottom:24px">
+        <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">${icon} ${title} (${items.length})</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
+          ${items.map(x=>card(x,badge,color)).join('')}
+        </div>
+      </div>`;
     setHtml('portal-content',`
       <div style="font-size:18px;font-weight:700;margin-bottom:20px">👥 My Team</div>
-      ${manager?`<div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">📊 Reporting Manager</div>
-        ${empCard(manager,'Manager')}
-      </div>`:''}
-      ${peers.length?`<div style="margin-bottom:20px">
-        <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">🤝 Peers (${peers.length})</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
-          ${peers.map(p=>empCard(p,'Peer')).join('')}
-        </div>
-      </div>`:''}
-      ${reportees.length?`<div>
-        <div style="font-size:12px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">👤 Reportees (${reportees.length})</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px">
-          ${reportees.map(r=>empCard(r,'Reportee')).join('')}
-        </div>
-      </div>`:''}
+      ${manager?grp('Reporting Manager','📊',[manager],'Manager','#7c3aed'):''}
+      ${grp('Peers','🤝',peers,'Peer','#2563eb')}
+      ${grp('My Reportees','👤',reportees,'Reportee','#059669')}
       ${!manager&&!peers.length&&!reportees.length?`<div class="empty">
-        <div class="empty-icon">👥</div>
-        <div class="empty-title">No team data</div>
-        <div class="empty-sub">Your team will appear here once configured</div>
+        <div class="empty-icon">👥</div><div class="empty-title">No team configured</div>
+        <div class="empty-sub">Ask your admin to set reporting managers</div>
       </div>`:''}
     `);
   }catch(ex){
-    console.error('Team error:',ex);
     setHtml('portal-content','<div class="empty"><div class="empty-title">Error loading team</div></div>');
   }
 }
+
 
 
 async function portalApproveTs(id){
@@ -7837,10 +7868,7 @@ function showPortalPwdChange(){
 // INIT
 // ═══════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{tryAutoLogin();initResponsive();});
-</script>
-
-  <!-- Mobile bottom navigation -->
-  <nav class="mob-nav" id="mob-nav" style="display:none">
+ay:none">
     <button class="mob-nav-item active" id="mn-dashboard" onclick="nav('dashboard');mobNavActive('mn-dashboard')">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Dashboard

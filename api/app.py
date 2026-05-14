@@ -1604,9 +1604,11 @@ def payroll_entries():
         LEFT JOIN departments d ON d.id=e.department_id
         WHERE 1=1"""
     params=[]
+    emp_id_filter = request.args.get('employee_id','')
     if month: sql+=" AND pe.month=%s"; params.append(month)
     if et: sql+=" AND et.name LIKE %s"; params.append(f'%{et}%')
-    sql+=" ORDER BY e.last_name,e.first_name"
+    if emp_id_filter: sql+=" AND pe.employee_id=%s"; params.append(int(emp_id_filter))
+    sql+=" ORDER BY pe.created_at DESC"
     data = rows(sql,params)
     # Cumulative summary
     summary = {
