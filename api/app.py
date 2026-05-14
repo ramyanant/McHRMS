@@ -3381,7 +3381,12 @@ def set_reporting_manager():
             LEFT JOIN employees m ON m.id=e.reporting_manager_id
             ORDER BY e.id""")
         emps = cur.fetchall()
-        rows_html = ''.join(f'<tr><td>{e["id"]}</td><td>{e["emp_id"]}</td><td>{e["name"]}</td><td>{e["reporting_manager_id"] or "–"}</td><td>{e["manager_name"] or "–"}</td><td><a href="?emp={e["id"]}&mgr=SET_MGR_ID">Set</a></td></tr>' for e in emps)
+        # Build set links: for each employee, show buttons to set every other employee as their manager
+        def row_html(e):
+            set_links = ' '.join(f'<a href="?emp={e["id"]}&mgr={m["id"]}" style="margin-right:4px;padding:2px 6px;background:#1a5c2e;color:#fff;border-radius:4px;text-decoration:none;font-size:11px">{m["name"]}</a>'
+                for m in emps if m["id"] != e["id"])
+            return f'<tr><td>{e["id"]}</td><td>{e["emp_id"]}</td><td>{e["name"]}</td><td>{e["reporting_manager_id"] or "–"}</td><td>{e["manager_name"] or "–"}</td><td>{set_links}</td></tr>'
+        rows_html = ''.join(row_html(e) for e in emps)
         conn.close()
         return f'''<html><body style="font-family:sans-serif;padding:40px">
             <h2>Employee Reporting Managers</h2>{msg}
