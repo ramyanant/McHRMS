@@ -89,6 +89,39 @@ def _seed_masters(app):
         print(f"[v2] Seed error: {e}", flush=True)
 
 
+def _run_migrations(app):
+    """Run any DB column migrations needed for v2 schema on existing v1 database."""
+    try:
+        from .extensions import get_pg_conn
+        conn = get_pg_conn()
+        conn.autocommit = True
+        cur = conn.cursor()
+        migrations = [
+            # users table
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by INTEGER",
+            # employees table
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS business_unit_id INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS updated_by INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS created_by INTEGER",
+            # master_user_roles
+            "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
+            "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS is_system BOOLEAN DEFAULT FALSE",
+        ]
+        for sql in migrations:
+            try:
+                cur.execute(sql)
+            except Exception as ex:
+                print(f"[migration] skip: {ex}", flush=True)
+        conn.close()
+        print("[v2] Migrations complete", flush=True)
+    except Exception as e:
+        print(f"[v2] Migration error: {e}", flush=True)
+
+
 def create_app(config_override=None):
     BASE_DIR   = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     STATIC_DIR = os.path.join(BASE_DIR, 'static')
@@ -99,6 +132,7 @@ def create_app(config_override=None):
     # Bootstrap DB
     with app.app_context():
         _bootstrap_v2(app)
+        _run_migrations(app)
         _seed_masters(app)
 
     # Register all blueprints

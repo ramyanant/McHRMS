@@ -11,27 +11,45 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
 
 
 def _ensure_user_columns():
-    """Add missing columns to users table if they don't exist yet."""
+    """Add missing columns to users table using raw autocommit connection."""
     try:
         conn = get_pg_conn()
-        conn.autocommit = True
+        conn.autocommit = True  # DDL must run outside transaction
         cur = conn.cursor()
-        for sql in [
+        migrations = [
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by INTEGER",
-        ]:
-            try: cur.execute(sql)
-            except Exception: pass
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS business_unit_id INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS updated_by INTEGER",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS created_by INTEGER",
+        ]
+        for sql in migrations:
+            try:
+                cur.execute(sql)
+                print(f"[migration] OK: {sql[:60]}", flush=True)
+            except Exception as ex:
+                print(f"[migration] skip: {ex}", flush=True)
         conn.close()
+        print("[migration] Done", flush=True)
     except Exception as e:
-        print(f"[auth] column migration warning: {e}", flush=True)
+        print(f"[auth] migration error: {e}", flush=True)
+
+_columns_ensured = False
+
+def ensure_columns_once():
+    global _columns_ensured
+    if not _columns_ensured:
+        _ensure_user_columns()
+        _columns_ensured = True
 
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    # Ensure columns exist (idempotent ALTER TABLE IF NOT EXISTS)
-    _ensure_user_columns()
+    # Ensure columns exist (idempotent, runs only once per process)
+    ensure_columns_once()
 
     d = request.get_json() or {}
     try:
@@ -79,12 +97,14 @@ def login():
             return err("Too many failed attempts. Account locked for 15 minutes.", 429)
         return err("Invalid username or password.", 401)
 
-    # Reset attempts on success
+    # Reset attempts on success — fallback if columns don't exist yet
     try:
         db_execute("UPDATE users SET login_attempts=0, locked_until=NULL, last_login=NOW() WHERE id=%s", (user['id'],))
     except Exception:
-        try: db_execute("UPDATE users SET last_login=NOW() WHERE id=%s", (user['id'],))
-        except Exception: pass
+        try:
+            db_execute("UPDATE users SET last_login=NOW() WHERE id=%s", (user['id'],))
+        except Exception:
+            pass
 
     # Auto-upgrade legacy unsalted hash
     ph = user['password_hash']
