@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 """
 McHR&TA v2 Entry Point
-Runs the v2 modular application.
+Railway runs this as: python api/run.py $PORT
+Working directory is /app, so api/ is a package.
 """
 import sys, os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Ensure /app is on the path so 'api' package is importable
+app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
 
 from api.v2 import create_app
 
