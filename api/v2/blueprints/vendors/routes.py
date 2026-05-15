@@ -14,7 +14,7 @@ vendors_bp = Blueprint('vendors', __name__, url_prefix='/api/v1')
 def list_vendors():
     page, per_page = get_page_params()
     search = request.args.get('q','')
-    where, params = ["v.deleted_at IS NULL"], []
+    where, params = ["v.is_active=1"], []
     if search:
         where.append("(v.name ILIKE %s OR v.email ILIKE %s)"); params += [f'%{search}%']*2
     clause = " AND ".join(where)
@@ -60,5 +60,5 @@ def vendor_detail(vid):
             db_execute(f"UPDATE vendors SET {set_clause}, updated_at=NOW() WHERE id=%s",
                       list(updates.values()) + [vid])
         return ok(message="Updated")
-    db_execute("UPDATE vendors SET deleted_at=NOW() WHERE id=%s", (vid,))
+    db_execute("UPDATE vendors SET is_active=0 WHERE id=%s", (vid,))
     return ok(message="Deleted")

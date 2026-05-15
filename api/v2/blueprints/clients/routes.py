@@ -14,7 +14,7 @@ clients_bp = Blueprint('clients', __name__, url_prefix='/api/v1')
 def list_clients():
     page, per_page = get_page_params()
     search = request.args.get('q','')
-    where, params = ["c.deleted_at IS NULL"], []
+    where, params = ["c.is_active=1"], []
     if search:
         where.append("(c.name ILIKE %s OR c.pan ILIKE %s OR c.email ILIKE %s)")
         params += [f'%{search}%']*3
@@ -24,7 +24,7 @@ def list_clients():
         COUNT(DISTINCT i.id) as invoice_count,
         COALESCE(SUM(i.total_amount),0) as total_billed
         FROM clients c
-        LEFT JOIN projects p ON p.client_id=c.id AND p.deleted_at IS NULL
+        LEFT JOIN projects p ON p.client_id=c.id AND p.is_active=1
         LEFT JOIN invoices i ON i.client_id=c.id
         WHERE {clause} GROUP BY c.id ORDER BY c.name LIMIT %s OFFSET %s""",
         params + [per_page, (page-1)*per_page])
@@ -74,7 +74,7 @@ def client_detail(cid):
                       list(updates.values()) + [cid])
         write_audit_log('clients', 'UPDATE', 'client', cid, f"Client updated: {client['name']}")
         return ok(message="Updated")
-    db_execute("UPDATE clients SET deleted_at=NOW() WHERE id=%s", (cid,))
+    db_execute("UPDATE clients SET is_active=0 WHERE id=%s", (cid,))
     write_audit_log('clients', 'DELETE', 'client', cid, f"Client deleted: {client['name']}")
     return ok(message="Deleted")
 

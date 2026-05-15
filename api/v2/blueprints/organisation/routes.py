@@ -15,9 +15,9 @@ def get_organisation():
     org = db_row1("SELECT * FROM organisation LIMIT 1")
     if not org:
         return ok({})
-    org['gst']   = db_rows("SELECT * FROM organisation_gst WHERE org_id=%s", (org['id'],))
-    org['banks'] = db_rows("SELECT * FROM organisation_bank_accounts WHERE org_id=%s", (org['id'],))
-    org['labour_certs'] = db_rows("SELECT * FROM organisation_labour_certs WHERE org_id=%s", (org['id'],))
+    org['gst']   = db_rows("SELECT * FROM organisation_gst WHERE organisation_id=%s", (org['id'],))
+    org['banks'] = db_rows("SELECT * FROM organisation_bank_accounts WHERE organisation_id=%s", (org['id'],))
+    org['labour_certs'] = db_rows("SELECT * FROM organisation_labour_certs WHERE organisation_id=%s", (org['id'],))
     return ok(org)
 
 @org_bp.route('/organisation', methods=['PUT'])
@@ -27,8 +27,8 @@ def update_organisation():
     d = request.get_json() or {}
     org = db_row1("SELECT id FROM organisation LIMIT 1")
     if org:
-        fields = ['name','legal_name','type','pan','tan','cin','website','email','phone',
-                  'address_line1','address_line2','city','state','pincode','country','logo_url']
+        fields = ['legal_name','trade_name','pan','tan','cin','website','email','phone',
+                  'reg_address_line1','reg_city','logo_url']
         updates = {k: d[k] for k in fields if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)
@@ -50,9 +50,9 @@ def list_business_units():
     rows = db_rows("""SELECT b.*, COUNT(d.id) as dept_count,
         COUNT(e.id) as headcount
         FROM business_units b
-        LEFT JOIN departments d ON d.business_unit_id=b.id AND d.deleted_at IS NULL
+        LEFT JOIN departments d ON d.business_unit_id=b.id AND d.is_active=1
         LEFT JOIN employees e ON e.business_unit_id=b.id AND e.is_active=TRUE
-        WHERE b.deleted_at IS NULL
+        WHERE b.is_active=1
         GROUP BY b.id ORDER BY b.name""")
     return ok(rows)
 
@@ -64,8 +64,8 @@ def create_business_unit():
     try: validate(d, {'name': ['required', 'max:200']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     result = db_execute(
-        "INSERT INTO business_units (name, code, created_by) VALUES (%s,%s,%s) RETURNING id",
-        (d['name'], d.get('code'), request.environ.get('user_id')), returning=True)
+        "INSERT INTO business_units (name, is_active) VALUES (%s, 1) RETURNING id",
+        (d['name'],), returning=True)
     write_audit_log('organisation', 'CREATE', 'business_unit', result['id'], f"BU created: {d['name']}")
     return created({'id': result['id']})
 
@@ -84,7 +84,7 @@ def business_unit_detail(bid):
         write_audit_log('organisation', 'UPDATE', 'business_unit', bid, f"BU updated: {bu['name']}")
         return ok(message="Updated")
     # DELETE — soft delete
-    db_execute("UPDATE business_units SET deleted_at=NOW() WHERE id=%s", (bid,))
+    db_execute("DELETE FROM business_units WHERE id=%s", (bid,))
     write_audit_log('organisation', 'DELETE', 'business_unit', bid, f"BU deleted: {bu['name']}")
     return ok(message="Deleted")
 
@@ -98,7 +98,7 @@ def list_departments():
         LEFT JOIN business_units b ON b.id=d.business_unit_id
         LEFT JOIN cost_centres c ON c.id=d.cost_centre_id
         LEFT JOIN employees e ON e.department_id=d.id AND e.is_active=TRUE
-        WHERE d.deleted_at IS NULL
+        WHERE d.is_active=1
         GROUP BY d.id, b.name, c.name ORDER BY d.name""")
     return ok(rows)
 
@@ -121,7 +121,7 @@ def create_department():
 def dept_detail(did):
     dept = db_row1("""SELECT d.*, b.name as bu_name FROM departments d
         LEFT JOIN business_units b ON b.id=d.business_unit_id
-        WHERE d.id=%s AND d.deleted_at IS NULL""", (did,))
+        WHERE d.id=%s AND d.is_active=1""", (did,))
     if not dept: return not_found("Department")
     if request.method == 'GET': return ok(dept)
     if request.method == 'PUT':
@@ -134,7 +134,7 @@ def dept_detail(did):
              d.get('is_active',dept['is_active']), did))
         write_audit_log('organisation', 'UPDATE', 'department', did, f"Dept updated: {dept['name']}")
         return ok(message="Updated")
-    db_execute("UPDATE departments SET deleted_at=NOW() WHERE id=%s", (did,))
+    db_execute("DELETE FROM departments WHERE id=%s", (did,))
     write_audit_log('organisation', 'DELETE', 'department', did, f"Dept deleted: {dept['name']}")
     return ok(message="Deleted")
 
@@ -142,7 +142,7 @@ def dept_detail(did):
 @org_bp.route('/cost-centres', methods=['GET'])
 @require_auth
 def list_cost_centres():
-    return ok(db_rows("SELECT c.*, b.name as bu_name FROM cost_centres c LEFT JOIN business_units b ON b.id=c.bu_id WHERE c.deleted_at IS NULL ORDER BY c.name"))
+    return ok(db_rows("SELECT c.*, b.name as bu_name FROM cost_centres c LEFT JOIN business_units b ON b.id=c.business_unit_id WHERE c.is_active=1 ORDER BY c.name"))
 
 @org_bp.route('/cost-centres', methods=['POST'])
 @require_auth
@@ -151,7 +151,7 @@ def create_cost_centre():
     d = request.get_json() or {}
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
-    result = db_execute("INSERT INTO cost_centres (name, code, bu_id, created_by) VALUES (%s,%s,%s,%s) RETURNING id",
+    result = db_execute("INSERT INTO cost_centres (name, code, business_unit_id, created_by) VALUES (%s,%s,%s,%s) RETURNING id",
         (d['name'], d.get('code'), d.get('bu_id'), request.environ.get('user_id')), returning=True)
     write_audit_log('organisation', 'CREATE', 'cost_centre', result['id'], f"CC created: {d['name']}")
     return created({'id': result['id']})
@@ -164,10 +164,10 @@ def cc_detail(cid):
     if request.method == 'GET': return ok(cc)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        db_execute("UPDATE cost_centres SET name=%s, code=%s, bu_id=%s, is_active=%s, updated_at=NOW() WHERE id=%s",
+        db_execute("UPDATE cost_centres SET name=%s, code=%s, business_unit_id=%s, is_active=%s, updated_at=NOW() WHERE id=%s",
             (d.get('name',cc['name']), d.get('code',cc['code']), d.get('bu_id',cc['bu_id']), d.get('is_active',cc['is_active']), cid))
         return ok(message="Updated")
-    db_execute("UPDATE cost_centres SET deleted_at=NOW() WHERE id=%s", (cid,))
+    db_execute("DELETE FROM cost_centres WHERE id=%s", (cid,))
     return ok(message="Deleted")
 
 # ── Locations ─────────────────────────────────────────────────
@@ -204,26 +204,26 @@ def location_detail(lid):
              d.get('city',loc['city']), d.get('state',loc['state']), d.get('pincode',loc['pincode']),
              d.get('country',loc['country']), d.get('is_hq',loc['is_hq']), d.get('is_active',loc['is_active']), lid))
         return ok(message="Updated")
-    db_execute("UPDATE office_locations SET deleted_at=NOW() WHERE id=%s", (lid,))
+    db_execute("DELETE FROM office_locations WHERE id=%s", (lid,))
     return ok(message="Deleted")
 
 # ── Master lookup endpoints (for dropdowns) ────────────────────
 @org_bp.route('/lookup/business-units')
 @require_auth
 def lookup_bus():
-    return ok(db_rows("SELECT id, name, code FROM business_units WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"))
+    return ok(db_rows("SELECT id, name, code FROM business_units WHERE is_active=1 ORDER BY name"))
 
 @org_bp.route('/lookup/departments')
 @require_auth
 def lookup_depts():
-    return ok(db_rows("SELECT d.id, d.name, d.code, b.name as bu_name FROM departments d LEFT JOIN business_units b ON b.id=d.business_unit_id WHERE d.deleted_at IS NULL AND d.is_active=TRUE ORDER BY d.name"))
+    return ok(db_rows("SELECT d.id, d.name, d.code, b.name as bu_name FROM departments d LEFT JOIN business_units b ON b.id=d.business_unit_id WHERE d.is_active=1 AND d.is_active=TRUE ORDER BY d.name"))
 
 @org_bp.route('/lookup/cost-centres')
 @require_auth
 def lookup_ccs():
-    return ok(db_rows("SELECT id, name, code FROM cost_centres WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"))
+    return ok(db_rows("SELECT id, name, code FROM cost_centres WHERE is_active=1 ORDER BY name"))
 
 @org_bp.route('/lookup/locations')
 @require_auth
 def lookup_locations():
-    return ok(db_rows("SELECT id, name, city FROM office_locations WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"))
+    return ok(db_rows("SELECT id, name, city FROM office_locations WHERE is_active=1 ORDER BY name"))

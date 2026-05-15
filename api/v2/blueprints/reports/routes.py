@@ -11,7 +11,7 @@ reports_bp = Blueprint('reports', __name__, url_prefix='/api/v1/reports')
 def dashboard():
     return ok({
         # KPIs
-        'employees':       db_row1("SELECT COUNT(*) as n FROM employees WHERE is_active=TRUE AND deleted_at IS NULL")['n'],
+        'employees':       db_row1("SELECT COUNT(*) as n FROM employees WHERE is_active=1")['n'],
         'open_jobs':       db_row1("SELECT COUNT(*) as n FROM job_requisitions WHERE status='Open' AND deleted_at IS NULL")['n'],
         'pending_ts':      db_row1("""SELECT COUNT(*) as n FROM timesheets t
             JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'""")['n'],
@@ -25,8 +25,8 @@ def dashboard():
             GROUP BY s.id, s.name, s.color ORDER BY s.order_seq"""),
         # Recent activity
         'recent_hires': db_rows("""SELECT id, emp_id, first_name||' '||last_name as name,
-            job_title, start_date FROM employees WHERE is_active=TRUE
-            ORDER BY start_date DESC NULLS LAST LIMIT 5"""),
+            job_title, start_date FROM employees WHERE is_active=1
+            AND start_date IS NOT NULL ORDER BY start_date DESC LIMIT 5"""),
         'overdue_invoices': db_rows("""SELECT i.invoice_number, c.name as client,
             i.total_amount, i.due_date FROM invoices i
             JOIN clients c ON c.id=i.client_id
@@ -40,16 +40,16 @@ def dashboard():
 def workforce():
     return ok({
         'by_department':   db_rows("""SELECT d.name as department, COUNT(e.id) as count
-            FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.is_active=TRUE
+            FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.is_active=1
             WHERE d.deleted_at IS NULL GROUP BY d.id, d.name ORDER BY count DESC"""),
         'by_status':       db_rows("""SELECT status, COUNT(*) as count FROM employees
             WHERE deleted_at IS NULL GROUP BY status"""),
         'by_employment_type': db_rows("""SELECT et.name as type, COUNT(e.id) as count
             FROM master_employment_types et
-            LEFT JOIN employees e ON e.employment_type_id=et.id AND e.is_active=TRUE
+            LEFT JOIN employees e ON e.employment_type_id=et.id AND e.is_active=1
             GROUP BY et.id, et.name ORDER BY count DESC"""),
         'by_location':     db_rows("""SELECT location, COUNT(*) as count FROM employees
-            WHERE is_active=TRUE AND location IS NOT NULL GROUP BY location ORDER BY count DESC"""),
+            WHERE is_active=1 AND location IS NOT NULL GROUP BY location ORDER BY count DESC"""),
         'headcount_trend': db_rows("""SELECT DATE_TRUNC('month', start_date) as month, COUNT(*) as hires
             FROM employees WHERE start_date >= NOW() - INTERVAL '12 months'
             GROUP BY month ORDER BY month"""),
@@ -96,7 +96,7 @@ def timesheets():
             COALESCE(SUM(t.total_hours),0) as total_hours,
             COALESCE(SUM(t.billable_hours),0) as billable_hours
             FROM employees e LEFT JOIN timesheets t ON t.employee_id=e.id
-            WHERE e.is_active=TRUE GROUP BY e.id, e.first_name, e.last_name
+            WHERE e.is_active=1 GROUP BY e.id, e.first_name, e.last_name
             ORDER BY billable_hours DESC LIMIT 20"""),
     })
 

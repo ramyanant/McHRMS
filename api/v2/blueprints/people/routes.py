@@ -18,7 +18,7 @@ def list_employees():
     dept_id = request.args.get('department_id')
     status  = request.args.get('status', '')
     
-    where = ["e.deleted_at IS NULL"]
+    where = ["1=1"]
     params = []
     
     if search:
@@ -98,7 +98,7 @@ def employee_detail(eid):
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
         LEFT JOIN clients c ON c.id=e.client_id
         LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
-        WHERE e.id=%s AND e.deleted_at IS NULL""", (eid,))
+        WHERE e.id=%s """, (eid,))
     if not emp: return not_found("Employee")
     
     # Self-service: employees can only view their own profile
@@ -129,7 +129,7 @@ def employee_detail(eid):
         return ok(message="Updated")
     
     # Soft delete
-    db_execute("UPDATE employees SET deleted_at=NOW(), is_active=FALSE WHERE id=%s", (eid,))
+    db_execute("UPDATE employees SET status='Inactive', is_active=0 WHERE id=%s", (eid,))
     write_audit_log('employees', 'DELETE', 'employee', eid,
                     f"Employee deleted: {emp['first_name']} {emp['last_name']}")
     return ok(message="Deleted")
@@ -281,22 +281,22 @@ def masters_all():
     """Load all master data needed for dropdowns in one call."""
     return ok({
         'user-roles':          db_rows("SELECT id, name FROM master_user_roles ORDER BY name"),
-        'employment-types':    db_rows("SELECT id, name FROM master_employment_types WHERE is_active=TRUE"),
-        'contract-types':      db_rows("SELECT id, name FROM master_contract_types WHERE is_active=TRUE"),
+        'employment-types':    db_rows("SELECT id, name FROM master_employment_types WHERE is_active=1"),
+        'contract-types':      db_rows("SELECT id, name FROM master_contract_types WHERE is_active=1"),
         'timesheet-statuses':  db_rows("SELECT id, name FROM master_timesheet_statuses"),
         'invoice-statuses':    db_rows("SELECT id, name FROM master_invoice_statuses"),
-        'candidate-sources':   db_rows("SELECT id, name FROM master_candidate_sources WHERE is_active=TRUE"),
+        'candidate-sources':   db_rows("SELECT id, name FROM master_candidate_sources WHERE is_active=1"),
         'application-stages':  db_rows("SELECT id, name, color FROM master_application_stages ORDER BY order_seq"),
         'interview-formats':   db_rows("SELECT id, name FROM master_interview_formats"),
         'payment-terms':       db_rows("SELECT id, name, days FROM master_payment_terms"),
         'priority-levels':     db_rows("SELECT id, name, color FROM master_priority_levels"),
-        'vendor-categories':   db_rows("SELECT id, name FROM master_vendor_categories WHERE is_active=TRUE"),
-        'business-units':      db_rows("SELECT id, name, code FROM business_units WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"),
-        'departments':         db_rows("SELECT id, name, code, business_unit_id FROM departments WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"),
-        'cost-centres':        db_rows("SELECT id, name, code FROM cost_centres WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"),
-        'locations':           db_rows("SELECT id, name, city FROM office_locations WHERE deleted_at IS NULL AND is_active=TRUE ORDER BY name"),
-        'employees-lookup':    db_rows("SELECT id, emp_id, first_name||' '||last_name as name FROM employees WHERE is_active=TRUE ORDER BY first_name"),
-        'clients-lookup':      db_rows("SELECT id, name FROM clients WHERE deleted_at IS NULL ORDER BY name"),
+        'vendor-categories':   db_rows("SELECT id, name FROM master_vendor_categories WHERE is_active=1"),
+        'business-units':      db_rows("SELECT id, name, code FROM business_units WHERE 1=1 AND is_active=1 ORDER BY name"),
+        'departments':         db_rows("SELECT id, name, code, business_unit_id FROM departments WHERE 1=1 AND is_active=1 ORDER BY name"),
+        'cost-centres':        db_rows("SELECT id, name, code FROM cost_centres WHERE 1=1 AND is_active=1 ORDER BY name"),
+        'locations':           db_rows("SELECT id, name, city FROM office_locations WHERE 1=1 AND is_active=1 ORDER BY name"),
+        'employees-lookup':    db_rows("SELECT id, emp_id, first_name||' '||last_name as name FROM employees WHERE is_active=1 ORDER BY first_name"),
+        'clients-lookup':      db_rows("SELECT id, name FROM clients WHERE 1=1 ORDER BY name"),
     })
 
 # ── Employee lookup ────────────────────────────────────────────
@@ -304,4 +304,4 @@ def masters_all():
 @require_auth
 def lookup_employees():
     return ok(db_rows("""SELECT id, emp_id, first_name||' '||last_name as name, job_title, email
-        FROM employees WHERE is_active=TRUE AND deleted_at IS NULL ORDER BY first_name"""))
+        FROM employees WHERE is_active=1 AND deleted_at IS NULL ORDER BY first_name"""))
