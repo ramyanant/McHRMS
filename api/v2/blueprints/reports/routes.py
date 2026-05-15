@@ -1,4 +1,4 @@
-"""Reports & Analytics Blueprint"""
+"""Reports & Analytics Blueprint — v1 schema compatible"""
 from flask import Blueprint, request
 from ...extensions import db_rows, db_row1
 from ...middleware.auth import require_auth
@@ -10,20 +10,17 @@ reports_bp = Blueprint('reports', __name__, url_prefix='/api/v1/reports')
 @require_auth
 def dashboard():
     return ok({
-        # KPIs
-        'employees':       db_row1("SELECT COUNT(*) as n FROM employees WHERE is_active=1")['n'],
-        'open_jobs':       db_row1("SELECT COUNT(*) as n FROM job_requisitions WHERE status='Open' AND deleted_at IS NULL")['n'],
-        'pending_ts':      db_row1("""SELECT COUNT(*) as n FROM timesheets t
+        'employees':        db_row1("SELECT COUNT(*) as n FROM employees WHERE is_active=1")['n'],
+        'open_jobs':        db_row1("SELECT COUNT(*) as n FROM job_requisitions WHERE is_active=1 AND status='Active'")['n'],
+        'pending_ts':       db_row1("""SELECT COUNT(*) as n FROM timesheets t
             JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE s.name='Pending'""")['n'],
-        'pending_invoices':db_row1("""SELECT COUNT(*) as n FROM invoices i
+        'pending_invoices': db_row1("""SELECT COUNT(*) as n FROM invoices i
             JOIN master_invoice_statuses s ON s.id=i.status_id
             WHERE s.name NOT IN ('Paid','Cancelled') AND i.due_date < CURRENT_DATE""")['n'],
-        # Recruitment funnel
-        'pipeline': db_rows("""SELECT s.name as stage, s.color, COUNT(a.id) as count
+        'pipeline': db_rows("""SELECT s.name as stage, COUNT(a.id) as count
             FROM master_application_stages s
             LEFT JOIN applications a ON a.stage_id=s.id
-            GROUP BY s.id, s.name, s.color ORDER BY s.order_seq"""),
-        # Recent activity
+            GROUP BY s.id, s.name ORDER BY s.sort_order"""),
         'recent_hires': db_rows("""SELECT id, emp_id, first_name||' '||last_name as name,
             job_title, start_date FROM employees WHERE is_active=1
             AND start_date IS NOT NULL ORDER BY start_date DESC LIMIT 5"""),
@@ -39,88 +36,74 @@ def dashboard():
 @require_auth
 def workforce():
     return ok({
-        'by_department':   db_rows("""SELECT d.name as department, COUNT(e.id) as count
+        'by_department':      db_rows("""SELECT d.name as department, COUNT(e.id) as count
             FROM departments d LEFT JOIN employees e ON e.department_id=d.id AND e.is_active=1
-            WHERE d.deleted_at IS NULL GROUP BY d.id, d.name ORDER BY count DESC"""),
-        'by_status':       db_rows("""SELECT status, COUNT(*) as count FROM employees
-            WHERE deleted_at IS NULL GROUP BY status"""),
+            WHERE d.is_active=1 GROUP BY d.id, d.name ORDER BY count DESC"""),
+        'by_status':          db_rows("SELECT status, COUNT(*) as count FROM employees WHERE is_active=1 GROUP BY status"),
         'by_employment_type': db_rows("""SELECT et.name as type, COUNT(e.id) as count
             FROM master_employment_types et
             LEFT JOIN employees e ON e.employment_type_id=et.id AND e.is_active=1
-            GROUP BY et.id, et.name ORDER BY count DESC"""),
-        'by_location':     db_rows("""SELECT location, COUNT(*) as count FROM employees
+            WHERE et.is_active=1 GROUP BY et.id, et.name ORDER BY count DESC"""),
+        'by_location':        db_rows("""SELECT location, COUNT(*) as count FROM employees
             WHERE is_active=1 AND location IS NOT NULL GROUP BY location ORDER BY count DESC"""),
-        'headcount_trend': db_rows("""SELECT DATE_TRUNC('month', start_date) as month, COUNT(*) as hires
-            FROM employees WHERE start_date >= NOW() - INTERVAL '12 months'
-            GROUP BY month ORDER BY month"""),
     })
 
 @reports_bp.route('/recruitment')
 @require_auth
 def recruitment():
     return ok({
-        'by_stage':        db_rows("""SELECT s.name, s.color, COUNT(a.id) as count
+        'by_stage':    db_rows("""SELECT s.name, COUNT(a.id) as count
             FROM master_application_stages s
             LEFT JOIN applications a ON a.stage_id=s.id
-            GROUP BY s.id, s.name, s.color ORDER BY s.order_seq"""),
-        'by_source':       db_rows("""SELECT cs.name as source, COUNT(c.id) as count
+            GROUP BY s.id, s.name ORDER BY s.sort_order"""),
+        'by_source':   db_rows("""SELECT cs.name as source, COUNT(c.id) as count
             FROM master_candidate_sources cs
-            LEFT JOIN candidates c ON c.source_id=cs.id AND c.deleted_at IS NULL
+            LEFT JOIN candidates c ON c.source_id=cs.id AND c.is_active=1
             GROUP BY cs.id, cs.name ORDER BY count DESC"""),
         'open_jobs_by_client': db_rows("""SELECT c.name as client, COUNT(j.id) as open_jobs
             FROM clients c JOIN job_requisitions j ON j.client_id=c.id
-            WHERE j.status='Open' AND j.deleted_at IS NULL
+            WHERE j.status='Active' AND j.is_active=1
             GROUP BY c.id, c.name ORDER BY open_jobs DESC"""),
-        'offer_stats':     db_row1("""SELECT COUNT(*) as total,
-            COUNT(*) FILTER(WHERE status='Accepted') as accepted,
-            COUNT(*) FILTER(WHERE status='Rejected') as rejected,
-            COUNT(*) FILTER(WHERE status='Sent') as pending
-            FROM offers"""),
     })
 
 @reports_bp.route('/timesheets')
 @require_auth
 def timesheets():
     return ok({
-        'by_status':       db_rows("""SELECT s.name as status, COUNT(t.id) as count,
+        'by_status':   db_rows("""SELECT s.name as status, COUNT(t.id) as count,
             COALESCE(SUM(t.total_hours),0) as total_hours
             FROM master_timesheet_statuses s
             LEFT JOIN timesheets t ON t.status_id=s.id
             GROUP BY s.name"""),
-        'by_project':      db_rows("""SELECT p.name as project, COUNT(t.id) as entries,
-            COALESCE(SUM(t.total_hours),0) as total_hours
-            FROM projects p LEFT JOIN timesheets t ON t.project_id=p.id
-            WHERE p.deleted_at IS NULL GROUP BY p.id, p.name
-            ORDER BY total_hours DESC LIMIT 10"""),
-        'utilization':     db_rows("""SELECT e.first_name||' '||e.last_name as employee,
+        'by_project':  db_rows("""SELECT project, COUNT(*) as entries,
+            COALESCE(SUM(total_hours),0) as total_hours
+            FROM timesheets WHERE project IS NOT NULL AND project != ''
+            GROUP BY project ORDER BY total_hours DESC LIMIT 10"""),
+        'utilization': db_rows("""SELECT e.first_name||' '||e.last_name as employee,
             COALESCE(SUM(t.total_hours),0) as total_hours,
-            COALESCE(SUM(t.billable_hours),0) as billable_hours
+            COALESCE(SUM(t.regular_hours),0) as regular_hours
             FROM employees e LEFT JOIN timesheets t ON t.employee_id=e.id
             WHERE e.is_active=1 GROUP BY e.id, e.first_name, e.last_name
-            ORDER BY billable_hours DESC LIMIT 20"""),
+            ORDER BY total_hours DESC LIMIT 20"""),
     })
 
 @reports_bp.route('/invoices')
 @require_auth
 def invoice_report():
     return ok({
-        'summary':         db_row1("""SELECT
-            COALESCE(SUM(total_amount),0) as total_invoiced,
-            COALESCE(SUM(amount_paid),0) as total_collected,
-            COALESCE(SUM(balance_due),0) as total_outstanding FROM invoices"""),
-        'aging':           db_rows("""SELECT
-            SUM(CASE WHEN due_date >= CURRENT_DATE THEN balance_due ELSE 0 END) as current_due,
-            SUM(CASE WHEN due_date < CURRENT_DATE AND due_date >= CURRENT_DATE-30 THEN balance_due ELSE 0 END) as "30_days",
-            SUM(CASE WHEN due_date < CURRENT_DATE-30 AND due_date >= CURRENT_DATE-60 THEN balance_due ELSE 0 END) as "60_days",
-            SUM(CASE WHEN due_date < CURRENT_DATE-60 THEN balance_due ELSE 0 END) as "90_plus"
-            FROM invoices WHERE balance_due > 0"""),
-        'by_client':       db_rows("""SELECT c.name as client,
+        'summary': db_row1("""SELECT
+            COALESCE(SUM(amount),0) as total_invoiced,
+            COALESCE(SUM(CASE WHEN s.name='Paid' THEN total_amount ELSE 0 END),0) as total_collected,
+            COALESCE(SUM(CASE WHEN s.name NOT IN ('Paid','Cancelled') THEN total_amount ELSE 0 END),0) as total_outstanding
+            FROM invoices i
+            LEFT JOIN master_invoice_statuses s ON s.id=i.status_id"""),
+        'by_client': db_rows("""SELECT c.name as client,
             COUNT(i.id) as invoice_count,
-            COALESCE(SUM(i.total_amount),0) as total_amount,
-            COALESCE(SUM(i.amount_paid),0) as paid,
-            COALESCE(SUM(i.balance_due),0) as outstanding
+            COALESCE(SUM(i.amount),0) as total_amount,
+            COALESCE(SUM(CASE WHEN s.name='Paid' THEN i.total_amount ELSE 0 END),0) as paid
             FROM clients c LEFT JOIN invoices i ON i.client_id=c.id
-            WHERE c.deleted_at IS NULL GROUP BY c.id, c.name
+            LEFT JOIN master_invoice_statuses s ON s.id=i.status_id
+            WHERE c.is_active=1 GROUP BY c.id, c.name
             ORDER BY total_amount DESC LIMIT 20"""),
     })
 
@@ -128,10 +111,9 @@ def invoice_report():
 @require_auth
 def leave_report():
     return ok({
-        'by_type':  db_rows("""SELECT leave_type, COUNT(*) as requests,
-            COALESCE(SUM(days),0) as total_days FROM employee_leaves GROUP BY leave_type"""),
-        'by_status':db_rows("""SELECT status, COUNT(*) as count FROM employee_leaves GROUP BY status"""),
-        'pending':  db_rows("""SELECT l.*, e.first_name||' '||e.last_name as employee_name, e.emp_id
+        'by_type':   db_rows("SELECT leave_type, COUNT(*) as requests, COALESCE(SUM(days),0) as total_days FROM employee_leaves GROUP BY leave_type"),
+        'by_status': db_rows("SELECT status, COUNT(*) as count FROM employee_leaves GROUP BY status"),
+        'pending':   db_rows("""SELECT l.*, e.first_name||' '||e.last_name as employee_name, e.emp_id
             FROM employee_leaves l JOIN employees e ON e.id=l.employee_id
             WHERE l.status='Pending' ORDER BY l.applied_at"""),
     })
