@@ -1,0 +1,80 @@
+"""Employee Self-Service Portal Blueprint"""
+from flask import Blueprint, request, g
+from ...extensions import db_rows, db_row1, db_execute
+from ...middleware.auth import require_auth
+from ...utils.responses import ok, err, not_found
+from datetime import datetime
+
+portal_bp = Blueprint('portal', __name__, url_prefix='/api/v1/portal')
+
+def _get_emp_id():
+    emp_id = g.user.get('employee_id')
+    if not emp_id:
+        emp = db_row1("SELECT id FROM employees WHERE email=%s", (g.user.get('email',''),))
+        if emp: emp_id = emp['id']
+    return emp_id
+
+@portal_bp.route('/dashboard')
+@require_auth
+def dashboard():
+    emp_id = _get_emp_id()
+    if not emp_id: return err("No employee profile linked", 400)
+    emp = db_row1("""SELECT e.*,
+        d.name as department_name, b.name as business_unit_name,
+        et.name as employment_type, c.name as client_name,
+        rm.first_name||' '||rm.last_name as reporting_manager_name
+        FROM employees e
+        LEFT JOIN departments d ON d.id=e.department_id
+        LEFT JOIN business_units b ON b.id=e.business_unit_id
+        LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
+        LEFT JOIN clients c ON c.id=e.client_id
+        LEFT JOIN employees rm ON rm.id=e.reporting_manager_id
+        WHERE e.id=%s""", (emp_id,))
+    if not emp: return err("Employee record not found", 404)
+    year = datetime.now().year
+    leaves_taken    = db_row1("""SELECT COALESCE(SUM(days),0) as n FROM employee_leaves
+        WHERE employee_id=%s AND status='Approved' AND EXTRACT(YEAR FROM from_date)=%s""",
+        (emp_id, year))['n']
+    pending_leaves  = db_row1("SELECT COUNT(*) as n FROM employee_leaves WHERE employee_id=%s AND status='Pending'", (emp_id,))['n']
+    pending_ts      = db_row1("""SELECT COUNT(*) as n FROM timesheets t
+        JOIN master_timesheet_statuses s ON s.id=t.status_id
+        WHERE t.employee_id=%s AND s.name='Pending'""", (emp_id,))['n']
+    approved_hours  = db_row1("""SELECT COALESCE(SUM(t.total_hours),0) as n FROM timesheets t
+        JOIN master_timesheet_statuses s ON s.id=t.status_id
+        WHERE t.employee_id=%s AND s.name='Approved'
+        AND EXTRACT(MONTH FROM t.week_ending)=EXTRACT(MONTH FROM CURRENT_DATE)""", (emp_id,))['n']
+    return ok({
+        "employee":           emp,
+        "leaves_taken":       float(leaves_taken),
+        "leave_balance":      18 - float(leaves_taken),
+        "pending_leaves":     pending_leaves,
+        "pending_timesheets": pending_ts,
+        "approved_hours_mtd": float(approved_hours),
+    })
+
+@portal_bp.route('/team')
+@require_auth
+def team():
+    emp_id = _get_emp_id()
+    if not emp_id: return err("No employee profile linked", 400)
+    emp = db_row1("SELECT reporting_manager_id FROM employees WHERE id=%s", (emp_id,))
+    mgr_id = emp['reporting_manager_id'] if emp else None
+    manager   = db_row1("""SELECT id, first_name, last_name, job_title, email, department_id
+        FROM employees WHERE id=%s""", (mgr_id,)) if mgr_id else None
+    reportees = db_rows("""SELECT id, first_name, last_name, job_title, email,
+        department_id FROM employees
+        WHERE reporting_manager_id=%s AND is_active=TRUE""", (emp_id,))
+    peers     = db_rows("""SELECT id, first_name, last_name, job_title, email
+        FROM employees WHERE reporting_manager_id=%s AND id!=%s AND is_active=TRUE""",
+        (mgr_id, emp_id)) if mgr_id else []
+    return ok({"manager": manager, "reportees": reportees, "peers": peers})
+
+@portal_bp.route('/payslips')
+@require_auth
+def payslips():
+    emp_id = _get_emp_id()
+    if not emp_id: return err("No employee profile linked", 400)
+    rows = db_rows("""SELECT pe.*, pr.month, pr.year FROM payroll_entries pe
+        LEFT JOIN payroll_runs pr ON pr.id=pe.payroll_run_id
+        WHERE pe.employee_id=%s ORDER BY pe.created_at DESC""", (emp_id,))
+    return ok(rows)

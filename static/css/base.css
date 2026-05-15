@@ -1,0 +1,67 @@
+/* ═══════════════════════════════════════════════════════════
+   McHR&TA Design System — Base
+   Design tokens, reset, typography
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand */
+  --green:      #1a5c2e;
+  --green-light:#e8f5e9;
+  --green-dark: #0f3d1e;
+  --green-mid:  #2e7d32;
+
+  /* Semantic */
+  --blue:   #2563eb;
+  --amber:  #d97706;
+  --red:    #dc2626;
+  --purple: #7c3aed;
+  --teal:   #0891b2;
+
+  /* Neutrals */
+  --bg:      #f5f6f8;
+  --surface: #ffffff;
+  --s2:      #f9fafb;
+  --s3:      #f3f4f6;
+  --bdr:     #e5e7eb;
+  --bdr2:    #d1d5db;
+
+  /* Text */
+  --txt:  #111827;
+  --txt2: #6b7280;
+  --txt3: #9ca3af;
+
+  /* Sizing */
+  --sidebar-w: 220px;
+  --hh:        56px;
+  --radius:    8px;
+  --radius-lg: 12px;
+  --shadow:    0 1px 3px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.1);
+
+  /* Type */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--txt);
+  background: var(--bg);
+  overflow: hidden;
+}
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button { cursor: pointer; font-family: var(--font); }
+input, select, textarea { font-family: var(--font); }
+img { max-width: 100%; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bdr2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--txt3); }
