@@ -684,3 +684,35 @@ input, select, textarea { font: inherit; }
   .struct-toolbar { flex-direction: column; align-items: flex-start; }
   .struct-summary { flex-wrap: wrap; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   FIXES: Darker labels, org structure improvements
+   ═══════════════════════════════════════════════════════════ */
+
+/* Issue #3: Darker field labels */
+.field-label { color: var(--txt2) !important; font-weight: 600; }
+.flabel      { color: var(--txt2) !important; font-weight: 500; }
+.meta-row span { color: var(--txt2) !important; }
+.org-section-body .field-label { color: var(--txt2) !important; }
+
+/* Issue #6: Table/List toggle consistent across all struct pages */
+.view-toggle { display: flex; gap: 4px; }
+.view-toggle-btn { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--surface); font-size: 12px; cursor: pointer; color: var(--txt3); }
+.view-toggle-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+/* Sortable table headers */
+.data-table th.sortable { cursor: pointer; user-select: none; }
+.data-table th.sortable:hover { background: var(--border); }
+.sort-icon { margin-left: 4px; opacity: .5; font-size: 10px; }
+.sort-asc .sort-icon::after  { content: '▲'; }
+.sort-desc .sort-icon::after { content: '▼'; }
+
+/* Row click cursor */
+.data-table tbody tr.tbl-clickable { cursor: pointer; }
+.data-table tbody tr.tbl-clickable:hover td { background: var(--blue-l); }
+
+/* Bills & Expenses */
+.expense-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px; }
+.expense-amount { font-size: 20px; font-weight: 800; color: var(--txt); }

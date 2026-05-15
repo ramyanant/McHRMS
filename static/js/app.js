@@ -123,7 +123,10 @@ const NAV = {
       { label: 'Onboarding',      icon: '🚀', path: '/recruitment/onboarding' },
     ]},
     { section: 'Finance', items: [
+    ]},
+    { section: 'Finance', items: [
       { label: 'Invoices',        icon: '🧾', path: '/invoices' },
+      { label: 'Bills & Expenses',icon: '💸', path: '/bills' },
     ]},
     { section: 'Insights', items: [
       { label: 'Reports',         icon: '📈', path: '/reports' },
@@ -300,6 +303,8 @@ async function registerRoutes() {
   Router.route('/invoices/:id',                       load('invoices',        'renderDetail'));
   Router.route('/reports',                            load('reports',         'renderHome'));
   Router.route('/reports/:type',                      load('reports',         'renderReport'));
+  Router.route('/bills',                              load('bills',           'renderList'));
+  Router.route('/bills/:id',                           load('bills',           'renderDetail'));
   Router.route('/audit-logs',                         load('auditlogs',       'renderList'));
   Router.route('/admin/users',                        load('admin',           'renderUsers'));
   Router.route('/admin/users/:id',                    load('admin',           'renderUserDetail'));

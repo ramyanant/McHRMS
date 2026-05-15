@@ -88,9 +88,9 @@ function renderPage(org) {
               ['banking','🏦','Banking'],
               ['documents','📄','Documents'],
             ].map(([id, icon, label]) => `
-              <a class="org-nav-item" href="#org-sec-${id}" onclick="scrollToSec('${id}')">
+              <div class="org-nav-item" onclick="event.preventDefault();event.stopPropagation();scrollToSec('${id}')" style="cursor:pointer">
                 <span>${icon}</span><span>${label}</span>
-              </a>`).join('')}
+              </div>`).join('')}
           </nav>
         </div>
       </div>
@@ -281,7 +281,10 @@ function renderPage(org) {
                     ${d.expiry_date ? `<span class="${isExpiringSoon(d.expiry_date) ? 'text-red' : 'text-muted'}">Exp: ${fmt.date(d.expiry_date)}</span>` : ''}
                   </div>
                 </div>
-                <button class="btn btn-danger btn-xs" onclick="window._deleteDoc(${d.id})">✕</button>
+                <div style="display:flex;gap:4px">
+                  <button class="btn btn-ghost btn-xs" title="Download" onclick="window._downloadDoc(${d.id}, '${d.doc_name.replace(/'/g,'')}')" >⬇</button>
+                  <button class="btn btn-danger btn-xs" onclick="window._deleteDoc(${d.id})">✕</button>
+                </div>
               </div>`).join('') || '<div class="empty-mini">No documents uploaded yet</div>'}
           </div>
         `, null)}
@@ -445,17 +448,31 @@ function _bindActions() {
 
   // ── Logo Edit ──────────────────────────────────────────────
   window._editLogo = () => openModal({
-    title: 'Company Logo',
+    title: '🖼 Upload Company Logo',
     body: `<div class="form-grid-sm">
-      <div class="fg full"><label class="flabel">Logo URL</label>
-        <input class="finput" id="logo-url" placeholder="https://..." value="${v(_orgData.logo_url)}">
-        <div class="text-muted" style="font-size:11px;margin-top:4px">Enter a public image URL (recommended: square, min 200×200px)</div></div>
+      <div class="fg full" style="text-align:center">
+        <div id="logo-preview" style="margin-bottom:12px">
+          ${_orgData.logo_url ? `<img src="${_orgData.logo_url}" style="width:80px;height:80px;border-radius:8px;object-fit:contain;border:1px solid var(--border)">` : '<div style="width:80px;height:80px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto">🏛</div>'}
+        </div>
+        <label class="flabel">Upload Logo File</label>
+        <input type="file" class="finput" id="logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <div class="text-muted" style="font-size:11px;margin-top:4px">PNG, JPG, WebP or SVG. Recommended: square, min 200×200px, max 1MB</div>
+      </div>
     </div>`,
-    submitLabel: 'Save Logo',
+    submitLabel: 'Upload Logo',
     onSubmit: async () => {
-      const url = document.getElementById('logo-url').value.trim();
-      await put('/organisation', { logo_url: url });
-      toast('Logo updated', 'success');
+      const fileInput = document.getElementById('logo-file');
+      const file = fileInput?.files?.[0];
+      if (!file) { toast('Please select a file', 'error'); return false; }
+      if (file.size > 1024 * 1024) { toast('File too large (max 1MB)', 'error'); return false; }
+      const base64 = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = () => res(reader.result.split(',')[1]);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      await post('/organisation/logo', { file_data: base64, mime_type: file.type });
+      toast('Logo uploaded', 'success');
       reloadProfile();
     }
   });
@@ -531,8 +548,22 @@ function _bindActions() {
     reloadProfile();
   };
 
-  // ── Document ───────────────────────────────────────────────
+  // ── Document ───────────────────────────────────────────────────────────
   window._uploadDoc = () => docModal();
+  window._downloadDoc = async (id, name) => {
+    try {
+      // Fetch document with file data
+      const doc = await get(\`/organisation/documents/\${id}\`);
+      if (!doc || !doc.file_data) { toast('File data not available', 'error'); return; }
+      // Create download link
+      const link = document.createElement('a');
+      link.href = \`data:\${doc.mime_type || 'application/octet-stream'};base64,\${doc.file_data}\`;
+      link.download = doc.doc_name || name || 'document';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch(e) { toast(e.message, 'error'); }
+  };
   window._deleteDoc = async (id) => {
     if (!confirm('Remove this document?')) return;
     await del(`/organisation/documents/${id}`).catch(() => put(`/organisation/documents/${id}`, {is_active:0}));

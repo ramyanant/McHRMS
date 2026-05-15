@@ -724,3 +724,32 @@ def location_detail(lid):
         return ok(message="Updated")
     db_execute("UPDATE office_locations SET is_active=0 WHERE id=%s", (lid,))
     return ok(message="Deleted")
+
+
+@org_bp.route('/organisation/logo', methods=['POST'])
+@require_auth
+@require_role('Admin')
+def upload_logo():
+    """Upload company logo as base64."""
+    d = request.get_json() or {}
+    logo_data = d.get('file_data')
+    mime_type  = d.get('mime_type', 'image/png')
+    if not logo_data:
+        return err("No file data provided")
+    db_execute("UPDATE organisation SET logo_data=%s, logo_mime=%s WHERE id=(SELECT id FROM organisation LIMIT 1)",
+              (logo_data, mime_type))
+    return ok(message="Logo uploaded")
+
+@org_bp.route('/organisation/logo', methods=['GET'])
+def get_logo():
+    """Return logo as image."""
+    from flask import make_response
+    org = db_row1("SELECT logo_data, logo_mime FROM organisation LIMIT 1")
+    if not org or not org.get('logo_data'):
+        return err("No logo", 404)
+    import base64
+    data = base64.b64decode(org['logo_data'])
+    resp = make_response(data)
+    resp.headers['Content-Type'] = org.get('logo_mime', 'image/png')
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp

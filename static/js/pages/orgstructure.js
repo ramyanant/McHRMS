@@ -444,14 +444,7 @@ function deptModal(existing, masters, preFillBU) {
         </select>
         <div class="field-hint">Primary physical location</div>
       </div>
-      <div class="fg">
-        <label class="flabel">Parent Department</label>
-        <select class="fselect" name="parent_dept_id">
-          <option value="">None (top-level)</option>
-          ${deptOpts(masters['departments'] || [], existing?.parent_dept_id, existing?.id)}
-        </select>
-        <div class="field-hint">For nested org structures (sub-departments)</div>
-      </div>
+      <!-- Parent dept available after migration completes -->
       <div class="fg">
         <label class="flabel">Annual Budget (₹)</label>
         <input class="finput" type="number" name="budget" value="${v(existing?.budget, 0)}" min="0">
