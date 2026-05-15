@@ -99,6 +99,21 @@ def _run_migrations(app):
         migrations = [
             # users table
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0",
+            # organisation enhanced tables
+            """CREATE TABLE IF NOT EXISTS organisation_contacts (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), name TEXT NOT NULL, designation TEXT, department TEXT, email TEXT, phone TEXT, is_primary INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())""",
+            """CREATE TABLE IF NOT EXISTS organisation_addresses (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), address_type TEXT NOT NULL DEFAULT 'Registered', line1 TEXT, line2 TEXT, city TEXT, state TEXT, pincode TEXT, country TEXT DEFAULT 'India', currency TEXT DEFAULT 'INR', timezone TEXT DEFAULT 'Asia/Kolkata', hours_of_operation TEXT, is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())""",
+            """CREATE TABLE IF NOT EXISTS organisation_identity (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), id_type TEXT NOT NULL, id_number TEXT NOT NULL, issue_date DATE, expiry_date DATE, issuing_authority TEXT, notes TEXT, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())""",
+            """CREATE TABLE IF NOT EXISTS organisation_registrations (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), reg_type TEXT NOT NULL, reg_number TEXT NOT NULL, state TEXT, jurisdiction TEXT, issuing_authority TEXT, trade_name TEXT, start_date DATE, expiry_date DATE, is_primary INTEGER DEFAULT 0, notes TEXT, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""",
+            "ALTER TABLE organisation_bank_accounts ADD COLUMN IF NOT EXISTS purpose TEXT",
+            "ALTER TABLE organisation_bank_accounts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS expiry_date DATE",
+            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
+            "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS type_of_entity TEXT",
+            "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS brand_name TEXT",
+            "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS linkedin_url TEXT",
+            "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS hours_of_operation TEXT",
+            "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS employee_count_range TEXT",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP",
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS created_by INTEGER",
             # employees table
