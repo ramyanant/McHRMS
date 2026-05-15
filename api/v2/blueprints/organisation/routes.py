@@ -528,8 +528,15 @@ def create_business_unit():
     d = request.get_json() or {}
     try: validate(d, {'name': ['required', 'max:200']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
-    result = db_execute("INSERT INTO business_units (name, description, head_name) VALUES (%s,%s,%s) RETURNING id",
-        (d['name'], d.get('description'), d.get('head_name')), returning=True)
+    # Sync head_name from employee if head_emp_id given
+    head_name = d.get('head_name')
+    if d.get('head_emp_id'):
+        emp = db_row1("SELECT first_name||' '||last_name as name FROM employees WHERE id=%s", (d['head_emp_id'],))
+        if emp: head_name = emp['name']
+    result = db_execute("""INSERT INTO business_units (name, description, head_name, code, head_emp_id, location_id)
+        VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['name'], d.get('description'), head_name,
+         d.get('code'), d.get('head_emp_id'), d.get('location_id')), returning=True)
     write_audit_log('organisation', 'CREATE', 'business_unit', result['id'], f"BU: {d['name']}")
     return created({'id': result['id']})
 
@@ -543,9 +550,22 @@ def business_unit_detail(bid):
         return ok(bu)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        db_execute("UPDATE business_units SET name=%s, description=%s, head_name=%s WHERE id=%s",
-                  (d.get('name',bu['name']), d.get('description',bu.get('description')),
-                   d.get('head_name',bu.get('head_name')), bid))
+        updates = {
+            'name':        d.get('name', bu['name']),
+            'description': d.get('description', bu.get('description')),
+            'head_name':   d.get('head_name', bu.get('head_name')),
+        }
+        if 'code'        in d: updates['code']        = d['code']
+        if 'is_active'   in d: updates['is_active']   = d['is_active']
+        if 'head_emp_id' in d: updates['head_emp_id'] = d['head_emp_id']
+        if 'location_id' in d: updates['location_id'] = d['location_id']
+        # Sync head_name from employee if head_emp_id given
+        if d.get('head_emp_id'):
+            emp = db_row1("SELECT first_name||' '||last_name as name FROM employees WHERE id=%s", (d['head_emp_id'],))
+            if emp: updates['head_name'] = emp['name']
+        set_clause = ', '.join(f"{k}=%s" for k in updates)
+        db_execute(f"UPDATE business_units SET {set_clause}, updated_at=NOW() WHERE id=%s",
+                  list(updates.values()) + [bid])
         return ok(message="Updated")
     db_execute("UPDATE business_units SET is_active=0 WHERE id=%s", (bid,))
     return ok(message="Deleted")
@@ -575,10 +595,12 @@ def create_department():
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     result = db_execute("""INSERT INTO departments
-        (name, business_unit_id, cost_centre_id, head_name, location)
-        VALUES (%s,%s,%s,%s,%s) RETURNING id""",
+        (name, business_unit_id, cost_centre_id, head_name, location,
+         budget, manager_id, location_id, parent_dept_id)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['name'], d.get('business_unit_id'), d.get('cost_centre_id'),
-         d.get('head_name'), d.get('location')), returning=True)
+         d.get('head_name'), d.get('location'), d.get('budget', 0),
+         d.get('manager_id'), d.get('location_id'), d.get('parent_dept_id')), returning=True)
     return created({'id': result['id']})
 
 @org_bp.route('/departments/<int:did>', methods=['GET','PUT','DELETE'])
@@ -591,12 +613,8 @@ def dept_detail(did):
     if request.method == 'GET': return ok(dept)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        db_execute("""UPDATE departments SET name=%s, business_unit_id=%s,
-            cost_centre_id=%s, head_name=%s, location=%s WHERE id=%s""",
-            (d.get('name',dept['name']), d.get('business_unit_id',dept['business_unit_id']),
-             d.get('cost_centre_id',dept['cost_centre_id']),
-             d.get('head_name',dept.get('head_name')),
-             d.get('location',dept.get('location')), did))
+        db_execute("""UPDATE departments SET name=%s, business_unit_id=%s, cost_centre_id=%s, head_name=%s, location=%s, budget=%s, updated_at=NOW() WHERE id=%s""",
+            (d.get('name',dept['name']), d.get('business_unit_id',dept['business_unit_id']), d.get('cost_centre_id',dept['cost_centre_id']), d.get('head_name',dept.get('head_name')), d.get('location',dept.get('location')), d.get('budget',dept.get('budget',0)), did))
         return ok(message="Updated")
     db_execute("UPDATE departments SET is_active=0 WHERE id=%s", (did,))
     return ok(message="Deleted")
@@ -637,10 +655,18 @@ def cc_detail(cid):
     if request.method == 'GET': return ok(cc)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        db_execute("UPDATE cost_centres SET name=%s, code=%s, business_unit_id=%s, budget=%s WHERE id=%s",
-            (d.get('name',cc['name']), d.get('code',cc['code']),
-             d.get('business_unit_id',cc['business_unit_id']),
-             d.get('budget',cc['budget']), cid))
+        updates = {
+            'name':           d.get('name', cc['name']),
+            'business_unit_id':d.get('business_unit_id', cc['business_unit_id']),
+            'budget':         d.get('budget', cc['budget']),
+        }
+        if not d.get('is_active', True) == False:
+            updates['is_active'] = d.get('is_active', cc['is_active'])
+        if 'manager_id' in d: updates['manager_id'] = d['manager_id']
+        if 'currency'   in d: updates['currency']   = d['currency']
+        set_clause = ', '.join(f"{k}=%s" for k in updates)
+        db_execute(f"UPDATE cost_centres SET {set_clause}, updated_at=NOW() WHERE id=%s",
+                  list(updates.values()) + [cid])
         return ok(message="Updated")
     db_execute("UPDATE cost_centres SET is_active=0 WHERE id=%s", (cid,))
     return ok(message="Deleted")
@@ -677,11 +703,24 @@ def location_detail(lid):
     if request.method == 'GET': return ok(loc)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        db_execute("""UPDATE office_locations SET name=%s, city=%s, address_line1=%s,
-            pincode=%s, type=%s, headcount=%s WHERE id=%s""",
-            (d.get('name',loc['name']), d.get('city',loc.get('city')),
-             d.get('address',loc.get('address_line1')), d.get('pincode',loc.get('pincode')),
-             d.get('type',loc.get('type','Regional')), d.get('headcount',loc.get('headcount',0)), lid))
+        updates = {
+            'name':         d.get('name', loc['name']),
+            'city':         d.get('city', loc.get('city')),
+            'address_line1':d.get('address_line1') or d.get('address', loc.get('address_line1')),
+            'pincode':      d.get('pincode', loc.get('pincode')),
+            'type':         d.get('type', loc.get('type','Regional')),
+            'headcount':    d.get('headcount', loc.get('headcount', 0)),
+        }
+        if 'phone'           in d: updates['phone']           = d['phone']
+        if 'email'           in d: updates['email']           = d['email']
+        if 'manager_id'      in d: updates['manager_id']      = d['manager_id']
+        if 'business_unit_id'in d: updates['business_unit_id']= d['business_unit_id']
+        if 'is_hq'           in d: updates['is_hq']           = d['is_hq']
+        if 'is_active'       in d: updates['is_active']       = d['is_active']
+        if 'state_id'        in d: updates['state_id']        = d['state_id']
+        set_clause = ', '.join(f"{k}=%s" for k in updates)
+        db_execute(f"UPDATE office_locations SET {set_clause}, updated_at=NOW() WHERE id=%s",
+                  list(updates.values()) + [lid])
         return ok(message="Updated")
     db_execute("UPDATE office_locations SET is_active=0 WHERE id=%s", (lid,))
     return ok(message="Deleted")

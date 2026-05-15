@@ -588,3 +588,99 @@ input, select, textarea { font: inherit; }
   .field-grid-3 { grid-template-columns: 1fr; }
   .multi-grid   { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   ORG STRUCTURE — Business Units, Departments, CCs, Locations
+   ═══════════════════════════════════════════════════════════ */
+
+/* Toolbar with summary stats */
+.struct-toolbar { display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; gap: 16px; }
+.struct-summary { display: flex; gap: 24px; }
+.struct-stat { font-size: 22px; font-weight: 800; color: var(--brand); line-height: 1; }
+.struct-stat span { display: block; font-size: 11px; font-weight: 500;
+  color: var(--txt3); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+
+/* Card grid for BUs and Locations */
+.struct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+
+/* Struct card */
+.struct-card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px; transition: transform .15s, box-shadow .15s;
+  display: flex; flex-direction: column; gap: 6px; }
+.struct-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.struct-card-inactive { opacity: .6; }
+.struct-card-hq { border-color: var(--green); border-width: 2px; }
+.struct-card-header { display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 4px; }
+.struct-card-icon { font-size: 28px; }
+.bu-icon { }
+.struct-card-title { font-size: 15px; font-weight: 700; color: var(--txt); }
+.struct-card-code  { font-family: monospace; font-size: 12px; color: var(--brand);
+  background: var(--brand-l); padding: 1px 8px; border-radius: 4px; display: inline-block; }
+.struct-card-desc  { font-size: 12px; color: var(--txt3); line-height: 1.4; }
+.struct-card-meta  { font-size: 12px; color: var(--txt2); }
+.struct-card-stats { display: flex; gap: 16px; margin-top: 8px;
+  padding-top: 8px; border-top: 1px solid var(--border); }
+.struct-mini-stat  { text-align: center; }
+.struct-mini-val   { display: block; font-size: 18px; font-weight: 800; color: var(--txt); }
+.struct-mini-label { font-size: 10px; color: var(--txt3); text-transform: uppercase; }
+.struct-card-footer { margin-top: 4px; }
+
+/* Add card button */
+.struct-add-card { border: 2px dashed var(--border); border-radius: 10px;
+  padding: 32px 16px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; cursor: pointer; transition: all .2s; color: var(--txt3); }
+.struct-add-card:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-l); }
+.struct-add-icon  { font-size: 32px; font-weight: 300; line-height: 1; margin-bottom: 8px; }
+.struct-add-label { font-size: 13px; font-weight: 500; }
+
+/* Department tree view */
+.bu-tree-group { margin-bottom: 16px; }
+.bu-tree-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  cursor: pointer; font-size: 14px; transition: background .15s; }
+.bu-tree-header:hover { background: var(--brand-l); }
+.bu-tree-toggle { font-size: 12px; color: var(--txt3); transition: transform .2s; }
+.bu-tree-group.collapsed .bu-tree-toggle { transform: rotate(-90deg); }
+.bu-tree-group.collapsed .bu-tree-children { display: none; }
+.bu-tree-icon  { font-size: 18px; }
+.bu-tree-count { margin-left: auto; font-size: 12px; color: var(--txt3);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 1px 10px; }
+.bu-tree-children { margin-left: 24px; padding-left: 16px;
+  border-left: 2px solid var(--border); margin-top: 4px; }
+
+/* Dept tree card */
+.dept-tree-card { display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; margin: 4px 0; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; transition: background .1s; }
+.dept-tree-card:hover { background: var(--bg); }
+.dept-tree-left  { display: flex; align-items: center; gap: 10px; }
+.dept-tree-icon  { font-size: 18px; }
+.dept-tree-name  { font-size: 13px; font-weight: 600; }
+.dept-tree-meta  { font-size: 11px; color: var(--txt3); margin-top: 1px; }
+.dept-tree-right { display: flex; align-items: center; gap: 8px; }
+.dept-headcount  { font-size: 12px; color: var(--txt3);
+  background: var(--bg); border-radius: 10px; padding: 1px 8px; }
+
+/* Location card extras */
+.loc-card { }
+.loc-type-badge { }
+.loc-address { font-size: 12px; color: var(--txt2); margin-top: 4px; }
+
+/* Dependency note */
+.dep-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px;
+  padding: 12px 16px; background: #fffbeb; border: 1px solid #f59e0b;
+  border-radius: 8px; font-size: 12px; color: #92400e; }
+
+/* Field hint */
+.field-hint { font-size: 10px; color: var(--txt3); margin-top: 3px; }
+.field-hint-inline { font-size: 10px; color: var(--txt3); font-weight: 400; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .struct-grid { grid-template-columns: 1fr; }
+  .struct-toolbar { flex-direction: column; align-items: flex-start; }
+  .struct-summary { flex-wrap: wrap; }
+}

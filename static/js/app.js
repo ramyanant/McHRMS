@@ -259,12 +259,13 @@ async function registerRoutes() {
 
   Router.route('/dashboard',                          load('dashboard',       'render'));
   Router.route('/organisation/profile',               load('organisation',    'renderProfile'));
-  Router.route('/organisation/business-units',        load('organisation',    'renderBUs'));
-  Router.route('/organisation/business-units/:id',    load('organisation',    'renderBUDetail'));
-  Router.route('/organisation/departments',           load('organisation',    'renderDepts'));
-  Router.route('/organisation/departments/:id',       load('organisation',    'renderDeptDetail'));
-  Router.route('/organisation/cost-centres',          load('organisation',    'renderCostCentres'));
-  Router.route('/organisation/locations',             load('organisation',    'renderLocations'));
+  Router.route('/organisation/business-units',        load('orgstructure',    'renderBUs'));
+  Router.route('/organisation/business-units/:id',    load('orgstructure',    'renderBUDetail'));
+  Router.route('/organisation/departments',           load('orgstructure',    'renderDepts'));
+  Router.route('/organisation/departments/:id',       load('orgstructure',    'renderDeptDetail'));
+  Router.route('/organisation/cost-centres',          load('orgstructure',    'renderCostCentres'));
+  Router.route('/organisation/locations',             load('orgstructure',    'renderLocations'));
+  Router.route('/organisation/locations/:id',         load('orgstructure',    'renderLocationDetail'));
   Router.route('/employees',                          load('employees',       'renderList'));
   Router.route('/employees/new',                      load('employees',       'renderNew'));
   Router.route('/employees/:id',                      load('employees',       'renderDetail'));
