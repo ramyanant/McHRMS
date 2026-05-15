@@ -5,72 +5,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <title>McHR&TA — Human Resources &amp; Talent Acquisition</title>
-  <link rel="stylesheet" href="/static/css/base.css">
-  <link rel="stylesheet" href="/static/css/components.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>McHR&TA — Human Resources & Talent Acquisition</title>
+  <link rel="stylesheet" href="/static/css/app.css">
 </head>
 <body>
-<div id="app">
-  <div id="login-screen" style="display:none"></div>
-  <div id="main-layout" style="display:none;flex:1;overflow:hidden">
-    <nav class="sidebar">
-      <div class="sidebar-logo">
-        <img src="/static/logo.png" onerror="this.style.display='none'" alt="">
-        <span>McHR&amp;TA</span>
-      </div>
-      <div class="sidebar-nav" id="sidebar-nav"></div>
-      <div class="sidebar-user">
-        <div class="av av-sm av-green" id="sidebar-user-av">U</div>
-        <div class="sidebar-user-info">
-          <div class="sidebar-user-name" id="sidebar-user-name">Loading</div>
-          <div class="sidebar-user-role" id="sidebar-user-role"></div>
-        </div>
-        <span class="sidebar-logout" onclick="window.logout()" title="Logout">&#x23FB;</span>
-      </div>
-    </nav>
-    <div class="main-content">
-      <div class="topbar">
-        <div class="topbar-breadcrumb" id="breadcrumb">
-          <span class="topbar-title">Dashboard</span>
-        </div>
-        <div class="topbar-right">
-          <div class="topbar-search">
-            <span style="color:var(--txt3)">&#x1F50D;</span>
-            <input placeholder="Search everything..." id="global-search">
-          </div>
-          <button class="btn btn-ghost btn-icon" onclick="window.go('/admin/notifications')"
-            style="position:relative" title="Notifications">
-            &#x1F514;
-            <span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;
-              background:var(--red);color:#fff;border-radius:8px;padding:0 4px;font-size:9px;font-weight:700">0</span>
-          </button>
-        </div>
-      </div>
-      <div class="page-content" id="page-content">
-        <div class="page-loader"><div class="spinner"></div></div>
+
+<!-- Login Screen -->
+<div id="login-screen" style="display:none"></div>
+
+<!-- App Shell -->
+<div id="app-shell" style="display:none">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div id="page-content">
+      <div class="page-loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Starting McHR&TA…</div>
       </div>
     </div>
   </div>
 </div>
-<div id="toast-container"></div>
+
 <script type="module" src="/static/js/app.js"></script>
-<script>
-// Notification badge polling
-function _loadNotifCount() {
-  const token = localStorage.getItem('mch_token');
-  if (!token) return;
-  fetch('/api/v1/admin/notifications/unread-count', {
-    headers: {'X-Auth-Token': token}
-  }).then(r => r.json()).then(d => {
-    const n = d && d.data && d.data.count ? d.data.count : 0;
-    const b = document.getElementById('notif-badge');
-    if (b) { b.textContent = n; b.style.display = n > 0 ? '' : 'none'; }
-  }).catch(function(){});
-}
-setInterval(_loadNotifCount, 60000);
-setTimeout(_loadNotifCount, 3000);
-</script>
 </body>
 </html>

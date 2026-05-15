@@ -1,299 +1,290 @@
-import { API } from '../api.js';
-import { setContent } from '../router.js';
-import { fmt, buildOptions, getFormData, debounce } from '../utils.js';
-import { pillStatus } from '../components/table.js';
-import { showModal, closeModal } from '../components/modal.js';
-import { getMaster } from '../auth.js';
-import { toast } from '../components/toast.js';
+import { get, post, put, del }    from '../api.js';
+import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
+         openModal, toast, confirm, renderTable, badge, fmt, renderPagination } from '../ui.js';
+import { navigate }               from '../router.js';
 
-let _page = 1, _search = '', _dept = '';
+let _page = 1;
 
-export async function renderEmployees() {
-  const data = await API.employees({ page:_page, per_page:25, q:_search, department_id:_dept });
-  if (!data) return;
-  const depts = getMaster('departments');
-
-  setContent(`
-    <div class="toolbar">
-      <div class="toolbar-title">Employees <span style="font-size:14px;font-weight:400;color:var(--txt2)">(${data.total})</span></div>
-      <button class="btn btn-primary" onclick="window.go('/employees/new')">+ Add Employee</button>
-    </div>
-    <div class="filter-bar">
-      <input class="input search-input" placeholder="Search by name, ID, email…" value="${_search}"
-        oninput="window._empSearch(this.value)">
-      <select class="select" style="width:200px" onchange="window._empDept(this.value)">
-        <option value="">All Departments</option>
-        ${depts.map(d=>`<option value="${d.id}" ${_dept==d.id?'selected':''}>${d.name}</option>`).join('')}
-      </select>
-    </div>
-    <div class="card">
-      <div class="table-container">
-        <table>
-          <thead><tr><th>Emp ID</th><th>Name</th><th>Title</th><th>Department</th><th>Type</th><th>Status</th></tr></thead>
-          <tbody>
-            ${(data.items||[]).map(e=>`<tr style="cursor:pointer" onclick="window.go('/employees/${e.id}')">
-              <td class="td-mono">${e.emp_id||'—'}</td>
-              <td><strong>${e.first_name} ${e.last_name}</strong><br><small style="color:var(--txt3)">${e.email||''}</small></td>
-              <td>${e.job_title||'—'}</td>
-              <td>${e.department_name||'—'}</td>
-              <td>${e.employment_type||'—'}</td>
-              <td>${pillStatus(e.status)}</td>
-            </tr>`).join('')}
-            ${!data.items?.length?'<tr><td colspan="6"><div class="empty-state"><div class="empty-state-title">No employees found</div></div></td></tr>':''}
-          </tbody>
-        </table>
-      </div>
-      ${renderPagination(data)}
-    </div>
-  `);
-
-  window._empSearch = debounce(v => { _search=v; _page=1; renderEmployees(); }, 300);
-  window._empDept   = v => { _dept=v; _page=1; renderEmployees(); };
-}
-
-function renderPagination(data) {
-  if (data.pages <= 1) return '';
-  const btns = [];
-  for (let i=1; i<=data.pages; i++) {
-    if (i===1||i===data.pages||Math.abs(i-_page)<=2) {
-      btns.push(`<button class="page-btn ${i===_page?'active':''}" onclick="window._empPage(${i})">${i}</button>`);
-    } else if (btns[btns.length-1]!=='…') btns.push('…');
-  }
-  return `<div class="pagination">${btns.join('')}</div>`;
-}
-window._empPage = p => { _page=p; renderEmployees(); };
-
-export async function renderEmployeeNew() {
-  const masters = getMaster.bind(null);
-  setContent(`
-    <div class="toolbar">
-      <div class="toolbar-title">New Employee</div>
-    </div>
-    <div class="card">
-      <div class="card-header"><div class="card-title">Personal & Employment Details</div></div>
-      <div class="card-body">
-        <form id="emp-form">
-          <div class="form-grid">
-            <div class="field"><label class="label">First Name <span class="req">*</span></label>
-              <input class="input" name="first_name" required></div>
-            <div class="field"><label class="label">Last Name <span class="req">*</span></label>
-              <input class="input" name="last_name" required></div>
-            <div class="field"><label class="label">Work Email</label>
-              <input class="input" type="email" name="email"></div>
-            <div class="field"><label class="label">Phone</label>
-              <input class="input" name="phone"></div>
-            <div class="field"><label class="label">Job Title</label>
-              <input class="input" name="job_title"></div>
-            <div class="field"><label class="label">Department</label>
-              <select class="select" name="department_id">
-                ${buildOptions(getMaster('departments'),'id','name','','Select Department')}
-              </select></div>
-            <div class="field"><label class="label">Employment Type</label>
-              <select class="select" name="employment_type_id">
-                ${buildOptions(getMaster('employment-types'),'id','name','','Select Type')}
-              </select></div>
-            <div class="field"><label class="label">Reporting Manager</label>
-              <select class="select" name="reporting_manager_id">
-                ${buildOptions(getMaster('employees-lookup'),'id','name','','None')}
-              </select></div>
-            <div class="field"><label class="label">Client</label>
-              <select class="select" name="client_id">
-                ${buildOptions(getMaster('clients-lookup'),'id','name','','None')}
-              </select></div>
-            <div class="field"><label class="label">Start Date</label>
-              <input class="input" type="date" name="start_date"></div>
-            <div class="field"><label class="label">Status</label>
-              <select class="select" name="status">
-                <option>Active</option><option>On Leave</option><option>Inactive</option>
-              </select></div>
-            <div class="field"><label class="label">Location</label>
-              <input class="input" name="location"></div>
-          </div>
-          <div style="margin-top:20px;display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="btn btn-secondary" onclick="window.go('/employees')">Cancel</button>
-            <button type="button" class="btn btn-primary" onclick="window._saveEmp()">Create Employee</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `);
-
-  window._saveEmp = async () => {
-    const data = getFormData(document.getElementById('emp-form'));
-    try {
-      const res = await API.empCreate(data);
-      toast('Employee created', 'success');
-      window.go(`/employees/${res.id}`);
-    } catch(e) { toast(e.message, 'error'); }
-  };
-}
-
-export async function renderEmployeeDetail(id) {
-  const emp = await API.employee(id);
-  if (!emp) return;
-  const name = `${emp.first_name} ${emp.last_name}`;
-  const av = fmt.avColor(name);
-  const ini = fmt.ini(name);
-
-  const fld = (l,v,mono=false) => `
-    <div>
-      <div class="org-field-label">${l}</div>
-      <div class="org-field-value ${!v?'empty':''} ${mono?'td-mono':''}">${v||'—'}</div>
-    </div>`;
-
-  setContent(`
-    <div class="detail-layout">
-      <div class="detail-sidebar">
-        <div class="card" style="overflow:hidden">
-          <div style="background:linear-gradient(135deg,#1a5c2e,#0f3d1e);padding:24px;text-align:center;color:#fff">
-            <div class="av av-xl ${av}" style="margin:0 auto 12px">${ini}</div>
-            <div style="font-size:16px;font-weight:700">${name}</div>
-            <div style="opacity:.8;font-size:12px;margin-top:4px">${emp.job_title||'—'}</div>
-            <div style="opacity:.6;font-size:11px;margin-top:4px">${emp.emp_id||''}</div>
-          </div>
-          <div class="sidebar-nav-links">
-            ${[['personal','👤 Personal'],['role','🏢 Role & Org'],['identity','🪪 Identity'],['finance','💰 Finance']].map(([id,lbl])=>`
-              <a class="sidebar-nav-link" onclick="document.getElementById('sec-${id}')?.scrollIntoView({behavior:'smooth'})">
-                ${lbl}</a>`).join('')}
-          </div>
-          <div style="padding:12px 16px;border-top:1px solid var(--bdr)">
-            <button class="btn btn-ghost btn-sm" style="width:100%" onclick="window.go('/employees')">← Back to list</button>
-          </div>
+export async function renderList(params, page = 1) {
+  _page = page;
+  setPageTitle('Employees', 'All staff members');
+  setBreadcrumb([{ label: 'Employees' }]);
+  showLoader();
+  try {
+    const [data, masters] = await Promise.all([
+      get(`/employees?page=${page}&per_page=25`),
+      get('/masters/all'),
+    ]);
+    const rows = data.items || [];
+    setContent(`
+      <div class="page-body">
+        <div class="list-toolbar">
+          <input class="search-input" id="emp-search" placeholder="Search employees…" type="search">
+          <button class="btn btn-primary" onclick="window._addEmployee()">+ Add Employee</button>
         </div>
-      </div>
+        ${renderTable({
+          columns: [
+            { label: 'Employee',    key: 'id',   render: r => `
+              <div class="cell-person">
+                <div class="av av-sm ${fmt.avColor(r.first_name+' '+r.last_name)}">${fmt.ini(r.first_name+' '+r.last_name)}</div>
+                <div><div class="cell-name">${r.first_name} ${r.last_name}</div>
+                <div class="cell-sub">${r.emp_id||'—'}</div></div>
+              </div>` },
+            { label: 'Title',       key: 'job_title',       render: r => r.job_title || '—' },
+            { label: 'Department',  key: 'department_name', render: r => r.department_name || '—' },
+            { label: 'Type',        key: 'employment_type', render: r => r.employment_type || '—' },
+            { label: 'Status',      key: 'status',          render: r => badge(r.status) },
+            { label: 'Joined',      key: 'start_date',      render: r => fmt.date(r.start_date) },
+          ],
+          rows,
+          onRowClick: r => navigate(`/employees/${r.id}`),
+          emptyMessage: 'No employees found',
+        })}
+        ${renderPagination(data, `window._empPage`)}
+      </div>`);
 
-      <div>
-        <div class="card section-card" id="sec-personal">
-          <div class="card-header">
-            <div class="card-title">👤 Personal Information</div>
-            <button class="btn btn-ghost btn-sm" onclick="window._editEmp('personal')">✏ Edit</button>
-          </div>
-          <div class="section-fields">
-            ${fld('First Name', emp.first_name)}
-            ${fld('Last Name', emp.last_name)}
-            ${fld('Middle Name', emp.middle_name)}
-            ${fld('Date of Birth', fmt.date(emp.dob))}
-            ${fld('Gender', emp.gender)}
-            ${fld('Marital Status', emp.marital_status)}
-            ${fld('Nationality', emp.nationality)}
-            ${fld('Blood Group', emp.blood_group)}
-            ${fld('Personal Email', emp.personal_email)}
-            ${fld('Personal Phone', emp.personal_phone)}
-          </div>
-        </div>
+    window._empPage = (p) => renderList({}, p);
+    window._addEmployee = () => renderNew();
 
-        <div class="card section-card" id="sec-role">
-          <div class="card-header">
-            <div class="card-title">🏢 Role & Organisation</div>
-            <button class="btn btn-ghost btn-sm" onclick="window._editEmp('role')">✏ Edit</button>
-          </div>
-          <div class="section-fields">
-            ${fld('Job Title', emp.job_title)}
-            ${fld('Department', emp.department_name)}
-            ${fld('Business Unit', emp.business_unit_name)}
-            ${fld('Employment Type', emp.employment_type)}
-            ${fld('Client', emp.client_name)}
-            ${fld('Location', emp.location)}
-            ${fld('Start Date', fmt.date(emp.start_date))}
-            ${fld('Reporting Manager', emp.reporting_manager_name)}
-            ${fld('Notice Period', emp.notice_period ? emp.notice_period+' days' : null)}
-            ${fld('Status', emp.status)}
-          </div>
-        </div>
-
-        <div class="card section-card" id="sec-identity">
-          <div class="card-header">
-            <div class="card-title">🪪 Identity & Compliance</div>
-            <button class="btn btn-ghost btn-sm" onclick="window._editEmp('identity')">✏ Edit</button>
-          </div>
-          <div class="section-fields">
-            ${fld('PAN', emp.pan, true)}
-            ${fld('Aadhaar', emp.aadhaar, true)}
-            ${fld('Passport', emp.passport_number, true)}
-            ${fld('PF Number', emp.pf_number, true)}
-            ${fld('ESI Number', emp.esi_number, true)}
-            ${fld('UAN', emp.uan, true)}
-          </div>
-        </div>
-
-        <div class="card section-card" id="sec-finance">
-          <div class="card-header">
-            <div class="card-title">💰 Finance & Banking</div>
-            <button class="btn btn-ghost btn-sm" onclick="window._editEmp('finance')">✏ Edit</button>
-          </div>
-          <div class="section-fields">
-            ${fld('Salary', fmt.inr(emp.salary))}
-            ${fld('Bill Rate', emp.bill_rate ? fmt.inr(emp.bill_rate)+'/hr' : null)}
-            ${fld('Bank Name', emp.bank_name)}
-            ${fld('Account Number', emp.bank_account_number, true)}
-            ${fld('IFSC', emp.bank_ifsc, true)}
-          </div>
-        </div>
-      </div>
-    </div>
-  `);
-
-  const sectionForms = {
-    personal: ['first_name','middle_name','last_name','dob','gender','marital_status','nationality','blood_group','personal_email','personal_phone'],
-    role: ['job_title','department_id','business_unit_id','employment_type_id','reporting_manager_id','client_id','office_location_id','start_date','end_date','status','notice_period','location'],
-    identity: ['pan','aadhaar','passport_number','pf_number','esi_number','uan'],
-    finance: ['salary','bill_rate','bank_name','bank_account_number','bank_ifsc'],
-  };
-
-  window._editEmp = (section) => {
-    const fields = sectionForms[section] || [];
-    const labels = {
-      first_name:'First Name', middle_name:'Middle Name', last_name:'Last Name',
-      dob:'Date of Birth|date', gender:'Gender|select|Male,Female,Non-binary',
-      marital_status:'Marital Status|select|Single,Married,Divorced',
-      nationality:'Nationality', blood_group:'Blood Group',
-      personal_email:'Personal Email|email', personal_phone:'Personal Phone',
-      job_title:'Job Title', department_id:'Department|dept', business_unit_id:'Business Unit|bu',
-      employment_type_id:'Employment Type|et', reporting_manager_id:'Reporting Manager|emp',
-      client_id:'Client|client', start_date:'Start Date|date', end_date:'End Date|date',
-      status:'Status|select|Active,On Leave,Resigned,Terminated', notice_period:'Notice Period (days)|number',
-      location:'Location', pan:'PAN', aadhaar:'Aadhaar', passport_number:'Passport',
-      pf_number:'PF Number', esi_number:'ESI Number', uan:'UAN',
-      salary:'Salary|number', bill_rate:'Bill Rate|number',
-      bank_name:'Bank Name', bank_account_number:'Account Number', bank_ifsc:'IFSC',
+    // Search
+    const searchEl = document.getElementById('emp-search');
+    let st;
+    searchEl.oninput = () => {
+      clearTimeout(st);
+      st = setTimeout(async () => {
+        const q = searchEl.value.trim();
+        const res = await get(`/employees?q=${encodeURIComponent(q)}`);
+        document.querySelector('.tbl-wrap').outerHTML = renderTable({
+          columns: [
+            { label: 'Employee', key: 'id', render: r => `<div class="cell-person"><div class="av av-sm ${fmt.avColor(r.first_name+' '+r.last_name)}">${fmt.ini(r.first_name+' '+r.last_name)}</div><div><div class="cell-name">${r.first_name} ${r.last_name}</div><div class="cell-sub">${r.emp_id||'—'}</div></div></div>` },
+            { label: 'Title',      key: 'job_title',       render: r => r.job_title||'—' },
+            { label: 'Department', key: 'department_name', render: r => r.department_name||'—' },
+            { label: 'Status',     key: 'status',          render: r => badge(r.status) },
+          ],
+          rows: res.items || [],
+          onRowClick: r => navigate(`/employees/${r.id}`),
+        });
+      }, 350);
     };
-    const rows = fields.map(f => {
-      const parts = (labels[f]||f).split('|');
-      const label = parts[0], type = parts[1]||'text', opts = parts[2]||'';
-      let input = '';
-      if (type==='select') {
-        input = `<select class="select" name="${f}"><option value="">Select</option>${opts.split(',').map(o=>`<option ${emp[f]===o?'selected':''}>${o}</option>`).join('')}</select>`;
-      } else if (type==='dept') {
-        input = `<select class="select" name="${f}">${buildOptions(getMaster('departments'),'id','name',emp[f],'Select')}</select>`;
-      } else if (type==='bu') {
-        input = `<select class="select" name="${f}">${buildOptions(getMaster('business-units'),'id','name',emp[f],'Select')}</select>`;
-      } else if (type==='et') {
-        input = `<select class="select" name="${f}">${buildOptions(getMaster('employment-types'),'id','name',emp[f],'Select')}</select>`;
-      } else if (type==='emp') {
-        input = `<select class="select" name="${f}">${buildOptions(getMaster('employees-lookup'),'id','name',emp[f],'None')}</select>`;
-      } else if (type==='client') {
-        input = `<select class="select" name="${f}">${buildOptions(getMaster('clients-lookup'),'id','name',emp[f],'None')}</select>`;
-      } else {
-        input = `<input class="input" type="${type}" name="${f}" value="${emp[f]||''}">`;
-      }
-      return `<div class="field" style="grid-column:1/-1"><label class="label">${label}</label>${input}</div>`;
-    }).join('');
+  } catch (e) { showError(e.message); }
+}
 
-    showModal({
-      title: `Edit ${section.charAt(0).toUpperCase()+section.slice(1)}`,
-      body: `<form id="edit-form"><div class="form-grid">${rows}</div></form>`,
-      footer: `<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-               <button class="btn btn-primary" onclick="window._saveEmpEdit(${id})">Save Changes</button>`,
+export async function renderDetail({ id }) {
+  showLoader();
+  try {
+    const [emp, masters] = await Promise.all([
+      get(`/employees/${id}`),
+      get('/masters/all'),
+    ]);
+    const name = `${emp.first_name} ${emp.last_name}`;
+    setPageTitle(name, emp.job_title || 'Employee');
+    setBreadcrumb([{ label: 'Employees', url: '/employees' }, { label: name }]);
+
+    setContent(`
+      <div class="detail-layout">
+        <!-- Left sidebar -->
+        <div class="detail-sidebar">
+          <div class="card profile-card">
+            <div class="profile-hero">
+              <div class="av av-lg ${fmt.avColor(name)}">${fmt.ini(name)}</div>
+              <div class="profile-name">${name}</div>
+              <div class="profile-title">${emp.job_title || '—'}</div>
+              <div class="profile-badge">${badge(emp.status)}</div>
+            </div>
+            <div class="profile-meta">
+              <div class="meta-row"><span>EMP ID</span><strong>${emp.emp_id||'—'}</strong></div>
+              <div class="meta-row"><span>Email</span><strong>${emp.email||'—'}</strong></div>
+              <div class="meta-row"><span>Phone</span><strong>${emp.phone||'—'}</strong></div>
+              <div class="meta-row"><span>Dept</span><strong>${emp.department_name||'—'}</strong></div>
+              <div class="meta-row"><span>Joined</span><strong>${fmt.date(emp.start_date)}</strong></div>
+            </div>
+            <div class="profile-actions">
+              <button class="btn btn-primary btn-full" onclick="window._editEmp()">✏ Edit</button>
+            </div>
+          </div>
+        </div>
+        <!-- Main content tabs -->
+        <div class="detail-main">
+          <div class="tab-bar">
+            <button class="tab active" data-tab="personal">Personal</button>
+            <button class="tab" data-tab="employment">Employment</button>
+            <button class="tab" data-tab="identity">Identity</button>
+            <button class="tab" data-tab="finance">Finance</button>
+            <button class="tab" data-tab="documents">Documents</button>
+          </div>
+          <div id="tab-content">
+            ${renderPersonalTab(emp)}
+          </div>
+        </div>
+      </div>`);
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(t => {
+      t.onclick = () => {
+        document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+        t.classList.add('active');
+        const tab = t.dataset.tab;
+        const content = {
+          personal:   renderPersonalTab(emp),
+          employment: renderEmploymentTab(emp),
+          identity:   renderIdentityTab(emp),
+          finance:    renderFinanceTab(emp),
+          documents:  '<div class="card p-lg"><div class="empty-mini">Documents coming soon</div></div>',
+        };
+        document.getElementById('tab-content').innerHTML = content[tab] || '';
+      };
     });
 
-    window._saveEmpEdit = async (eid) => {
-      const data = getFormData(document.getElementById('edit-form'));
-      try {
-        await API.empUpdate(eid, data);
-        toast('Updated', 'success');
-        closeModal();
-        renderEmployeeDetail(eid);
-      } catch(e) { toast(e.message, 'error'); }
-    };
+    window._editEmp = () => openEditModal(emp, masters, id);
+  } catch (e) { showError(e.message); }
+}
+
+export async function renderNew() {
+  navigate('/employees/new');
+  setPageTitle('New Employee', 'Add a new employee');
+  setBreadcrumb([{ label: 'Employees', url: '/employees' }, { label: 'New' }]);
+  const masters = await get('/masters/all');
+  setContent(`
+    <div class="page-body">
+      <div class="card form-card">
+        <div class="card-header"><h3 class="card-title">New Employee</h3></div>
+        <form id="emp-form" class="form-grid">
+          <div class="form-section-title">Personal</div>
+          <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required></div>
+          <div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" required></div>
+          <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email"></div>
+          <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone"></div>
+          <div class="form-section-title">Employment</div>
+          <div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title"></div>
+          <div class="fg"><label class="flabel">Department</label>
+            <select class="fselect" name="department_id">
+              <option value="">Select…</option>
+              ${(masters['departments']||[]).map(d => `<option value="${d.id}">${d.name}</option>`).join('')}
+            </select></div>
+          <div class="fg"><label class="flabel">Employment Type</label>
+            <select class="fselect" name="employment_type_id">
+              <option value="">Select…</option>
+              ${(masters['employment-types']||[]).map(t => `<option value="${t.id}">${t.name}</option>`).join('')}
+            </select></div>
+          <div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date"></div>
+          <div class="fg"><label class="flabel">Reporting Manager</label>
+            <select class="fselect" name="reporting_manager_id">
+              <option value="">Select…</option>
+              ${(masters['employees-lookup']||[]).map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+            </select></div>
+          <div class="fg"><label class="flabel">Location</label><input class="finput" name="location"></div>
+          <div class="form-section-title">Salary</div>
+          <div class="fg"><label class="flabel">Monthly Salary (₹)</label><input class="finput" type="number" name="salary"></div>
+          <div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate"></div>
+        </form>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="navigateTo('/employees')">Cancel</button>
+          <button class="btn btn-primary" onclick="window._saveNewEmp()">Save Employee</button>
+        </div>
+      </div>
+    </div>`);
+
+  window._saveNewEmp = async () => {
+    const form = document.getElementById('emp-form');
+    const data = Object.fromEntries(new FormData(form));
+    // clean empty strings
+    Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
+    try {
+      const res = await post('/employees', data);
+      toast('Employee created', 'success');
+      navigate(`/employees/${res.id}`);
+    } catch (e) { toast(e.message, 'error'); }
   };
+}
+
+function openEditModal(emp, masters, id) {
+  openModal({
+    title: 'Edit Employee',
+    size: 'lg',
+    submitLabel: 'Save Changes',
+    body: `<form id="edit-emp-form" class="form-grid-sm">
+      <div class="fg"><label class="flabel">First Name</label><input class="finput" name="first_name" value="${emp.first_name||''}"></div>
+      <div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name" value="${emp.last_name||''}"></div>
+      <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="${emp.email||''}"></div>
+      <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="${emp.phone||''}"></div>
+      <div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="${emp.job_title||''}"></div>
+      <div class="fg"><label class="flabel">Status</label>
+        <select class="fselect" name="status">
+          ${['Active','Inactive','On Leave','Terminated'].map(s => `<option ${emp.status===s?'selected':''}>${s}</option>`).join('')}
+        </select></div>
+      <div class="fg"><label class="flabel">Department</label>
+        <select class="fselect" name="department_id">
+          <option value="">Select…</option>
+          ${(masters['departments']||[]).map(d => `<option value="${d.id}" ${emp.department_id==d.id?'selected':''}>${d.name}</option>`).join('')}
+        </select></div>
+      <div class="fg"><label class="flabel">Reporting Manager</label>
+        <select class="fselect" name="reporting_manager_id">
+          <option value="">None</option>
+          ${(masters['employees-lookup']||[]).filter(e=>e.id!=id).map(e => `<option value="${e.id}" ${emp.reporting_manager_id==e.id?'selected':''}>${e.name}</option>`).join('')}
+        </select></div>
+      <div class="fg"><label class="flabel">Salary (₹)</label><input class="finput" type="number" name="salary" value="${emp.salary||''}"></div>
+      <div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="${emp.location||''}"></div>
+    </form>`,
+    onSubmit: async () => {
+      const data = Object.fromEntries(new FormData(document.getElementById('edit-emp-form')));
+      Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
+      await put(`/employees/${id}`, data);
+      toast('Saved', 'success');
+      renderDetail({ id });
+    }
+  });
+}
+
+function renderPersonalTab(e) {
+  return `<div class="card"><div class="card-body">
+    <div class="field-grid">
+      ${field('First Name',    e.first_name)}${field('Last Name',     e.last_name)}
+      ${field('Middle Name',   e.middle_name)}${field('Date of Birth', fmt.date(e.dob))}
+      ${field('Gender',        e.gender)}${field('Marital Status',  e.marital_status)}
+      ${field('Nationality',   e.nationality)}${field('Blood Group',   e.blood_group)}
+      ${field('Personal Email',e.personal_email)}${field('Personal Phone',e.personal_phone)}
+    </div>
+  </div></div>`;
+}
+
+function renderEmploymentTab(e) {
+  return `<div class="card"><div class="card-body">
+    <div class="field-grid">
+      ${field('Job Title',        e.job_title)}${field('Department',     e.department_name)}
+      ${field('Business Unit',    e.business_unit_name)}${field('Employment Type',e.employment_type)}
+      ${field('Client',           e.client_name)}${field('Location',      e.location)}
+      ${field('Start Date',       fmt.date(e.start_date))}${field('End Date',   fmt.date(e.end_date))}
+      ${field('Reporting Manager',e.reporting_manager_name)}${field('Notice Period',e.notice_period ? e.notice_period+' days' : null)}
+      ${field('Status',           e.status)}${field('EMP ID', e.emp_id)}
+    </div>
+  </div></div>`;
+}
+
+function renderIdentityTab(e) {
+  return `<div class="card"><div class="card-body">
+    <div class="field-grid">
+      ${field('PAN',         e.pan,            true)}${field('Aadhaar',    e.aadhaar,       true)}
+      ${field('Passport',    e.passport_number,true)}${field('PF Number',  e.pf_number,     true)}
+      ${field('ESI Number',  e.esi_number,     true)}${field('UAN',        e.uan,           true)}
+    </div>
+  </div></div>`;
+}
+
+function renderFinanceTab(e) {
+  return `<div class="card"><div class="card-body">
+    <div class="field-grid">
+      ${field('Salary',         e.salary ? '₹'+Number(e.salary).toLocaleString('en-IN') : null)}
+      ${field('Bill Rate',      e.bill_rate ? '₹'+e.bill_rate+'/hr' : null)}
+      ${field('Bank Name',      e.bank_name)}
+      ${field('Account Number', e.bank_account_number, true)}
+      ${field('IFSC Code',      e.bank_ifsc, true)}
+    </div>
+  </div></div>`;
+}
+
+function field(label, value, mono = false) {
+  return `<div class="field-item">
+    <div class="field-label">${label}</div>
+    <div class="field-value ${mono?'mono':''}${!value?' empty':''}">${value||'—'}</div>
+  </div>`;
 }

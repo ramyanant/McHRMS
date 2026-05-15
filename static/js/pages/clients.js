@@ -1,102 +1,140 @@
-import { API } from '../api.js';
-import { setContent } from '../router.js';
-import { fmt, buildOptions, getFormData, debounce } from '../utils.js';
-import { pillStatus } from '../components/table.js';
-import { showModal, closeModal } from '../components/modal.js';
-import { getMaster } from '../auth.js';
-import { toast } from '../components/toast.js';
+import { get, post, put }  from '../api.js';
+import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
+         openModal, toast, badge, fmt, renderTable, renderPagination } from '../ui.js';
+import { navigate }        from '../router.js';
 
-let _page=1, _search='';
-export async function renderClients() {
-  const data = await API.clients({ page:_page, per_page:25, q:_search });
-  if (!data) return;
+export async function renderList() {
+  setPageTitle('Clients', 'Client accounts');
+  setBreadcrumb([{ label: 'Clients' }]);
+  showLoader();
+  try {
+    const data = await get('/clients');
+    const rows = data.items || [];
+    setContent(`
+      <div class="page-body">
+        <div class="list-toolbar">
+          <input class="search-input" id="client-search" placeholder="Search clients…" type="search">
+          <button class="btn btn-primary" onclick="navigateTo('/clients/new')">+ New Client</button>
+        </div>
+        ${renderTable({
+          columns: [
+            { label: 'Client',   key: 'name',          render: r => `<strong>${r.name}</strong>${r.industry?`<div class="cell-sub">${r.industry}</div>`:''}`},
+            { label: 'Type',     key: 'type',           render: r => r.type||'Direct' },
+            { label: 'Projects', key: 'project_count' },
+            { label: 'Invoiced', key: 'total_billed',   render: r => fmt.money(r.total_billed) },
+            { label: 'Status',   key: 'status',         render: r => badge(r.status) },
+            { label: 'GSTIN',    key: 'gstin',          render: r => `<span class="mono">${r.gstin||'—'}</span>` },
+          ],
+          rows,
+          onRowClick: r => navigate(`/clients/${r.id}`),
+          emptyMessage: 'No clients found',
+        })}
+      </div>`);
+  } catch (e) { showError(e.message); }
+}
+
+export async function renderNew() {
+  setPageTitle('New Client', '');
+  setBreadcrumb([{ label: 'Clients', url: '/clients' }, { label: 'New' }]);
+  const masters = await get('/masters/all');
   setContent(`
-    <div class="toolbar">
-      <div class="toolbar-title">Clients <span style="font-size:14px;font-weight:400;color:var(--txt2)">(${data.total})</span></div>
-      <button class="btn btn-primary" onclick="window._newClient()">+ Add Client</button>
-    </div>
-    <div class="filter-bar">
-      <input class="input search-input" placeholder="Search clients…" value="${_search}" oninput="window._clientSearch(this.value)">
-    </div>
-    <div class="card">
-      <div class="table-container"><table>
-        <thead><tr><th>Name</th><th>Type</th><th>City</th><th>Projects</th><th>Billed</th><th>Status</th></tr></thead>
-        <tbody>
-          ${(data.items||[]).map(c=>`<tr style="cursor:pointer" onclick="window.go('/clients/${c.id}')">
-            <td><strong>${c.name}</strong><br><small style="color:var(--txt3)">${c.email||c.pan||''}</small></td>
-            <td>${c.type||'—'}</td><td>${c.city||'—'}</td>
-            <td>${c.project_count||0}</td><td>${fmt.inr(c.total_billed)}</td>
-            <td>${pillStatus(c.status)}</td>
-          </tr>`).join('')}
-          ${!data.items?.length?'<tr><td colspan="6"><div class="empty-state"><div class="empty-state-title">No clients</div></div></td></tr>':''}
-        </tbody>
-      </table></div>
-    </div>
-  `);
-  window._clientSearch = debounce(v=>{_search=v;_page=1;renderClients();},300);
-  window._newClient = () => {
-    showModal({title:'New Client',size:'modal-lg',
-      body:`<form id="cf"><div class="form-grid">
-        <div class="field"><label class="label">Name *</label><input class="input" name="name" required></div>
-        <div class="field"><label class="label">Legal Name</label><input class="input" name="legal_name"></div>
-        <div class="field"><label class="label">Type</label><select class="select" name="type"><option>Direct</option><option>Indirect</option></select></div>
-        <div class="field"><label class="label">Industry</label><input class="input" name="industry"></div>
-        <div class="field"><label class="label">Email</label><input class="input" type="email" name="email"></div>
-        <div class="field"><label class="label">Phone</label><input class="input" name="phone"></div>
-        <div class="field"><label class="label">PAN</label><input class="input" name="pan"></div>
-        <div class="field"><label class="label">GSTIN</label><input class="input" name="gstin"></div>
-        <div class="field form-full"><label class="label">Address</label><input class="input" name="address"></div>
-        <div class="field"><label class="label">City</label><input class="input" name="city"></div>
-        <div class="field"><label class="label">State</label><input class="input" name="state"></div>
-      </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveClient()">Create</button>`,
-    });
-    window._saveClient = async () => {
-      try { const r=await API.clientCreate(getFormData(document.getElementById('cf')));
-        toast('Client created','success'); closeModal(); window.go(`/clients/${r.id}`);
-      } catch(e) { toast(e.message,'error'); }
-    };
+    <div class="page-body"><div class="card form-card">
+      <div class="card-header"><h3 class="card-title">New Client</h3></div>
+      <form id="client-form" class="form-grid">
+        <div class="fg"><label class="flabel">Client Name *</label><input class="finput" name="name" required></div>
+        <div class="fg"><label class="flabel">Legal Name</label><input class="finput" name="legal_name"></div>
+        <div class="fg"><label class="flabel">Type</label>
+          <select class="fselect" name="type">
+            ${['Direct','MSP','VMS','Referral'].map(t=>`<option>${t}</option>`).join('')}
+          </select></div>
+        <div class="fg"><label class="flabel">Industry</label><input class="finput" name="industry"></div>
+        <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" class="mono"></div>
+        <div class="fg"><label class="flabel">GSTIN</label><input class="finput" name="gstin" class="mono"></div>
+        <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email"></div>
+        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone"></div>
+        <div class="fg"><label class="flabel">Website</label><input class="finput" type="url" name="website"></div>
+        <div class="fg"><label class="flabel">Payment Terms</label>
+          <select class="fselect" name="payment_terms_id">
+            <option value="">Select…</option>
+            ${(masters['payment-terms']||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+          </select></div>
+        <div class="fg"><label class="flabel">Credit Limit (₹)</label><input class="finput" type="number" name="credit_limit"></div>
+        <div class="fg"><label class="flabel">Account Manager</label>
+          <select class="fselect" name="account_manager_id">
+            <option value="">Select…</option>
+            ${(masters['employees-lookup']||[]).map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}
+          </select></div>
+        <div class="form-section-title">Address</div>
+        <div class="fg"><label class="flabel">Address</label><input class="finput" name="address"></div>
+        <div class="fg"><label class="flabel">City</label><input class="finput" name="city"></div>
+        <div class="fg"><label class="flabel">State</label><input class="finput" name="state"></div>
+        <div class="fg"><label class="flabel">Pincode</label><input class="finput" name="pincode"></div>
+      </form>
+      <div class="form-actions">
+        <button class="btn btn-ghost" onclick="navigateTo('/clients')">Cancel</button>
+        <button class="btn btn-primary" onclick="window._saveClient()">Save Client</button>
+      </div>
+    </div></div>`);
+
+  window._saveClient = async () => {
+    const data = Object.fromEntries(new FormData(document.getElementById('client-form')));
+    Object.keys(data).forEach(k => { if (data[k]==='') data[k]=null; });
+    try {
+      const res = await post('/clients', data);
+      toast('Client created', 'success');
+      navigate(`/clients/${res.id}`);
+    } catch (e) { toast(e.message, 'error'); }
   };
 }
 
-export async function renderClientDetail(id) {
-  const c = await API.client(id);
-  if (!c) return;
-  setContent(`
-    <div class="toolbar">
-      <div class="toolbar-title">${c.name}</div>
-      <button class="btn btn-primary" onclick="window.go('/invoices/new?client=${id}')">+ Create Invoice</button>
-    </div>
-    <div class="card" style="margin-bottom:20px;padding:20px">
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
-        <div><div class="org-field-label">Type</div><div class="org-field-value">${c.type||'—'}</div></div>
-        <div><div class="org-field-label">PAN</div><div class="org-field-value td-mono">${c.pan||'—'}</div></div>
-        <div><div class="org-field-label">GSTIN</div><div class="org-field-value td-mono">${c.gstin||'—'}</div></div>
-        <div><div class="org-field-label">Status</div><div>${pillStatus(c.status)}</div></div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Projects</div></div>
-        <div class="table-container"><table>
-          <thead><tr><th>Code</th><th>Name</th><th>Status</th></tr></thead>
-          <tbody>${(c.projects||[]).map(p=>`<tr><td class="td-mono">${p.code||'—'}</td><td>${p.name}</td><td>${pillStatus(p.status)}</td></tr>`).join('')}
-          ${!c.projects?.length?'<tr><td colspan="3" style="text-align:center;color:var(--txt3)">No projects</td></tr>':''}</tbody>
-        </table></div>
-      </div>
-      <div class="card">
-        <div class="card-header"><div class="card-title">Recent Invoices</div></div>
-        <div class="table-container"><table>
-          <thead><tr><th>Invoice</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
-          <tbody>${(c.invoices||[]).map(i=>`<tr>
-            <td><a href="#/invoices/${i.id}" class="td-mono">${i.invoice_number}</a></td>
-            <td>${fmt.date(i.invoice_date)}</td><td>${fmt.inr(i.total_amount)}</td>
-            <td>${pillStatus(i.status)}</td>
-          </tr>`).join('')}
-          ${!c.invoices?.length?'<tr><td colspan="4" style="text-align:center;color:var(--txt3)">No invoices</td></tr>':''}</tbody>
-        </table></div>
-      </div>
-    </div>
-  `);
+export async function renderDetail({ id }) {
+  showLoader();
+  try {
+    const client = await get(`/clients/${id}`);
+    setPageTitle(client.name, 'Client profile');
+    setBreadcrumb([{ label: 'Clients', url: '/clients' }, { label: client.name }]);
+    setContent(`
+      <div class="detail-layout">
+        <div class="detail-sidebar">
+          <div class="card profile-card">
+            <div class="profile-hero">
+              <div class="av av-lg av-blue">${fmt.ini(client.name)}</div>
+              <div class="profile-name">${client.name}</div>
+              <div class="profile-title">${client.industry||'—'}</div>
+              ${badge(client.status)}
+            </div>
+            <div class="profile-meta">
+              <div class="meta-row"><span>Type</span><strong>${client.type||'Direct'}</strong></div>
+              <div class="meta-row"><span>PAN</span><strong class="mono">${client.pan||'—'}</strong></div>
+              <div class="meta-row"><span>GSTIN</span><strong class="mono">${client.gstin||'—'}</strong></div>
+              <div class="meta-row"><span>Email</span><strong>${client.email||'—'}</strong></div>
+              <div class="meta-row"><span>Phone</span><strong>${client.phone||'—'}</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-main">
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-header"><h3 class="card-title">Projects (${client.projects?.length||0})</h3>
+              <button class="btn btn-ghost btn-sm">+ New Project</button></div>
+            ${client.projects?.length ? `<div class="tbl-wrap"><table class="data-table">
+              <thead><tr><th>Code</th><th>Name</th><th>Status</th></tr></thead>
+              <tbody>${client.projects.map(p=>`<tr onclick="navigateTo('/projects/${p.id}')" class="tbl-clickable">
+                <td class="mono">${p.code||'—'}</td><td>${p.name}</td><td>${badge(p.status)}</td>
+              </tr>`).join('')}</tbody></table></div>` : `<div class="empty-mini">No projects</div>`}
+          </div>
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">Recent Invoices</h3>
+              <a href="#/invoices?client_id=${id}" class="card-link">View all →</a></div>
+            ${client.invoices?.length ? `<div class="tbl-wrap"><table class="data-table">
+              <thead><tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead>
+              <tbody>${client.invoices.map(i=>`<tr onclick="navigateTo('/invoices/${i.id}')" class="tbl-clickable">
+                <td class="mono">${i.invoice_number}</td>
+                <td>${fmt.date(i.invoice_date)}</td>
+                <td class="mono fw-bold">${fmt.money(i.total_amount)}</td>
+                <td>${badge(i.status)}</td>
+              </tr>`).join('')}</tbody></table></div>` : `<div class="empty-mini">No invoices</div>`}
+          </div>
+        </div>
+      </div>`);
+  } catch (e) { showError(e.message); }
 }

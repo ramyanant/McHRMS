@@ -1,97 +1,105 @@
-import { API } from '../api.js';
-import { setContent } from '../router.js';
-import { fmt } from '../utils.js';
-import { pillStatus } from '../components/table.js';
+import { get }             from '../api.js';
+import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
+         fmt, badge } from '../ui.js';
+import { navigate }        from '../router.js';
 
-export async function renderReports() {
-  const [workforce, recruitment, invoices] = await Promise.all([
-    API.rptWorkforce(), API.rptRecruitment(), API.rptInvoices(),
-  ]);
+const REPORTS = [
+  { key: 'workforce',   icon: '👥', label: 'Workforce Report',      desc: 'Headcount by department, type, status' },
+  { key: 'recruitment', icon: '🎯', label: 'Recruitment Funnel',    desc: 'Pipeline stages, source mix, offer stats' },
+  { key: 'timesheets',  icon: '⏱', label: 'Timesheet Utilization', desc: 'Hours by employee, project, status' },
+  { key: 'invoices',    icon: '🧾', label: 'Invoice & AR Report',   desc: 'Aging, by-client, outstanding' },
+  { key: 'leaves',      icon: '🏖', label: 'Leave Summary',         desc: 'Leave requests by type and status' },
+];
 
+export async function renderHome() {
+  setPageTitle('Reports', 'Analytics & insights');
+  setBreadcrumb([{ label: 'Reports' }]);
   setContent(`
-    <div class="toolbar"><div class="toolbar-title">Reports & Analytics</div></div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Headcount by Department</div></div>
-        <div class="table-container"><table>
-          <thead><tr><th>Department</th><th>Headcount</th></tr></thead>
-          <tbody>
-            ${(workforce?.by_department||[]).map(d=>`<tr>
-              <td>${d.department}</td>
-              <td><div style="display:flex;align-items:center;gap:8px">
-                <div style="background:var(--green);height:8px;border-radius:4px;width:${Math.min(d.count*10,200)}px;min-width:4px"></div>
-                <strong>${d.count}</strong>
-              </div></td>
-            </tr>`).join('')}
-            ${!workforce?.by_department?.length?'<tr><td colspan="2" style="color:var(--txt3);text-align:center">No data</td></tr>':''}
-          </tbody>
-        </table></div>
+    <div class="page-body">
+      <div class="reports-grid">
+        ${REPORTS.map(r => `
+          <div class="report-card" onclick="navigateTo('/reports/${r.key}')">
+            <div class="report-icon">${r.icon}</div>
+            <div class="report-title">${r.label}</div>
+            <div class="report-desc">${r.desc}</div>
+            <div class="report-arrow">View Report →</div>
+          </div>`).join('')}
       </div>
-
-      <div class="card">
-        <div class="card-header"><div class="card-title">Headcount by Type</div></div>
-        <div class="table-container"><table>
-          <thead><tr><th>Employment Type</th><th>Count</th></tr></thead>
-          <tbody>
-            ${(workforce?.by_employment_type||[]).map(t=>`<tr><td>${t.type}</td><td><strong>${t.count}</strong></td></tr>`).join('')}
-            ${!workforce?.by_employment_type?.length?'<tr><td colspan="2" style="color:var(--txt3);text-align:center">No data</td></tr>':''}
-          </tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px">
-      <div class="card">
-        <div class="card-header"><div class="card-title">Invoice Aging (₹)</div></div>
-        <div class="card-body">
-          ${invoices?.aging?.[0] ? (() => {
-            const a = invoices.aging[0];
-            const data = [['Current', a.current_due,'var(--green)'],['30 Days', a['30_days'],'var(--amber)'],['60 Days', a['60_days'],'var(--red)'],['90+ Days', a['90_plus'],'#7c3aed']];
-            return data.map(([l,v,c])=>`<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
-              <div style="width:80px;font-size:12px;color:var(--txt2)">${l}</div>
-              <div style="flex:1;height:24px;background:var(--s3);border-radius:4px;overflow:hidden">
-                <div style="background:${c};height:100%;width:${v>0?Math.min(v/100,100):0}%;border-radius:4px"></div>
-              </div>
-              <div style="width:80px;text-align:right;font-size:13px;font-weight:600;color:${c}">${fmt.inr(v)}</div>
-            </div>`).join('');
-          })() : '<div style="color:var(--txt3)">No invoice data</div>'}
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><div class="card-title">Recruitment — Source Mix</div></div>
-        <div class="table-container"><table>
-          <thead><tr><th>Source</th><th>Candidates</th></tr></thead>
-          <tbody>
-            ${(recruitment?.by_source||[]).map(s=>`<tr>
-              <td>${s.source}</td>
-              <td><div style="display:flex;align-items:center;gap:8px">
-                <div style="background:var(--blue);height:8px;border-radius:4px;width:${Math.min(s.count*8,160)}px;min-width:4px"></div>
-                <strong>${s.count}</strong>
-              </div></td>
-            </tr>`).join('')}
-            ${!recruitment?.by_source?.length?'<tr><td colspan="2" style="color:var(--txt3);text-align:center">No data</td></tr>':''}
-          </tbody>
-        </table></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header"><div class="card-title">Invoice Summary by Client (Top 10)</div></div>
-      <div class="table-container"><table>
-        <thead><tr><th>Client</th><th>Invoices</th><th>Total Invoiced</th><th>Paid</th><th>Outstanding</th></tr></thead>
-        <tbody>
-          ${(invoices?.by_client||[]).map(c=>`<tr>
-            <td>${c.client}</td>
-            <td class="td-mono">${c.invoice_count}</td>
-            <td class="td-mono">${fmt.inr(c.total_amount)}</td>
-            <td class="td-mono" style="color:var(--green)">${fmt.inr(c.paid)}</td>
-            <td class="td-mono" style="color:${c.outstanding>0?'var(--red)':'var(--txt2)'}">${fmt.inr(c.outstanding)}</td>
-          </tr>`).join('')}
-          ${!invoices?.by_client?.length?'<tr><td colspan="5" style="color:var(--txt3);text-align:center">No data</td></tr>':''}
-        </tbody>
-      </table></div>
-    </div>
-  `);
+    </div>`);
 }
+
+export async function renderReport({ type }) {
+  const def = REPORTS.find(r => r.key === type) || { label: type, icon: '📊' };
+  setPageTitle(def.label, '');
+  setBreadcrumb([{ label: 'Reports', url: '/reports' }, { label: def.label }]);
+  showLoader();
+  try {
+    const data = await get(`/reports/${type}`);
+    renderReportData(type, data);
+  } catch (e) { showError(e.message); }
+}
+
+function renderReportData(type, d) {
+  if (type === 'workforce') {
+    setContent(`<div class="page-body">
+      <div class="report-grid-2">
+        ${chart('By Department', d.by_department, 'department', 'count', 'green')}
+        ${chart('By Status',     d.by_status,     'status',     'count', 'blue')}
+        ${chart('By Employment Type', d.by_employment_type, 'type', 'count', 'purple')}
+        ${chart('By Location',   d.by_location,   'location',   'count', 'amber')}
+      </div>
+    </div>`);
+  } else if (type === 'invoices') {
+    const s = d.summary || {};
+    setContent(`<div class="page-body">
+      <div class="kpi-grid kpi-3">
+        ${kpi('Total Invoiced',   fmt.money(s.total_invoiced), '🧾','blue')}
+        ${kpi('Collected',        fmt.money(s.total_collected),'✅','green')}
+        ${kpi('Outstanding',      fmt.money(s.total_outstanding),'⚠️','red')}
+      </div>
+      ${chart('By Client (Top 20)', d.by_client, 'client', 'total_amount', 'blue')}
+    </div>`);
+  } else if (type === 'recruitment') {
+    setContent(`<div class="page-body">
+      <div class="report-grid-2">
+        ${chart('Pipeline by Stage',  d.by_stage,  'name',   'count',   'blue')}
+        ${chart('By Source',          d.by_source, 'source', 'count',   'green')}
+        ${chart('Open Jobs by Client',d.open_jobs_by_client,'client','open_jobs','purple')}
+      </div>
+    </div>`);
+  } else if (type === 'timesheets') {
+    setContent(`<div class="page-body">
+      ${chart('By Status',  d.by_status,  'status',  'total_hours', 'amber')}
+      ${chart('By Project', d.by_project, 'project', 'total_hours', 'blue')}
+    </div>`);
+  } else if (type === 'leaves') {
+    setContent(`<div class="page-body">
+      <div class="report-grid-2">
+        ${chart('By Type',   d.by_type,   'leave_type','total_days','green')}
+        ${chart('By Status', d.by_status, 'status',    'count',    'amber')}
+      </div>
+    </div>`);
+  }
+}
+
+function chart(title, rows, labelKey, valueKey, color) {
+  if (!rows?.length) return `<div class="card"><div class="card-header"><h3 class="card-title">${title}</h3></div><div class="empty-mini">No data</div></div>`;
+  const max = Math.max(...rows.map(r => parseFloat(r[valueKey])||0), 1);
+  return `<div class="card">
+    <div class="card-header"><h3 class="card-title">${title}</h3></div>
+    <div class="card-body report-chart">
+      ${rows.slice(0,15).map(r => {
+        const v = parseFloat(r[valueKey])||0;
+        const pct = Math.round(v/max*100);
+        return `<div class="report-row">
+          <div class="report-label">${r[labelKey]||'—'}</div>
+          <div class="report-bar-wrap">
+            <div class="report-bar report-bar-${color}" style="width:${pct}%"></div>
+          </div>
+          <div class="report-val">${typeof v === 'number' && v > 1000 ? fmt.money(v) : v}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+function kpi(l,v,icon,c) { return `<div class="kpi-card kpi-${c}"><div class="kpi-icon">${icon}</div><div class="kpi-body"><div class="kpi-value">${v}</div><div class="kpi-label">${l}</div></div></div>`; }

@@ -1,214 +1,166 @@
-import { API } from '../api.js';
-import { setContent } from '../router.js';
-import { fmt, buildOptions, getFormData } from '../utils.js';
-import { pillStatus } from '../components/table.js';
-import { showModal, closeModal } from '../components/modal.js';
-import { getMaster } from '../auth.js';
-import { toast } from '../components/toast.js';
+import { get, post, put, del } from '../api.js';
+import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
+         openModal, toast, badge, fmt, renderTable } from '../ui.js';
+import { navigate }            from '../router.js';
 
-export async function renderOrganisation(tab = 'profile') {
-  const tabs = [
-    ['profile',        'Organisation Profile'],
-    ['business-units', 'Business Units'],
-    ['departments',    'Departments'],
-    ['cost-centres',   'Cost Centres'],
-    ['locations',      'Locations'],
-  ];
-  const tabHtml = `<div class="tabs" style="margin-bottom:20px">
-    ${tabs.map(([id,label])=>`<div class="tab-item ${tab===id?'active':''}" onclick="window.go('/organisation/${id}')">${label}</div>`).join('')}
-  </div>`;
+export async function renderProfile() {
+  setPageTitle('Organisation Profile', 'Company information');
+  setBreadcrumb([{ label: 'Organisation', url: '/organisation/profile' }, { label: 'Profile' }]);
+  showLoader();
+  try {
+    const org = await get('/organisation');
+    setContent(`
+      <div class="page-body"><div class="card form-card">
+        <div class="card-header">
+          <h3 class="card-title">Organisation Profile</h3>
+          <button class="btn btn-primary btn-sm" onclick="window._editOrg()">✏ Edit</button>
+        </div>
+        <div class="card-body">
+          <div class="field-grid">
+            ${f('Legal Name',  org.legal_name||org.name)}${f('Type',       org.type)}
+            ${f('PAN',         org.pan,          true)}${f('TAN',          org.tan,          true)}
+            ${f('CIN',         org.cin,          true)}${f('GSTIN',        org.gstin,        true)}
+            ${f('Email',       org.email)}${f('Phone',       org.phone)}
+            ${f('Website',     org.website)}${f('City',         org.city)}
+          </div>
+        </div>
+      </div></div>`);
 
-  if (tab === 'profile')        return renderOrgProfile(tabHtml);
-  if (tab === 'business-units') return renderBUs(tabHtml);
-  if (tab === 'departments')    return renderDepts(tabHtml);
-  if (tab === 'cost-centres')   return renderCCs(tabHtml);
-  if (tab === 'locations')      return renderLocations(tabHtml);
+    window._editOrg = () => openModal({
+      title: 'Edit Organisation',
+      size: 'lg',
+      body: `<form id="org-form" class="form-grid-sm">
+        <div class="fg"><label class="flabel">Name</label><input class="finput" name="name" value="${org.name||''}"></div>
+        <div class="fg"><label class="flabel">Legal Name</label><input class="finput" name="legal_name" value="${org.legal_name||''}"></div>
+        <div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${org.pan||''}"></div>
+        <div class="fg"><label class="flabel">TAN</label><input class="finput" name="tan" value="${org.tan||''}"></div>
+        <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="${org.email||''}"></div>
+        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="${org.phone||''}"></div>
+        <div class="fg"><label class="flabel">Website</label><input class="finput" name="website" value="${org.website||''}"></div>
+        <div class="fg"><label class="flabel">City</label><input class="finput" name="city" value="${org.city||''}"></div>
+      </form>`,
+      submitLabel: 'Save',
+      onSubmit: async () => {
+        const data = Object.fromEntries(new FormData(document.getElementById('org-form')));
+        await put('/organisation', data);
+        toast('Saved', 'success');
+        renderProfile();
+      }
+    });
+  } catch (e) { showError(e.message); }
 }
 
-async function renderOrgProfile(tabHtml) {
-  const org = await API.org();
-  setContent(`${tabHtml}
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">🏢 Organisation Details</div>
-        <button class="btn btn-primary btn-sm" onclick="window._editOrg()">✏ Edit</button>
-      </div>
-      <div class="section-fields">
-        ${[['Legal Name',org?.legal_name],['Type',org?.type],['PAN',org?.pan],['TAN',org?.tan],
-           ['CIN',org?.cin],['Website',org?.website],['Email',org?.email],['Phone',org?.phone],
-           ['City',org?.city],['State',org?.state],['Country',org?.country]
-          ].map(([l,v])=>`<div><div class="org-field-label">${l}</div><div class="org-field-value ${!v?'empty':''}">${v||'—'}</div></div>`).join('')}
-      </div>
-    </div>
-  `);
-  window._editOrg = () => {
-    showModal({ title:'Edit Organisation', size:'modal-lg',
-      body:`<form id="of"><div class="form-grid">
-        <div class="field"><label class="label">Name *</label><input class="input" name="name" value="${org?.name||''}"></div>
-        <div class="field"><label class="label">Legal Name</label><input class="input" name="legal_name" value="${org?.legal_name||''}"></div>
-        <div class="field"><label class="label">PAN</label><input class="input" name="pan" value="${org?.pan||''}"></div>
-        <div class="field"><label class="label">TAN</label><input class="input" name="tan" value="${org?.tan||''}"></div>
-        <div class="field"><label class="label">CIN</label><input class="input" name="cin" value="${org?.cin||''}"></div>
-        <div class="field"><label class="label">Website</label><input class="input" name="website" value="${org?.website||''}"></div>
-        <div class="field"><label class="label">Email</label><input class="input" name="email" value="${org?.email||''}"></div>
-        <div class="field"><label class="label">Phone</label><input class="input" name="phone" value="${org?.phone||''}"></div>
-        <div class="field form-full"><label class="label">Address</label><input class="input" name="address_line1" value="${org?.address_line1||''}"></div>
-        <div class="field"><label class="label">City</label><input class="input" name="city" value="${org?.city||''}"></div>
-        <div class="field"><label class="label">State</label><input class="input" name="state" value="${org?.state||''}"></div>
-      </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveOrg()">Save</button>`,
-    });
-    window._saveOrg = async () => {
-      try { await API.orgSave(getFormData(document.getElementById('of')));
-        toast('Saved','success'); closeModal(); renderOrganisation('profile');
-      } catch(e) { toast(e.message,'error'); }
-    };
-  };
+async function listPage(title, bc, apiPath, cols, addFn, rowClick) {
+  setPageTitle(title, '');
+  setBreadcrumb([{ label: 'Organisation', url: '/organisation/profile' }, { label: bc }]);
+  showLoader();
+  try {
+    const rows = await get(apiPath);
+    setContent(`<div class="page-body">
+      <div class="list-toolbar"><div></div><button class="btn btn-primary" onclick="window._addItem()">+ Add</button></div>
+      ${renderTable({ columns: cols, rows: Array.isArray(rows)?rows:[], emptyMessage:`No ${title.toLowerCase()} found`, onRowClick: rowClick })}
+    </div>`);
+    window._addItem = addFn;
+  } catch (e) { showError(e.message); }
 }
 
-async function renderBUs(tabHtml) {
-  const rows = await API.busUnits() || [];
-  setContent(`${tabHtml}
-    <div class="toolbar">
-      <div class="toolbar-title">Business Units</div>
-      <button class="btn btn-primary btn-sm" onclick="window._newBU()">+ Add BU</button>
-    </div>
-    <div class="card"><div class="table-container"><table>
-      <thead><tr><th>Name</th><th>Code</th><th>Departments</th><th>Headcount</th><th>Status</th></tr></thead>
-      <tbody>
-        ${rows.map(b=>`<tr>
-          <td><strong>${b.name}</strong></td><td class="td-mono">${b.code||'—'}</td>
-          <td>${b.dept_count||0}</td><td>${b.headcount||0}</td>
-          <td>${pillStatus(b.is_active?'Active':'Inactive')}</td>
-        </tr>`).join('')}
-        ${!rows.length?'<tr><td colspan="5"><div class="empty-state"><div class="empty-state-title">No business units</div></div></td></tr>':''}
-      </tbody>
-    </table></div></div>
-  `);
-  window._newBU = () => {
-    showModal({ title:'New Business Unit',
-      body:`<form id="bf"><div class="form-grid">
-        <div class="field"><label class="label">Name *</label><input class="input" name="name" required></div>
-        <div class="field"><label class="label">Code</label><input class="input" name="code"></div>
-      </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveBU()">Create</button>`,
-    });
-    window._saveBU = async () => {
-      try { await API.buSave(getFormData(document.getElementById('bf')));
-        toast('Created','success'); closeModal(); renderOrganisation('business-units');
-      } catch(e) { toast(e.message,'error'); }
-    };
-  };
+export async function renderBUs() {
+  await listPage('Business Units', 'Business Units', '/business-units',
+    [{ label:'Name', key:'name', render:r=>`<strong>${r.name}</strong>` },
+     { label:'Code', key:'code' },
+     { label:'Departments', key:'dept_count' },
+     { label:'Headcount', key:'headcount' },
+     { label:'Status', key:'is_active', render:r=>badge(r.is_active?'Active':'Inactive') }],
+    () => openAddModal('Business Unit', [['Name','name',true],['Code','code']], '/business-units', renderBUs),
+    r => navigate(`/organisation/business-units/${r.id}`)
+  );
 }
 
-async function renderDepts(tabHtml) {
-  const rows = await API.departments() || [];
-  setContent(`${tabHtml}
-    <div class="toolbar">
-      <div class="toolbar-title">Departments</div>
-      <button class="btn btn-primary btn-sm" onclick="window._newDept()">+ Add Department</button>
+export async function renderBUDetail({ id }) {
+  showLoader();
+  const bu = await get(`/business-units/${id}`);
+  setPageTitle(bu.name, 'Business Unit');
+  setBreadcrumb([{ label:'Business Units', url:'/organisation/business-units' }, { label:bu.name }]);
+  setContent(`<div class="page-body"><div class="card"><div class="card-body">
+    <div class="field-grid">
+      ${f('Name', bu.name)}${f('Code', bu.code)}${f('Status', bu.is_active?'Active':'Inactive')}
     </div>
-    <div class="card"><div class="table-container"><table>
-      <thead><tr><th>Name</th><th>Code</th><th>Business Unit</th><th>Cost Centre</th><th>Headcount</th></tr></thead>
-      <tbody>
-        ${rows.map(d=>`<tr><td><strong>${d.name}</strong></td><td class="td-mono">${d.code||'—'}</td>
-          <td>${d.bu_name||'—'}</td><td>${d.cc_name||'—'}</td><td>${d.headcount||0}</td></tr>`).join('')}
-        ${!rows.length?'<tr><td colspan="5"><div class="empty-state"><div class="empty-state-title">No departments</div></div></td></tr>':''}
-      </tbody>
-    </table></div></div>
-  `);
-  window._newDept = () => {
-    showModal({ title:'New Department', body:`<form id="df"><div class="form-grid">
-      <div class="field"><label class="label">Name *</label><input class="input" name="name" required></div>
-      <div class="field"><label class="label">Code</label><input class="input" name="code"></div>
-      <div class="field"><label class="label">Business Unit *</label>
-        <select class="select" name="business_unit_id">${buildOptions(getMaster('business-units'),'id','name','','Select BU')}</select></div>
-      <div class="field"><label class="label">Cost Centre</label>
-        <select class="select" name="cost_centre_id">${buildOptions(getMaster('cost-centres'),'id','name','','Select CC')}</select></div>
-    </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveDept()">Create</button>`,
-    });
-    window._saveDept = async () => {
-      try { await API.deptSave(getFormData(document.getElementById('df')));
-        toast('Created','success'); closeModal(); renderOrganisation('departments');
-      } catch(e) { toast(e.message,'error'); }
-    };
-  };
+  </div></div></div>`);
 }
 
-async function renderCCs(tabHtml) {
-  const rows = await API.costCentres() || [];
-  setContent(`${tabHtml}
-    <div class="toolbar">
-      <div class="toolbar-title">Cost Centres</div>
-      <button class="btn btn-primary btn-sm" onclick="window._newCC()">+ Add Cost Centre</button>
-    </div>
-    <div class="card"><div class="table-container"><table>
-      <thead><tr><th>Name</th><th>Code</th><th>Business Unit</th><th>Status</th></tr></thead>
-      <tbody>
-        ${rows.map(c=>`<tr><td><strong>${c.name}</strong></td><td class="td-mono">${c.code||'—'}</td>
-          <td>${c.bu_name||'—'}</td><td>${pillStatus(c.is_active?'Active':'Inactive')}</td></tr>`).join('')}
-        ${!rows.length?'<tr><td colspan="4"><div class="empty-state"><div class="empty-state-title">No cost centres</div></div></td></tr>':''}
-      </tbody>
-    </table></div></div>
-  `);
-  window._newCC = () => {
-    showModal({ title:'New Cost Centre', body:`<form id="ccf"><div class="form-grid">
-      <div class="field"><label class="label">Name *</label><input class="input" name="name" required></div>
-      <div class="field"><label class="label">Code</label><input class="input" name="code"></div>
-      <div class="field"><label class="label">Business Unit</label>
-        <select class="select" name="bu_id">${buildOptions(getMaster('business-units'),'id','name','','Select BU')}</select></div>
-    </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveCC()">Create</button>`,
-    });
-    window._saveCC = async () => {
-      try { await API.ccSave(getFormData(document.getElementById('ccf')));
-        toast('Created','success'); closeModal(); renderOrganisation('cost-centres');
-      } catch(e) { toast(e.message,'error'); }
-    };
-  };
+export async function renderDepts() {
+  await listPage('Departments', 'Departments', '/departments',
+    [{ label:'Name', key:'name', render:r=>`<strong>${r.name}</strong>` },
+     { label:'Business Unit', key:'bu_name' },
+     { label:'Cost Centre', key:'cc_name' },
+     { label:'Headcount', key:'headcount' },
+     { label:'Status', key:'is_active', render:r=>badge(r.is_active?'Active':'Inactive') }],
+    async () => {
+      const bus = await get('/lookup/business-units');
+      openAddModal('Department',
+        [['Name','name',true],['Code','code'],['Business Unit','business_unit_id',false,'select',bus]],
+        '/departments', renderDepts);
+    },
+    r => navigate(`/organisation/departments/${r.id}`)
+  );
 }
 
-async function renderLocations(tabHtml) {
-  const rows = await API.locations() || [];
-  setContent(`${tabHtml}
-    <div class="toolbar">
-      <div class="toolbar-title">Office Locations</div>
-      <button class="btn btn-primary btn-sm" onclick="window._newLoc()">+ Add Location</button>
-    </div>
-    <div class="card"><div class="table-container"><table>
-      <thead><tr><th>Name</th><th>Code</th><th>City</th><th>State</th><th>HQ</th><th>Status</th></tr></thead>
-      <tbody>
-        ${rows.map(l=>`<tr><td><strong>${l.name}</strong></td><td class="td-mono">${l.code||'—'}</td>
-          <td>${l.city||'—'}</td><td>${l.state||'—'}</td>
-          <td>${l.is_hq?'<span class="pill pill-green">HQ</span>':'—'}</td>
-          <td>${pillStatus(l.is_active?'Active':'Inactive')}</td></tr>`).join('')}
-        ${!rows.length?'<tr><td colspan="6"><div class="empty-state"><div class="empty-state-title">No locations</div></div></td></tr>':''}
-      </tbody>
-    </table></div></div>
-  `);
-  window._newLoc = () => {
-    showModal({ title:'New Location', body:`<form id="lf"><div class="form-grid">
-      <div class="field"><label class="label">Name *</label><input class="input" name="name" required></div>
-      <div class="field"><label class="label">Code</label><input class="input" name="code"></div>
-      <div class="field form-full"><label class="label">Address</label><input class="input" name="address"></div>
-      <div class="field"><label class="label">City</label><input class="input" name="city"></div>
-      <div class="field"><label class="label">State</label><input class="input" name="state"></div>
-      <div class="field"><label class="label">Pincode</label><input class="input" name="pincode"></div>
-      <div class="field"><label class="label">Headquarters?</label>
-        <select class="select" name="is_hq"><option value="false">No</option><option value="true">Yes</option></select></div>
-    </div></form>`,
-      footer:`<button class="btn btn-secondary" onclick="window._closeModal()">Cancel</button>
-              <button class="btn btn-primary" onclick="window._saveLoc()">Create</button>`,
-    });
-    window._saveLoc = async () => {
-      try { await API.locationSave(getFormData(document.getElementById('lf')));
-        toast('Created','success'); closeModal(); renderOrganisation('locations');
-      } catch(e) { toast(e.message,'error'); }
-    };
-  };
+export async function renderDeptDetail({ id }) {
+  const dept = await get(`/departments/${id}`);
+  setPageTitle(dept.name, 'Department');
+  setBreadcrumb([{ label:'Departments', url:'/organisation/departments' }, { label:dept.name }]);
+  setContent(`<div class="page-body"><div class="card"><div class="card-body">
+    <div class="field-grid">${f('Name',dept.name)}${f('Business Unit',dept.bu_name)}${f('Code',dept.code)}</div>
+  </div></div></div>`);
+}
+
+export async function renderCostCentres() {
+  await listPage('Cost Centres', 'Cost Centres', '/cost-centres',
+    [{ label:'Name', key:'name', render:r=>`<strong>${r.name}</strong>` },
+     { label:'Code', key:'code' }, { label:'Business Unit', key:'bu_name' }],
+    () => openAddModal('Cost Centre', [['Name','name',true],['Code','code']], '/cost-centres', renderCostCentres),
+    null);
+}
+
+export async function renderLocations() {
+  await listPage('Locations', 'Locations', '/locations',
+    [{ label:'Name', key:'name', render:r=>`<strong>${r.name}</strong>` },
+     { label:'City', key:'city' }, { label:'State', key:'state' },
+     { label:'HQ', key:'is_hq', render:r=>r.is_hq?'★ HQ':'' }],
+    () => openAddModal('Location',
+      [['Name','name',true],['City','city'],['State','state'],['Address','address'],['Pincode','pincode']],
+      '/locations', renderLocations),
+    null);
+}
+
+function openAddModal(entity, fields, apiPath, reloadFn) {
+  openModal({
+    title: `Add ${entity}`,
+    body: `<form id="add-form" class="form-grid-sm">
+      ${fields.map(([label, name, req, type, opts]) => {
+        if (type === 'select' && opts) {
+          return `<div class="fg"><label class="flabel">${label}${req?' *':''}</label>
+            <select class="fselect" name="${name}" ${req?'required':''}>
+              <option value="">Select…</option>
+              ${opts.map(o=>`<option value="${o.id}">${o.name}</option>`).join('')}
+            </select></div>`;
+        }
+        return `<div class="fg"><label class="flabel">${label}${req?' *':''}</label>
+          <input class="finput" name="${name}" ${req?'required':''}></div>`;
+      }).join('')}
+    </form>`,
+    submitLabel: `Add ${entity}`,
+    onSubmit: async () => {
+      const data = Object.fromEntries(new FormData(document.getElementById('add-form')));
+      Object.keys(data).forEach(k => { if (data[k]==='') data[k]=null; });
+      await post(apiPath, data);
+      toast(`${entity} added`, 'success');
+      reloadFn();
+    }
+  });
+}
+
+function f(l, v, mono=false) {
+  return `<div class="field-item"><div class="field-label">${l}</div>
+    <div class="field-value${!v?' empty':''}${mono?' mono':''}">${v||'—'}</div></div>`;
 }
