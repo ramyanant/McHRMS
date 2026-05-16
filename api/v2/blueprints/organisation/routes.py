@@ -594,13 +594,21 @@ def create_department():
     d = request.get_json() or {}
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
-    result = db_execute("""INSERT INTO departments
-        (name, business_unit_id, cost_centre_id, head_name, location,
-         budget, manager_id, location_id, parent_dept_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['name'], d.get('business_unit_id'), d.get('cost_centre_id'),
-         d.get('head_name'), d.get('location'), d.get('budget', 0),
-         d.get('manager_id'), d.get('location_id'), d.get('parent_dept_id')), returning=True)
+    # Try with all v2 columns first, fall back to v1 columns if migration not run yet
+    try:
+        result = db_execute("""INSERT INTO departments
+            (name, business_unit_id, cost_centre_id, head_name, location,
+             budget, manager_id, location_id, parent_dept_id)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (d['name'], d.get('business_unit_id'), d.get('cost_centre_id'),
+             d.get('head_name'), d.get('location'), d.get('budget', 0),
+             d.get('manager_id'), d.get('location_id'), d.get('parent_dept_id')), returning=True)
+    except Exception:
+        result = db_execute("""INSERT INTO departments
+            (name, business_unit_id, cost_centre_id, head_name, location, budget)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (d['name'], d.get('business_unit_id'), d.get('cost_centre_id'),
+             d.get('head_name'), d.get('location'), d.get('budget', 0)), returning=True)
     return created({'id': result['id']})
 
 @org_bp.route('/departments/<int:did>', methods=['GET','PUT','DELETE'])

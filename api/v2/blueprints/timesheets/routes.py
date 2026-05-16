@@ -80,13 +80,23 @@ def submit_my_timesheet():
     emp = db_row1("SELECT reporting_manager_id, first_name, last_name FROM employees WHERE id=%s", (emp_id,))
 
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-    cur.execute("""INSERT INTO timesheets
-        (employee_id, client_id, project, week_ending,
-         regular_hours, overtime_hours, bill_rate, status_id, notes, submitted_at)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
-        (emp_id, d.get('client_id'), d.get('project',''),
-         d['week_ending'], regular_hours, overtime_hours,
-         d.get('bill_rate', 0), pending_id, d.get('notes','')))
+    try:
+        cur.execute("""INSERT INTO timesheets
+            (employee_id, client_id, project, week_ending,
+             regular_hours, overtime_hours, bill_rate, status_id, notes, submitted_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
+            (emp_id, d.get('client_id'), d.get('project',''),
+             d['week_ending'], regular_hours, overtime_hours,
+             d.get('bill_rate', 0), pending_id, d.get('notes','')))
+    except Exception:
+        # Fallback: v1 schema without overtime_hours column
+        cur.execute("""INSERT INTO timesheets
+            (employee_id, client_id, project, week_ending,
+             regular_hours, bill_rate, status_id, notes, submitted_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
+            (emp_id, d.get('client_id'), d.get('project',''),
+             d['week_ending'], regular_hours,
+             d.get('bill_rate', 0), pending_id, d.get('notes','')))
     tid = cur.fetchone()['id']; conn.close()
 
     # Notify reporting manager
