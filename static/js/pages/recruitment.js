@@ -110,6 +110,7 @@ export async function renderJobs() {
               '<td class="tbl-actions" onclick="event.stopPropagation()">'+
                 '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/recruitment/jobs/'+j.id+'\')">View</button>'+
                 '<button class="btn btn-ghost btn-xs" onclick="window._editJob('+j.id+')">✏</button>'+
+                '<button class="btn btn-danger btn-xs" onclick="window._deleteJob('+j.id+',\''+j.title+'\')">Del</button>'+
               '</td></tr>').join('')+
             '</tbody></table></div></div>'
         : '<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No jobs found</div><button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ Post First Job</button></div>';
@@ -130,6 +131,11 @@ export async function renderJobs() {
     render();
     window._jobQ = val=>{q=val;render();};
     window._jobFilter = val=>{filterStatus=val;render();};
+    window._deleteJob = async (id, title) => {
+      if (!confirm('Delete job "' + title + '"?')) return;
+      await put('/recruitment/jobs/' + id, { is_active: 0, status: 'Cancelled' });
+      toast('Job deleted', 'info'); render();
+    };
     window._editJob = async id => {
       const j = await get('/recruitment/jobs/'+id);
       jobModal(j, masters);
@@ -385,6 +391,11 @@ export async function renderCandidates() {
       '</div><div id="cand-content"></div></div>');
     render();
     window._candQ = val=>{q=val;render();};
+    window._deleteCandidate = async (id, name) => {
+      if (!confirm('Delete candidate "' + name + '"?')) return;
+      await put('/candidates/' + id, { is_active: 0, status: 'Inactive' });
+      toast('Candidate deleted', 'info'); render();
+    };
   } catch(e) { showError(e.message); }
 }
 

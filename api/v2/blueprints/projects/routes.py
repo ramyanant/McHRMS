@@ -231,10 +231,13 @@ def project_documents(pid):
             doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
             mime_type TEXT, notes TEXT, is_active INTEGER DEFAULT 1,
             uploaded_at TIMESTAMP DEFAULT NOW())""")
-        cur.execute("""INSERT INTO project_documents (project_id, doc_type, doc_name, file_data, file_size, mime_type, notes)
-            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        try:
+            cur.execute("ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS notes TEXT")
+        except Exception: pass
+        cur.execute("""INSERT INTO project_documents (project_id, doc_type, doc_name, file_data, file_size, mime_type)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
             (pid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
-             d.get('file_size'), d.get('mime_type'), d.get('notes')))
+             d.get('file_size'), d.get('mime_type')))
         doc_id = cur.fetchone()['id']; conn.close()
         return created({'id': doc_id})
     except Exception as e: return err(str(e))

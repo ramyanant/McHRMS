@@ -126,6 +126,15 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
 
   render();
 
+  window._orgDelete = function(entity, id, name) {
+    var deleteFns = {
+      'Business Units': window._deleteBU,
+      'Cost Centres':   window._deleteCC,
+      'Locations':      window._deleteLoc,
+    };
+    var fn = deleteFns[entity];
+    if (fn) fn(id, name);
+  };
   window._orgView = function(v2) {
     view = v2;
     document.getElementById('btn-grid').classList.toggle('active', v2 === 'grid');
@@ -151,6 +160,12 @@ export async function renderBUs() {
     window._orgRowClick = (entity, id) => navigate('/organisation/business-units/' + id);
     window._orgEdit     = (entity, id) => buModal(rows.find(r => r.id === id), masters);
     window._addBU       = () => buModal(null, masters);
+    window._deleteBU    = async (id, name) => {
+      if (!confirm('Delete Business Unit "' + name + '"? This cannot be undone.')) return;
+      await put('/business-units/' + id, { is_active: 0 });
+      toast('Business Unit deleted', 'info');
+      renderBUs();
+    };
 
     buildListPage({
       title: 'Business Units', subtitle: 'Top-level organisational divisions',
@@ -377,6 +392,12 @@ export async function renderDepts() {
     window._deptFilter = val => { filterStatus = val; render(); };
     window._deptSort   = col => { sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1); render(); };
     window._addDept    = () => deptModal(null, masters);
+    window._deleteDept = async (id, name) => {
+      if (!confirm('Delete Department "' + name + '"?')) return;
+      await put('/departments/' + id, { is_active: 0 });
+      toast('Department deleted', 'info');
+      renderDepts();
+    };
     window._editDept   = id => deptModal(rows.find(r => r.id===id), masters);
   } catch(e) { showError(e.message); }
 }
@@ -523,6 +544,12 @@ export async function renderLocations() {
     window._orgRowClick = (entity, id) => navigate('/organisation/locations/' + id);
     window._orgEdit     = (entity, id) => locModal(rows.find(r=>r.id===id), masters);
     window._addLoc      = () => locModal(null, masters);
+    window._deleteLoc   = async (id, name) => {
+      if (!confirm('Delete Location "' + name + '"?')) return;
+      await put('/locations/' + id, { is_active: 0 });
+      toast('Location deleted', 'info');
+      renderLocations();
+    };
 
     buildListPage({
       title:'Locations', subtitle:'Offices and sites',

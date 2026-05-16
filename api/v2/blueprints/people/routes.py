@@ -314,3 +314,110 @@ def masters_all():
 def lookup_employees():
     return ok(db_rows("""SELECT id, emp_id, first_name||' '||last_name as name, job_title, email
         FROM employees WHERE is_active=1 ORDER BY first_name"""))
+
+
+@people_bp.route('/roles/<int:rid>/permissions', methods=['GET','POST'])
+@require_auth
+def role_permissions(rid):
+    """Get or set permissions for a role."""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS role_permissions (
+            id SERIAL PRIMARY KEY, role_id INTEGER NOT NULL,
+            module TEXT NOT NULL, can_view INTEGER DEFAULT 0,
+            can_create INTEGER DEFAULT 0, can_edit INTEGER DEFAULT 0,
+            can_delete INTEGER DEFAULT 0,
+            UNIQUE(role_id, module))""")
+        conn.close()
+    except Exception: pass
+
+    if request.method == 'GET':
+        perms = db_rows("SELECT * FROM role_permissions WHERE role_id=%s", (rid,))
+        return ok(perms)
+
+    # POST: save permission matrix
+    d = request.get_json() or {}
+    permissions = d.get('permissions', [])
+    conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+    for perm in permissions:
+        cur.execute("""INSERT INTO role_permissions (role_id, module, can_view, can_create, can_edit, can_delete)
+            VALUES (%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (role_id, module) DO UPDATE SET
+            can_view=%s, can_create=%s, can_edit=%s, can_delete=%s""",
+            (rid, perm['module'],
+             perm.get('can_view',0), perm.get('can_create',0), perm.get('can_edit',0), perm.get('can_delete',0),
+             perm.get('can_view',0), perm.get('can_create',0), perm.get('can_edit',0), perm.get('can_delete',0)))
+    conn.close()
+    write_audit_log('admin', 'UPDATE', 'role_permissions', rid, f"Permissions updated for role {rid}")
+    return ok(message="Permissions saved")
+
+
+@people_bp.route('/employees/documents', methods=['GET','POST'])
+@require_auth
+def my_employee_documents():
+    """Employee self-service: list/upload own documents."""
+    emp_id = g.user.get('employee_id')
+    if not emp_id:
+        emp = db_row1("SELECT id FROM employees WHERE email=%s LIMIT 1", (g.user.get('email',''),))
+        if emp: emp_id = emp['id']
+    if not emp_id: return err("No employee profile linked")
+
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type, uploaded_at
+                FROM employee_documents WHERE employee_id=%s AND is_active=1
+                ORDER BY uploaded_at DESC""", (emp_id,))
+            return ok(docs)
+        except Exception: return ok([])
+
+    d = request.get_json() or {}
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS employee_documents (
+            id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES employees(id),
+            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
+            mime_type TEXT, is_active INTEGER DEFAULT 1,
+            uploaded_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("""INSERT INTO employee_documents (employee_id, doc_type, doc_name, file_data, file_size, mime_type)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (emp_id, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
+             d.get('file_size'), d.get('mime_type')))
+        doc_id = cur.fetchone()['id']; conn.close()
+        return created({'id': doc_id})
+    except Exception as e: return err(str(e))
+
+@people_bp.route('/employees/documents/<int:did>', methods=['GET','PUT','DELETE'])
+@require_auth
+def employee_document(did):
+    doc = db_row1("SELECT * FROM employee_documents WHERE id=%s", (did,))
+    if not doc: return not_found("Document")
+    if request.method == 'GET': return ok(doc)
+    if request.method == 'DELETE':
+        db_execute("UPDATE employee_documents SET is_active=0 WHERE id=%s", (did,))
+        return ok(message="Removed")
+    d = request.get_json() or {}
+    if 'is_active' in d:
+        db_execute("UPDATE employee_documents SET is_active=%s WHERE id=%s", (d['is_active'], did))
+    return ok(message="Updated")
+
+@people_bp.route('/employees/<int:eid>/documents', methods=['GET','POST'])
+@require_auth
+def employee_documents_admin(eid):
+    """Admin view of employee documents."""
+    if request.method == 'GET':
+        try:
+            docs = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, uploaded_at FROM employee_documents WHERE employee_id=%s AND is_active=1 ORDER BY uploaded_at DESC", (eid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS employee_documents (
+            id SERIAL PRIMARY KEY, employee_id INTEGER NOT NULL REFERENCES employees(id),
+            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
+            mime_type TEXT, is_active INTEGER DEFAULT 1, uploaded_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("INSERT INTO employee_documents (employee_id, doc_type, doc_name, file_data, file_size, mime_type) VALUES (%s,%s,%s,%s,%s,%s) RETURNING id",
+            (eid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'), d.get('file_size'), d.get('mime_type')))
+        doc_id = cur.fetchone()['id']; conn.close()
+        return created({'id': doc_id})
+    except Exception as e: return err(str(e))

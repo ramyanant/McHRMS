@@ -118,8 +118,9 @@ function renderEmployeeDetail(emp, masters) {
         '<div class="meta-row"><span>Start Date</span><strong>'+fmt.date(emp.start_date)+'</strong></div>'+
         '<div class="meta-row"><span>Location</span><strong>'+v(emp.location,'—')+'</strong></div>'+
       '</div>'+
-      '<div style="padding:0 16px 16px">'+
+      '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+
         '<button class="btn btn-primary btn-full" onclick="window._editEmp()">✏ Edit</button>'+
+        '<button class="btn btn-danger btn-full" onclick="window._deleteEmp('+emp.id+',\'' + emp.first_name + ' ' + emp.last_name + '\')">Deactivate</button>'+
       '</div>'+
     '</div></div>';
   }

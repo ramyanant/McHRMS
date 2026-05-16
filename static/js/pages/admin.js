@@ -189,57 +189,98 @@ export async function renderRoles() {
   setBreadcrumb([{ label:'Admin' }, { label:'Roles' }]);
   showLoader();
   try {
-    const roles = await get('/roles');
-    const rows  = Array.isArray(roles) ? roles : [];
+    var roles  = await get('/roles');
+    var rows   = Array.isArray(roles) ? roles : [];
+    var modules = ['Organisation','Employees','Timesheets','Recruitment','Clients','Vendors','Projects','Invoices','Bills','Reports','Admin'];
 
-    // Role permission matrix
-    const modules   = ['Organisation','Employees','Timesheets','Recruitment','Clients','Vendors','Projects','Invoices','Bills','Reports','Admin'];
-    const rolePerms = {
-      'Admin':          modules.map(()=>['View','Edit','Delete']),
-      'HR Manager':     ['Organisation','Employees','Timesheets','Recruitment','Clients','Reports'].map(m=>['View','Edit']),
-      'Recruiter':      ['Recruitment','Candidates'].map(()=>['View','Edit']),
-      'Account Manager':['Clients','Projects','Invoices','Reports'].map(()=>['View','Edit']),
-      'Finance Manager':['Invoices','Bills','Reports'].map(()=>['View','Edit']),
-      'Employee':       ['Organisation'].map(()=>['View']),
-    };
+    function renderMatrix() {
+      return '<div class="card" style="margin-top:16px">' +
+        '<div class="card-header"><h3 class="card-title">Permission Matrix</h3>' +
+          '<div class="text-muted" style="font-size:12px">Check boxes to grant access. Save per role.</div>' +
+        '</div>' +
+        '<div class="tbl-wrap"><table class="data-table" id="perm-matrix"><thead><tr>' +
+          '<th>Module</th>' +
+          rows.map(function(r) {
+            return '<th style="text-align:center;min-width:120px">' + v(r.name) +
+              '<br><button class="btn btn-primary btn-xs" style="margin-top:4px" onclick="window._savePerms(' + r.id + ',\'' + v(r.name) + '\')">Save</button></th>';
+          }).join('') +
+        '</tr></thead><tbody>' +
+        modules.map(function(mod) {
+          return '<tr><td><strong>' + mod + '</strong></td>' +
+            rows.map(function(r) {
+              var pid = 'perm_' + r.id + '_' + mod.replace(/[^a-zA-Z]/g,'_');
+              return '<td style="text-align:center">' +
+                '<div style="display:flex;flex-direction:column;gap:2px;align-items:center;font-size:10px">' +
+                  '<label><input type="checkbox" id="' + pid + '_view" data-role="' + r.id + '" data-mod="' + mod + '" data-perm="view"> View</label>' +
+                  '<label><input type="checkbox" id="' + pid + '_create" data-role="' + r.id + '" data-mod="' + mod + '" data-perm="create"> Create</label>' +
+                  '<label><input type="checkbox" id="' + pid + '" data-role="' + r.id + '" data-mod="' + mod + '" data-perm="edit"> Edit</label>' +
+                  '<label><input type="checkbox" id="' + pid + '_delete" data-role="' + r.id + '" data-mod="' + mod + '" data-perm="delete"> Delete</label>' +
+                '</div></td>';
+            }).join('') +
+          '</tr>';
+        }).join('') +
+        '</tbody></table></div></div>';
+    }
 
     setContent(
-      '<div class="page-body">'+
-      '<div class="list-toolbar"><div></div>'+
-        '<button class="btn btn-primary" onclick="window._addRole()">+ New Role</button></div>'+
-      '<div class="card" style="margin-bottom:16px"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-        '<th>Role</th><th>Description</th><th>Users with Role</th><th>System Role</th><th>Actions</th>'+
-      '</tr></thead><tbody>'+
-      rows.map(r=>'<tr>'+
-        '<td><strong>'+v(r.name)+'</strong></td>'+
-        '<td class="text-muted">'+v(r.description,'—')+'</td>'+
-        '<td class="mono">—</td>'+
-        '<td>'+badge(r.is_system?'System':'Custom')+'</td>'+
-        '<td class="tbl-actions">'+
-          (!r.is_system?'<button class="btn btn-ghost btn-xs" onclick="window._editRole('+r.id+')">✏ Edit</button>':'')+
-        '</td></tr>'
-      ).join('')+'</tbody></table></div></div>'+
-      // Permission Matrix
-      '<div class="card"><div class="card-header"><h3 class="card-title">Permission Matrix</h3>'+
-        '<div class="text-muted" style="font-size:12px">Overview of role capabilities. Full RBAC management via role assignment on each user.</div>'+
-      '</div>'+
-      '<div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-        '<th>Module</th>'+
-        rows.map(r=>'<th>'+v(r.name)+'</th>').join('')+
-      '</tr></thead><tbody>'+
-      modules.map(m=>'<tr>'+
-        '<td><strong>'+m+'</strong></td>'+
-        rows.map(r=>{
-          const perms = r.name==='Admin'?'✅ Full':r.name==='Employee'?(m==='Organisation'?'👁 View':'—'):'👁 View / ✏ Edit';
-          return '<td style="font-size:11px">'+perms+'</td>';
-        }).join('')+
-      '</tr>').join('')+
-      '</tbody></table></div></div>'+
+      '<div class="page-body">' +
+      '<div class="list-toolbar"><div></div>' +
+        '<button class="btn btn-primary" onclick="window._addRole()">+ New Role</button>' +
+      '</div>' +
+      '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        '<th>Role</th><th>Description</th><th>System</th><th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      rows.map(function(r) {
+        return '<tr><td><strong>' + v(r.name) + '</strong></td>' +
+          '<td class="text-muted">' + v(r.description,'—') + '</td>' +
+          '<td>' + badge(r.is_system ? 'System' : 'Custom') + '</td>' +
+          '<td class="tbl-actions">' +
+            (!r.is_system ? '<button class="btn btn-ghost btn-xs" onclick="window._editRole(' + r.id + ')">✏ Edit</button>' : '') +
+          '</td></tr>';
+      }).join('') +
+      '</tbody></table></div></div>' +
+      renderMatrix() +
       '</div>'
     );
 
-    window._addRole = () => roleModal(null);
-    window._editRole = id => roleModal(rows.find(r=>r.id===id));
+    // Load existing permissions into checkboxes
+    rows.forEach(function(r) {
+      get('/roles/' + r.id + '/permissions').then(function(perms) {
+        var permList = Array.isArray(perms) ? perms : [];
+        permList.forEach(function(p) {
+          var base = 'perm_' + r.id + '_' + p.module.replace(/[^a-zA-Z]/g,'_');
+          ['view','create','edit','delete'].forEach(function(perm) {
+            var el = document.getElementById(base + '_' + perm);
+            if (el && p['can_' + perm]) el.checked = true;
+          });
+        });
+      }).catch(function(){});
+    });
+
+    window._addRole = function() { roleModal(null); };
+    window._editRole = function(id) { roleModal(rows.find(function(r){return r.id===id;})); };
+
+    window._savePerms = async function(roleId, roleName) {
+      var permissions = [];
+      modules.forEach(function(mod) {
+        var base = 'perm_' + roleId + '_' + mod.replace(/[^a-zA-Z]/g,'_');
+        var view   = document.getElementById(base + '_view');
+        var create = document.getElementById(base + '_create');
+        var edit   = document.getElementById(base);
+        var del    = document.getElementById(base + '_delete');
+        permissions.push({
+          module: mod,
+          can_view:   view && view.checked ? 1 : 0,
+          can_create: create && create.checked ? 1 : 0,
+          can_edit:   edit && edit.checked ? 1 : 0,
+          can_delete: del && del.checked ? 1 : 0,
+        });
+      });
+      try {
+        await post('/roles/' + roleId + '/permissions', { permissions: permissions });
+        toast('Permissions saved for ' + roleName, 'success');
+      } catch(e) { toast(e.message, 'error'); }
+    };
   } catch(e) { showError(e.message); }
 }
 

@@ -130,14 +130,11 @@ def upload_client_doc(cid):
         cur.execute("""CREATE TABLE IF NOT EXISTS client_documents (
             id SERIAL PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
             doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
-            mime_type TEXT, expiry_date DATE, notes TEXT, is_active INTEGER DEFAULT 1,
-            uploaded_at TIMESTAMP DEFAULT NOW(), uploaded_by INTEGER)""")
-        cur.execute("""INSERT INTO client_documents
-            (client_id, doc_type, doc_name, file_data, file_size, mime_type, expiry_date, notes, uploaded_by)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            mime_type TEXT, is_active INTEGER DEFAULT 1, uploaded_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("""INSERT INTO client_documents (client_id, doc_type, doc_name, file_data, file_size, mime_type)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
             (cid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
-             d.get('file_size'), d.get('mime_type'), d.get('expiry_date'),
-             d.get('notes'), g.user.get('employee_id')))
+             d.get('file_size'), d.get('mime_type')))
         doc_id = cur.fetchone()['id']; conn.close()
         return created({'id': doc_id})
     except Exception as e:

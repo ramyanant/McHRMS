@@ -63,9 +63,9 @@ def team():
         FROM employees WHERE id=%s""", (mgr_id,)) if mgr_id else None
     reportees = db_rows("""SELECT id, first_name, last_name, job_title, email,
         department_id FROM employees
-        WHERE reporting_manager_id=%s AND is_active=TRUE""", (emp_id,))
+        WHERE reporting_manager_id=%s AND is_active=1""", (emp_id,))
     peers     = db_rows("""SELECT id, first_name, last_name, job_title, email
-        FROM employees WHERE reporting_manager_id=%s AND id!=%s AND is_active=TRUE""",
+        FROM employees WHERE reporting_manager_id=%s AND id!=%s AND is_active=1""",
         (mgr_id, emp_id)) if mgr_id else []
     return ok({"manager": manager, "reportees": reportees, "peers": peers})
 

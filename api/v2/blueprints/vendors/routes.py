@@ -97,12 +97,12 @@ def vendor_documents(vid):
         cur.execute("""CREATE TABLE IF NOT EXISTS vendor_documents (
             id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL REFERENCES vendors(id),
             doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
-            mime_type TEXT, notes TEXT, is_active INTEGER DEFAULT 1,
+            mime_type TEXT, is_active INTEGER DEFAULT 1,
             uploaded_at TIMESTAMP DEFAULT NOW())""")
-        cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type, notes)
-            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type)
+            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
             (vid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
-             d.get('file_size'), d.get('mime_type'), d.get('notes')))
+             d.get('file_size'), d.get('mime_type')))
         doc_id = cur.fetchone()['id']; conn.close()
         return created({'id': doc_id})
     except Exception as e: return err(str(e))

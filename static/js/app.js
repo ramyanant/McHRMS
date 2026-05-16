@@ -90,30 +90,27 @@ function showApp() {
   Router.start();
 }
 
-// ── Sidebar ───────────────────────────────────────────────────
+// ── Sidebar ────────────────────────────────────────────────────
 const NAV = {
   Admin: [
-    { section: 'Overview', items: [
-      { label: 'Dashboard', icon: '⊞', path: '/dashboard' },
-    ]},
-    { section: 'Organisation', items: [
+    { section: 'Organisation', icon: '🏛', dashboard: '/organisation/profile', items: [
       { label: 'Org Profile',     icon: '🏛', path: '/organisation/profile' },
       { label: 'Business Units',  icon: '🏢', path: '/organisation/business-units' },
       { label: 'Departments',     icon: '🗂', path: '/organisation/departments' },
       { label: 'Cost Centres',    icon: '💹', path: '/organisation/cost-centres' },
       { label: 'Locations',       icon: '📍', path: '/organisation/locations' },
     ]},
-    { section: 'People', items: [
+    { section: 'People', icon: '👥', dashboard: '/employees', items: [
       { label: 'Employees',       icon: '👥', path: '/employees' },
       { label: 'Timesheets',      icon: '⏱', path: '/timesheets' },
       { label: 'Payroll',         icon: '💰', path: '/payroll' },
     ]},
-    { section: 'Clients & Vendors', items: [
+    { section: 'Clients & Vendors', icon: '🤝', dashboard: '/clients', items: [
       { label: 'Clients',         icon: '🤝', path: '/clients' },
       { label: 'Vendors',         icon: '🏪', path: '/vendors' },
       { label: 'Projects',        icon: '📋', path: '/projects' },
     ]},
-    { section: 'Talent Acquisition', items: [
+    { section: 'Talent Acquisition', icon: '🎯', dashboard: '/recruitment', items: [
       { label: 'Dashboard',       icon: '📊', path: '/recruitment' },
       { label: 'Job Requisitions',icon: '📝', path: '/recruitment/jobs' },
       { label: 'Candidates',      icon: '🎯', path: '/candidates' },
@@ -122,25 +119,23 @@ const NAV = {
       { label: 'Offers',          icon: '📨', path: '/recruitment/offers' },
       { label: 'Onboarding',      icon: '🚀', path: '/recruitment/onboarding' },
     ]},
-    { section: 'Finance', items: [
-    ]},
-    { section: 'Finance', items: [
+    { section: 'Finance', icon: '💰', dashboard: '/invoices', items: [
       { label: 'Invoices',        icon: '🧾', path: '/invoices' },
       { label: 'Bills & Expenses',icon: '💸', path: '/bills' },
     ]},
-    { section: 'Insights', items: [
+    { section: 'Insights', icon: '📈', dashboard: '/reports', items: [
       { label: 'Reports',         icon: '📈', path: '/reports' },
       { label: 'Audit Logs',      icon: '🔍', path: '/audit-logs' },
     ]},
-    { section: 'Settings', items: [
+    { section: 'Settings', icon: '⚙️', dashboard: '/settings', items: [
       { label: 'Users',           icon: '👤', path: '/admin/users' },
       { label: 'Roles',           icon: '🔐', path: '/admin/roles' },
       { label: 'Settings',        icon: '⚙️', path: '/settings' },
     ]},
   ],
   Employee: [
-    { section: 'My Portal', items: [
-      { label: 'Dashboard',       icon: '⊞', path: '/portal' },
+    { section: 'My Portal', icon: '🏠', dashboard: '/portal', items: [
+      { label: 'My Dashboard',    icon: '⊞', path: '/portal' },
       { label: 'My Profile',      icon: '👤', path: '/portal/profile' },
       { label: 'Timesheets',      icon: '⏱', path: '/portal/timesheets' },
       { label: 'Leave',           icon: '🏖', path: '/portal/leaves' },
@@ -152,98 +147,114 @@ const NAV = {
 
 // Role → nav map (non-admin roles)
 const ROLE_NAV = {
-  'Recruiter':          ['Overview','Talent Acquisition'],
-  'Recruiting Manager': ['Overview','Talent Acquisition','Clients & Vendors'],
-  'Account Manager':    ['Overview','Clients & Vendors','Talent Acquisition'],
-  'HR Manager':         ['Overview','People','Talent Acquisition'],
-  'Finance Manager':    ['Overview','Finance','People'],
-  'Finance':            ['Overview','Finance'],
+  'Recruiter':          ['Talent Acquisition'],
+  'Recruiting Manager': ['Talent Acquisition','Clients & Vendors'],
+  'Account Manager':    ['Clients & Vendors','Talent Acquisition'],
+  'HR Manager':         ['People','Talent Acquisition'],
+  'Finance Manager':    ['Finance','People'],
+  'Finance':            ['Finance'],
 };
 
+// Track collapsed sections
+const _collapsedSections = new Set();
+
 function buildSidebar() {
-  const role   = _user?.role || 'Employee';
-  const navDef = NAV['Admin']; // Use admin nav as base, filter by role
-  const allowed = ROLE_NAV[role] || null; // null = all sections (Admin)
+  const role    = (_user && _user.role) || 'Employee';
+  const navDef  = NAV['Admin'];
+  const allowed = ROLE_NAV[role] || null;
+  const sections = navDef.filter(function(s) { return !allowed || allowed.includes(s.section); });
+  const isEmployee = _user && _user.employee_id;
+  var allSections = role === 'Employee' ? NAV['Employee'] :
+    (isEmployee ? [...sections, ...NAV['Employee']] : sections);
 
-  const sidebar = document.getElementById('sidebar');
-  const sections = navDef.filter(s => !allowed || allowed.includes(s.section));
+  var ini = _user ? fmtIni(_user.full_name || _user.username) : 'SA';
+  var uname = _user ? (_user.full_name || _user.username) : '';
+  var urole = role;
 
-  // If employee with employee_id → show portal section
-  const isEmployee = _user?.employee_id;
-  let extraSections = [];
-  if (isEmployee && role !== 'Admin') {
-    extraSections = NAV['Employee'];
-  }
+  var sectionsHtml = allSections.map(function(s) {
+    var collapsed = _collapsedSections.has(s.section);
+    var itemsHtml = s.items.map(function(item) {
+      return '<a class="nav-item" data-path="' + item.path + '" href="#' + item.path + '">' +
+        '<span class="nav-icon">' + item.icon + '</span>' +
+        '<span class="nav-label">' + item.label + '</span>' +
+        '</a>';
+    }).join('');
+    return '<div class="nav-section' + (collapsed ? ' nav-section-collapsed' : '') + '">' +
+      '<div class="nav-section-header" onclick="window._toggleSection('' + s.section.replace(/[^a-zA-Z]/g,'_') + '')">' +
+        '<span class="nav-section-icon">' + (s.icon || '') + '</span>' +
+        '<span class="nav-section-label">' + s.section + '</span>' +
+        '<span class="nav-section-arrow">' + (collapsed ? '▶' : '▾') + '</span>' +
+      '</div>' +
+      '<div class="nav-section-items">' + itemsHtml + '</div>' +
+    '</div>';
+  }).join('');
 
-  const allSections = role === 'Employee' ? NAV['Employee'] : [...sections, ...extraSections];
+  document.getElementById('sidebar').innerHTML =
+    '<div class="sidebar-logo" onclick="navigateTo('/dashboard')">' +
+      '<div class="logo-mark">Mc</div>' +
+      '<div class="logo-text"><strong>HR&amp;TA</strong><div class="logo-sub">McRaaN</div></div>' +
+    '</div>' +
+    '<div class="sidebar-dashboard-btn" onclick="navigateTo('/dashboard')">' +
+      '<span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span>' +
+    '</div>' +
+    '<nav class="sidebar-nav">' + sectionsHtml + '</nav>' +
+    '<div class="sidebar-user">' +
+      '<div class="user-av ' + getUserAvColor() + '">' + ini + '</div>' +
+      '<div class="user-info">' +
+        '<div class="user-name">' + uname + '</div>' +
+        '<div class="user-role">' + urole + '</div>' +
+      '</div>' +
+      '<button class="btn-icon" id="logout-btn" title="Sign out">&#9211;</button>' +
+    '</div>';
 
-  sidebar.innerHTML = `
-    <div class="sidebar-logo" onclick="navigateTo('/dashboard')">
-      <div class="logo-mark">Mc</div>
-      <div class="logo-text"><strong>HR&TA</strong><div class="logo-sub">McRaaN</div></div>
-    </div>
-    <nav class="sidebar-nav">
-      ${allSections.map(s => `
-        <div class="nav-section-label">${s.section}</div>
-        ${s.items.map(item => `
-          <a class="nav-item" data-path="${item.path}" href="#${item.path}">
-            <span class="nav-icon">${item.icon}</span>
-            <span class="nav-label">${item.label}</span>
-          </a>`).join('')}
-      `).join('')}
-    </nav>
-    <div class="sidebar-user">
-      <div class="user-av ${getUserAvColor()}">${fmtIni(_user?.full_name || _user?.username)}</div>
-      <div class="user-info">
-        <div class="user-name">${_user?.full_name || _user?.username}</div>
-        <div class="user-role">${role}</div>
-      </div>
-      <button class="btn-icon" id="logout-btn" title="Sign out">⏻</button>
-    </div>`;
-
-  document.getElementById('logout-btn').onclick = async () => {
-    await API.logout();
-    API.clearAuth();
-    _user = null;
-    showLogin();
+  document.getElementById('logout-btn').onclick = async function() {
+    await API.logout(); API.clearAuth(); _user = null; showLogin();
   };
 
-  // Active state on navigation
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => {
-      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.addEventListener('click', function() {
+      document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
       el.classList.add('active');
     });
   });
 }
 
+window._toggleSection = function(key) {
+  var orig = [..._collapsedSections];
+  // Find the section by key (spaces replaced with _)
+  var allNav = [...NAV['Admin'], ...NAV['Employee']];
+  var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
+  if (!found) return;
+  var sec = found.section;
+  if (_collapsedSections.has(sec)) { _collapsedSections.delete(sec); }
+  else { _collapsedSections.add(sec); }
+  buildSidebar();
+  // Re-apply active state
+  var cur = Router.getCurrentPath();
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    if (el.dataset.path && cur.startsWith(el.dataset.path)) el.classList.add('active');
+  });
+};
+
 function buildTopbar() {
-  const topbar = document.getElementById('topbar');
-  topbar.innerHTML = `
-    <div class="topbar-left">
-      <div id="breadcrumb" class="breadcrumb"></div>
-    </div>
-    <div class="topbar-right">
-      <div class="search-wrap">
-        <input class="topbar-search" id="global-search" placeholder="Search…" type="search">
-      </div>
-      <button class="btn-icon notif-btn" id="notif-btn" title="Notifications">
-        🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
-      </button>
-      <button class="btn btn-primary" id="primary-action-btn" style="display:none">+ Add New</button>
-    </div>`;
+  document.getElementById('topbar').innerHTML =
+    '<div class="topbar-left"><div id="breadcrumb" class="breadcrumb"></div></div>' +
+    '<div class="topbar-right">' +
+      '<div class="search-wrap"><input class="topbar-search" id="global-search" placeholder="Search…" type="search"></div>' +
+      '<button class="btn-icon notif-btn" id="notif-btn" title="Notifications">&#128276;<span class="notif-badge" id="notif-badge" style="display:none">0</span></button>' +
+    '</div>';
 }
 
-// ── Global navigation helper ───────────────────────────────────
+// ── Global navigation helper ──────────────────────────────────
 window.navigateTo = (path) => Router.navigate(path);
 
 function fmtIni(name) {
-  return (name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  return (name || '').split(' ').map(function(w) { return w[0]; }).join('').slice(0,2).toUpperCase();
 }
 function getUserAvColor() {
-  const colors = ['av-green','av-blue','av-purple','av-amber'];
-  const name = _user?.full_name || _user?.username || '';
-  let h = 0; for (const c of name) h = c.charCodeAt(0) + ((h << 5) - h);
+  var colors = ['av-green','av-blue','av-purple','av-amber'];
+  var name = (_user && (_user.full_name || _user.username)) || '';
+  var h = 0; for (var i=0; i<name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   return colors[Math.abs(h) % colors.length];
 }
 
