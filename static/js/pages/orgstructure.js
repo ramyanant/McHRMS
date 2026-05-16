@@ -661,7 +661,7 @@ export async function renderCostCentreDetail({ id }) {
           (linkedDepts.length
             ? '<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Department</th><th>Business Unit</th><th>Headcount</th></tr></thead><tbody>' +
               linkedDepts.map(d =>
-                '<tr class="tbl-clickable" onclick="navigateTo('/organisation/departments/' + d.id + '')">' +
+                '<tr class="tbl-clickable" onclick="navigateTo(\'/organisation/departments/\' + ' + d.id + ' + \'\')">'+
                 '<td><strong>' + v(d.name) + '</strong></td>' +
                 '<td>' + v(d.bu_name || d.business_unit, '—') + '</td>' +
                 '<td>' + (d.headcount || 0) + '</td>' +
