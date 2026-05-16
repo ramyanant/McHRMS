@@ -180,7 +180,7 @@ function buildSidebar() {
         '</a>';
     }).join('');
     return '<div class="nav-section' + (collapsed ? ' nav-section-collapsed' : '') + '">' +
-      '<div class="nav-section-header" onclick="window._toggleSection('' + s.section.replace(/[^a-zA-Z]/g,'_') + '')">' +
+      '<div class="nav-section-header" onclick="window._toggleSection(&apos;' + s.section.replace(/[^a-zA-Z]/g,'_') + '&apos;)">' +
         '<span class="nav-section-icon">' + (s.icon || '') + '</span>' +
         '<span class="nav-section-label">' + s.section + '</span>' +
         '<span class="nav-section-arrow">' + (collapsed ? '▶' : '▾') + '</span>' +
@@ -190,11 +190,11 @@ function buildSidebar() {
   }).join('');
 
   document.getElementById('sidebar').innerHTML =
-    '<div class="sidebar-logo" onclick="navigateTo('/dashboard')">' +
+    '<div class="sidebar-logo" onclick="navigateTo(&apos;/dashboard&apos;)">' +
       '<div class="logo-mark">Mc</div>' +
       '<div class="logo-text"><strong>HR&amp;TA</strong><div class="logo-sub">McRaaN</div></div>' +
     '</div>' +
-    '<div class="sidebar-dashboard-btn" onclick="navigateTo('/dashboard')">' +
+    '<div class="sidebar-dashboard-btn" onclick="navigateTo(&apos;/dashboard&apos;)">' +
       '<span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span>' +
     '</div>' +
     '<nav class="sidebar-nav">' + sectionsHtml + '</nav>' +
