@@ -716,3 +716,20 @@ input, select, textarea { font: inherit; }
 .expense-card { background: var(--surface); border: 1px solid var(--border);
   border-radius: 8px; padding: 14px; }
 .expense-amount { font-size: 20px; font-weight: 800; color: var(--txt); }
+
+/* ═══════════════════════════════════════════════════
+   ISSUE #3 FIX — Darker label colors throughout
+   ═══════════════════════════════════════════════════ */
+.field-label, .flabel,
+.org-section-body .field-label,
+.profile-meta .meta-row span,
+.card-body .field-label {
+  color: #374151 !important;
+  font-weight: 600;
+}
+.field-value.empty { color: #9ca3af; }
+.field-value       { color: #111827; }
+.meta-row span     { color: #4b5563 !important; }
+.text-muted        { color: #6b7280 !important; }
+
+.multi-card-pinned { border-left: 3px solid var(--brand); background: var(--brand-l); }

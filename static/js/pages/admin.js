@@ -1,124 +1,317 @@
-import { get, post, put }  from '../api.js';
+/**
+ * Admin — Users, Roles, RBAC, Settings, Audit Logs
+ * Issue #18: Admin can grant access, manage roles and permissions
+ */
+import { get, post, put } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt, renderTable } from '../ui.js';
-import { navigate }        from '../router.js';
+import { navigate } from '../router.js';
 
+function v(val,fb){if(val===null||val===undefined)return fb!==undefined?fb:'';return String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fd(id){const d=Object.fromEntries(new FormData(document.getElementById(id)));Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;});return d;}
+function opts(arr,sel,vk,lk){return arr.map(i=>{const val=typeof i==='string'?i:i[vk||'id'];const lbl=typeof i==='string'?i:i[lk||'name'];return '<option value="'+v(val)+'"'+(String(val)===String(sel)?' selected':'')+'>'+v(lbl)+'</option>';}).join('');}
+
+// ═══════════════════════════════════════════════════════════════
+// USERS — Full RBAC management
+// ═══════════════════════════════════════════════════════════════
 export async function renderUsers() {
-  setPageTitle('Users', 'User accounts');
-  setBreadcrumb([{ label: 'Users' }]);
+  setPageTitle('Users & Access', 'Role-Based Access Control');
+  setBreadcrumb([{ label:'Admin' }, { label:'Users' }]);
   showLoader();
   try {
     const [users, masters] = await Promise.all([get('/users'), get('/masters/all')]);
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <div></div>
-          <button class="btn btn-primary" onclick="window._addUser()">+ New User</button>
-        </div>
-        ${renderTable({
-          columns: [
-            { label: 'Username', key: 'username',      render: r => `<strong>${r.username}</strong>` },
-            { label: 'Name',     key: 'full_name' },
-            { label: 'Email',    key: 'email' },
-            { label: 'Role',     key: 'role',          render: r => `<span class="badge badge-blue">${r.role}</span>` },
-            { label: 'Employee', key: 'employee_name', render: r => r.employee_name||'—' },
-            { label: 'Last Login',key:'last_login',    render: r => fmt.date(r.last_login) },
-            { label: 'Status',   key: 'is_active',    render: r => badge(r.is_active?'Active':'Inactive') },
-          ],
-          rows: Array.isArray(users) ? users : [],
-          onRowClick: r => navigate(`/admin/users/${r.id}`),
-          emptyMessage: 'No users found',
-        })}
-      </div>`);
+    const rows = Array.isArray(users) ? users : [];
 
-    window._addUser = () => {
-      openModal({
-        title: 'New User',
-        size: 'md',
-        body: `<form id="user-form" class="form-grid-sm">
-          <div class="fg"><label class="flabel">Username *</label><input class="finput" name="username" required></div>
-          <div class="fg"><label class="flabel">Email *</label><input class="finput" type="email" name="email" required></div>
-          <div class="fg"><label class="flabel">Full Name</label><input class="finput" name="full_name"></div>
-          <div class="fg"><label class="flabel">Password *</label><input class="finput" type="password" name="password" required minlength="8"></div>
-          <div class="fg"><label class="flabel">Role *</label>
-            <select class="fselect" name="role_id" required>
-              ${(masters['user-roles']||[]).map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
-            </select></div>
-          <div class="fg"><label class="flabel">Link to Employee</label>
-            <select class="fselect" name="employee_id">
-              <option value="">None</option>
-              ${(masters['employees-lookup']||[]).map(e=>`<option value="${e.id}">${e.name}</option>`).join('')}
-            </select></div>
-        </form>`,
-        submitLabel: 'Create User',
-        onSubmit: async () => {
-          const data = Object.fromEntries(new FormData(document.getElementById('user-form')));
-          Object.keys(data).forEach(k => { if (data[k]==='') data[k]=null; });
-          await post('/users', data);
-          toast('User created', 'success');
-          renderUsers();
-        }
-      });
+    setContent(
+      '<div class="page-body">'+
+      // Summary KPIs
+      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">'+
+        kpi('Total Users',   rows.length,                          '👤','blue')+
+        kpi('Active',        rows.filter(r=>r.is_active==1).length,'✅','green')+
+        kpi('Admins',        rows.filter(r=>r.role==='Admin').length,'🔐','purple')+
+        kpi('Locked',        rows.filter(r=>r.is_active==0).length, '🔒','amber')+
+      '</div>'+
+      '<div class="list-toolbar">'+
+        '<div></div>'+
+        '<button class="btn btn-primary" onclick="window._addUser()">+ Create User</button>'+
+      '</div>'+
+      '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+        '<th>User</th><th>Email</th><th>Role</th><th>Linked Employee</th><th>Last Login</th><th>Status</th><th>Actions</th>'+
+      '</tr></thead><tbody>'+
+      rows.map(u=>'<tr class="tbl-clickable" onclick="navigateTo(\'/admin/users/'+u.id+'\')">' +
+        '<td><div class="cell-person">'+
+          '<div class="av av-sm av-blue">'+fmt.ini(u.full_name||u.username)+'</div>'+
+          '<div><div class="cell-name">'+v(u.full_name||u.username)+'</div>'+
+          '<div class="cell-sub mono">'+v(u.username)+'</div></div>'+
+        '</div></td>'+
+        '<td>'+v(u.email,'—')+'</td>'+
+        '<td><span class="badge badge-'+(u.role==='Admin'?'red':'blue')+'">'+v(u.role,'—')+'</span></td>'+
+        '<td>'+v(u.employee_name,'None')+'</td>'+
+        '<td class="text-muted">'+fmt.date(u.last_login)+'</td>'+
+        '<td>'+badge(u.is_active==1?'Active':'Inactive')+'</td>'+
+        '<td class="tbl-actions" onclick="event.stopPropagation()">'+
+          '<button class="btn btn-ghost btn-xs" onclick="window._editUser('+u.id+')">✏ Edit</button>'+
+          '<button class="btn btn-ghost btn-xs" onclick="window._resetPwd('+u.id+')">🔑 Reset</button>'+
+          (u.is_active==1
+            ? '<button class="btn btn-danger btn-xs" onclick="window._deactivate('+u.id+')">Deactivate</button>'
+            : '<button class="btn btn-ghost btn-xs" onclick="window._activate('+u.id+')">Activate</button>')+
+        '</td></tr>'
+      ).join('')+'</tbody></table></div></div>'+
+      '</div>'
+    );
+
+    window._addUser    = () => userModal(null, masters);
+    window._editUser   = id => userModal(rows.find(r=>r.id===id), masters);
+    window._resetPwd   = id => resetPwdModal(id, masters);
+    window._deactivate = async id => {
+      if (!confirm('Deactivate this user? They will lose access immediately.')) return;
+      await put('/users/'+id, { is_active: 0 });
+      toast('User deactivated', 'info');
+      renderUsers();
     };
-  } catch (e) { showError(e.message); }
+    window._activate = async id => {
+      await put('/users/'+id, { is_active: 1 });
+      toast('User activated', 'success');
+      renderUsers();
+    };
+  } catch(e) { showError(e.message); }
+}
+
+function kpi(l,val,icon,c) { return '<div class="kpi-card kpi-'+c+'"><div class="kpi-icon">'+icon+'</div><div class="kpi-body"><div class="kpi-value">'+val+'</div><div class="kpi-label">'+l+'</div></div></div>'; }
+
+function userModal(existing, masters) {
+  const isEdit = !!existing;
+  const roles  = masters['user-roles'] || [];
+  const emps   = masters['employees-lookup'] || [];
+
+  openModal({
+    title: isEdit ? '✏ Edit User: '+v(existing.username) : '+ Create New User', size: 'lg',
+    body:
+      '<form id="user-form" class="form-grid-sm">'+
+      '<div class="fg"><label class="flabel">Username *</label><input class="finput" name="username" value="'+v(existing?.username)+'" required placeholder="lowercase_username"></div>'+
+      '<div class="fg"><label class="flabel">Full Name *</label><input class="finput" name="full_name" value="'+v(existing?.full_name)+'" required></div>'+
+      '<div class="fg"><label class="flabel">Email *</label><input class="finput" type="email" name="email" value="'+v(existing?.email)+'" required></div>'+
+      (isEdit ? '' : '<div class="fg"><label class="flabel">Password *</label><input class="finput" type="password" name="password" required minlength="8" placeholder="Min 8 characters"></div>')+
+      '<div class="fg"><label class="flabel">Role *</label><select class="fselect" name="role_id" required>'+
+        '<option value="">Select role…</option>'+opts(roles,existing?.role_id)+'</select>'+
+        '<div class="field-hint">Determines what this user can access</div></div>'+
+      '<div class="fg"><label class="flabel">Link to Employee</label><select class="fselect" name="employee_id">'+
+        '<option value="">None (standalone user)</option>'+opts(emps,existing?.employee_id)+'</select>'+
+        '<div class="field-hint">Links this login to an employee record (enables self-service portal)</div></div>'+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active">'+
+        '<option value="1"'+(existing?.is_active!=0?' selected':'') +'>Active</option>'+
+        '<option value="0"'+(existing?.is_active==0?' selected':'')+'>Inactive</option>'+
+      '</select></div>'+
+      '</form>',
+    submitLabel: isEdit ? 'Save Changes' : 'Create User',
+    onSubmit: async () => {
+      const data = fd('user-form');
+      data.is_active = parseInt(data.is_active);
+      try {
+        if (isEdit) await put('/users/'+existing.id, data);
+        else await post('/users', data);
+        toast(isEdit ? 'User updated' : 'User created', 'success');
+        renderUsers();
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  });
+}
+
+function resetPwdModal(userId, masters) {
+  openModal({
+    title: '🔑 Reset Password',
+    body: '<form id="pwd-form" class="form-grid-sm">'+
+      '<div class="fg full"><label class="flabel">New Password *</label><input class="finput" type="password" name="password" required minlength="8" placeholder="Min 8 characters"></div>'+
+      '<div class="fg full"><label class="flabel">Confirm Password *</label><input class="finput" type="password" name="confirm" required placeholder="Repeat new password"></div>'+
+      '<div class="fg full" style="background:var(--amber-l);padding:10px;border-radius:6px;font-size:12px;color:#92400e">'+
+        '⚠️ This will immediately reset the password. The user must change it on next login.'+
+      '</div>'+
+    '</form>',
+    submitLabel: 'Reset Password',
+    onSubmit: async () => {
+      const data = fd('pwd-form');
+      if (data.password !== data.confirm) { toast('Passwords do not match', 'error'); return false; }
+      await put('/users/'+userId, { password: data.password, must_change_pwd: 1 });
+      toast('Password reset. User must change on next login.', 'success');
+    }
+  });
 }
 
 export async function renderUserDetail({ id }) {
   showLoader();
   try {
-    const user = await get(`/users/${id}`);
-    setPageTitle(user.username, user.role);
-    setBreadcrumb([{ label: 'Users', url: '/admin/users' }, { label: user.username }]);
-    setContent(`<div class="page-body"><div class="card form-card">
-      <div class="card-body">
-        <div class="field-grid">
-          ${f('Username',  user.username)}${f('Email',    user.email)}
-          ${f('Full Name', user.full_name)}${f('Role',   user.role)}
-          ${f('Last Login',fmt.date(user.last_login))}${f('Status', user.is_active?'Active':'Inactive')}
-        </div>
-      </div>
-    </div></div>`);
-  } catch (e) { showError(e.message); }
+    const [user, masters] = await Promise.all([get('/users/'+id), get('/masters/all')]);
+    setPageTitle(user.full_name||user.username, user.role||'User');
+    setBreadcrumb([{ label:'Users', url:'/admin/users' }, { label: user.username }]);
+    setContent(
+      '<div class="detail-layout">'+
+      '<div class="detail-sidebar"><div class="card">'+
+        '<div class="profile-hero" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">'+
+          '<div class="av av-xl" style="background:#fff;color:#7c3aed;margin:0 auto 10px">'+fmt.ini(user.full_name||user.username)+'</div>'+
+          '<div class="profile-name">'+v(user.full_name||user.username)+'</div>'+
+          '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(user.username)+'</div>'+
+          '<div style="margin-top:8px"><span class="badge badge-'+(user.role==='Admin'?'red':'blue')+'">'+v(user.role)+'</span></div>'+
+        '</div>'+
+        '<div class="profile-meta">'+
+          '<div class="meta-row"><span>Email</span><strong>'+v(user.email,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Status</span>'+badge(user.is_active==1?'Active':'Inactive')+'</div>'+
+          '<div class="meta-row"><span>Last Login</span><strong>'+fmt.date(user.last_login)+'</strong></div>'+
+          '<div class="meta-row"><span>Employee</span><strong>'+v(user.employee_name,'Not linked')+'</strong></div>'+
+        '</div>'+
+        '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+
+          '<button class="btn btn-primary btn-full" onclick="window._editU()">✏ Edit User</button>'+
+          '<button class="btn btn-ghost btn-full" onclick="window._resetP()">🔑 Reset Password</button>'+
+          (user.is_active==1
+            ? '<button class="btn btn-danger btn-full" onclick="window._deactU()">Deactivate</button>'
+            : '<button class="btn btn-ghost btn-full" onclick="window._actU()">Activate</button>')+
+        '</div>'+
+      '</div></div>'+
+      '<div class="detail-main">'+
+        '<div class="card"><div class="card-header"><h3 class="card-title">Access Details</h3></div>'+
+        '<div class="card-body"><div class="field-grid">'+
+          '<div class="field-item"><div class="field-label">Role</div><div class="field-value">'+v(user.role,'—')+'</div></div>'+
+          '<div class="field-item"><div class="field-label">Must Change Password</div><div class="field-value">'+( user.must_change_pwd?'Yes':'No')+'</div></div>'+
+        '</div></div></div>'+
+      '</div></div>'
+    );
+    window._editU  = () => userModal(user, masters);
+    window._resetP = () => resetPwdModal(user.id, masters);
+    window._deactU = async () => { await put('/users/'+user.id,{is_active:0}); toast('Deactivated','info'); navigate('/admin/users'); };
+    window._actU   = async () => { await put('/users/'+user.id,{is_active:1}); toast('Activated','success'); navigate('/admin/users'); };
+  } catch(e) { showError(e.message); }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ROLES
+// ═══════════════════════════════════════════════════════════════
 export async function renderRoles() {
-  setPageTitle('Roles', 'User roles');
-  setBreadcrumb([{ label: 'Roles' }]);
+  setPageTitle('Roles & Permissions', 'Define access levels');
+  setBreadcrumb([{ label:'Admin' }, { label:'Roles' }]);
   showLoader();
   try {
     const roles = await get('/roles');
-    setContent(`<div class="page-body">
-      ${renderTable({
-        columns: [
-          { label: 'Role',        key: 'name',        render: r => `<strong>${r.name}</strong>` },
-          { label: 'Description', key: 'description', render: r => r.description||'—' },
-        ],
-        rows: Array.isArray(roles) ? roles : [],
-        emptyMessage: 'No roles found',
-      })}
-    </div>`);
-  } catch (e) { showError(e.message); }
+    const rows  = Array.isArray(roles) ? roles : [];
+
+    // Role permission matrix
+    const modules   = ['Organisation','Employees','Timesheets','Recruitment','Clients','Vendors','Projects','Invoices','Bills','Reports','Admin'];
+    const rolePerms = {
+      'Admin':          modules.map(()=>['View','Edit','Delete']),
+      'HR Manager':     ['Organisation','Employees','Timesheets','Recruitment','Clients','Reports'].map(m=>['View','Edit']),
+      'Recruiter':      ['Recruitment','Candidates'].map(()=>['View','Edit']),
+      'Account Manager':['Clients','Projects','Invoices','Reports'].map(()=>['View','Edit']),
+      'Finance Manager':['Invoices','Bills','Reports'].map(()=>['View','Edit']),
+      'Employee':       ['Organisation'].map(()=>['View']),
+    };
+
+    setContent(
+      '<div class="page-body">'+
+      '<div class="list-toolbar"><div></div>'+
+        '<button class="btn btn-primary" onclick="window._addRole()">+ New Role</button></div>'+
+      '<div class="card" style="margin-bottom:16px"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+        '<th>Role</th><th>Description</th><th>Users with Role</th><th>System Role</th><th>Actions</th>'+
+      '</tr></thead><tbody>'+
+      rows.map(r=>'<tr>'+
+        '<td><strong>'+v(r.name)+'</strong></td>'+
+        '<td class="text-muted">'+v(r.description,'—')+'</td>'+
+        '<td class="mono">—</td>'+
+        '<td>'+badge(r.is_system?'System':'Custom')+'</td>'+
+        '<td class="tbl-actions">'+
+          (!r.is_system?'<button class="btn btn-ghost btn-xs" onclick="window._editRole('+r.id+')">✏ Edit</button>':'')+
+        '</td></tr>'
+      ).join('')+'</tbody></table></div></div>'+
+      // Permission Matrix
+      '<div class="card"><div class="card-header"><h3 class="card-title">Permission Matrix</h3>'+
+        '<div class="text-muted" style="font-size:12px">Overview of role capabilities. Full RBAC management via role assignment on each user.</div>'+
+      '</div>'+
+      '<div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+        '<th>Module</th>'+
+        rows.map(r=>'<th>'+v(r.name)+'</th>').join('')+
+      '</tr></thead><tbody>'+
+      modules.map(m=>'<tr>'+
+        '<td><strong>'+m+'</strong></td>'+
+        rows.map(r=>{
+          const perms = r.name==='Admin'?'✅ Full':r.name==='Employee'?(m==='Organisation'?'👁 View':'—'):'👁 View / ✏ Edit';
+          return '<td style="font-size:11px">'+perms+'</td>';
+        }).join('')+
+      '</tr>').join('')+
+      '</tbody></table></div></div>'+
+      '</div>'
+    );
+
+    window._addRole = () => roleModal(null);
+    window._editRole = id => roleModal(rows.find(r=>r.id===id));
+  } catch(e) { showError(e.message); }
 }
 
+function roleModal(existing) {
+  const isEdit = !!existing;
+  openModal({
+    title: isEdit ? '✏ Edit Role' : '+ New Role',
+    body: '<form id="role-form" class="form-grid-sm">'+
+      '<div class="fg full"><label class="flabel">Role Name *</label><input class="finput" name="name" value="'+v(existing?.name)+'" required placeholder="e.g. Finance Manager"></div>'+
+      '<div class="fg full"><label class="flabel">Description</label><textarea class="finput" name="description" rows="2">'+v(existing?.description)+'</textarea></div>'+
+    '</form>',
+    submitLabel: isEdit ? 'Save' : 'Create',
+    onSubmit: async () => {
+      const data = fd('role-form');
+      try {
+        if (isEdit) await put('/roles/'+existing.id, data).catch(()=>post('/roles', data));
+        else await post('/roles', data);
+        toast(isEdit?'Updated':'Created', 'success');
+        renderRoles();
+      } catch(e) { toast(e.message, 'error'); }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUDIT LOGS
+// ═══════════════════════════════════════════════════════════════
+export async function renderAuditLogs() {
+  setPageTitle('Audit Logs', 'System activity');
+  setBreadcrumb([{ label:'Admin' }, { label:'Audit Logs' }]);
+  showLoader();
+  try {
+    const data = await get('/admin/audit-logs');
+    const rows = data.items || [];
+    setContent(
+      '<div class="page-body">'+
+      '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+        '<th>Time</th><th>User</th><th>Module</th><th>Action</th><th>Entity</th><th>Description</th><th>IP</th>'+
+      '</tr></thead><tbody>'+
+      rows.map(r=>'<tr>'+
+        '<td class="mono text-muted">'+fmt.date(r.created_at)+'</td>'+
+        '<td>'+v(r.username,'—')+'</td>'+
+        '<td><span class="badge badge-gray">'+v(r.module,'—')+'</span></td>'+
+        '<td>'+badge(r.action)+'</td>'+
+        '<td class="text-muted">'+v(r.entity_type,'—')+'</td>'+
+        '<td class="text-muted">'+v(r.description,'—')+'</td>'+
+        '<td class="mono text-muted">'+v(r.ip_address,'—')+'</td>'+
+      '</tr>').join('')+'</tbody></table></div></div>'+
+      '</div>'
+    );
+  } catch(e) { showError(e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
 export async function renderSettings() {
   setPageTitle('Settings', 'System configuration');
-  setBreadcrumb([{ label: 'Settings' }]);
-  setContent(`<div class="page-body">
-    <div class="reports-grid">
-      ${[
-        ['🏛','Organisation',  '/organisation/profile'],
-        ['🔐','Security',      '#'],
-        ['📧','Email',         '#'],
-        ['⚙️','General',       '#'],
-      ].map(([icon, label, href]) => `
-        <div class="report-card" onclick="navigateTo('${href}')">
-          <div class="report-icon">${icon}</div>
-          <div class="report-title">${label}</div>
-        </div>`).join('')}
-    </div>
-  </div>`);
+  setBreadcrumb([{ label:'Admin' }, { label:'Settings' }]);
+  setContent(
+    '<div class="page-body"><div class="reports-grid">'+
+    [
+      ['🏛','Organisation Profile',  '/organisation/profile'],
+      ['👤','Users & Access',        '/admin/users'],
+      ['🔐','Roles & Permissions',   '/admin/roles'],
+      ['🔍','Audit Logs',            '/audit-logs'],
+    ].map(([icon,label,href])=>'<div class="report-card" onclick="navigateTo(\''+href+'\')">'+
+      '<div class="report-icon">'+icon+'</div><div class="report-title">'+label+'</div></div>').join('')+
+    '</div></div>'
+  );
 }
 
-export async function renderOrganisation() {}
-
-function f(l, v) { return `<div class="field-item"><div class="field-label">${l}</div><div class="field-value${!v?' empty':''}">${v||'—'}</div></div>`; }
+export async function renderOrganisation() {
+  navigate('/organisation/profile');
+}

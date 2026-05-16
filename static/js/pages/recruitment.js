@@ -1,520 +1,858 @@
-import { get, post, put }  from '../api.js';
+/**
+ * Talent Acquisition — Complete module
+ * Issues: #11 New Project, #12 Job fields, #13 Candidate fields,
+ *         #14 Submit to job, #15 Schedule interview, #16 Offers, #17 Onboarding
+ */
+import { get, post, put } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
-         openModal, toast, badge, fmt, renderTable, renderPagination } from '../ui.js';
-import { navigate }        from '../router.js';
+         openModal, toast, badge, fmt } from '../ui.js';
+import { navigate } from '../router.js';
 
+function v(val,fb){if(val===null||val===undefined)return fb!==undefined?fb:'';return String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fd(id){const d=Object.fromEntries(new FormData(document.getElementById(id)));Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;});return d;}
+function opts(arr,sel,vk,lk){return arr.map(item=>{const val=typeof item==='string'?item:item[vk||'id'];const lbl=typeof item==='string'?item:item[lk||'name'];return '<option value="'+v(val)+'"'+(String(val)===String(sel)?' selected':'')+'>'+v(lbl)+'</option>';}).join('');}
+function fg(label,input,hint){return '<div class="fg"><label class="flabel">'+label+'</label>'+input+(hint?'<div class="field-hint">'+hint+'</div>':'')+'</div>';}
+function fi(label,name,val,type,ph,extra){return fg(label,'<input class="finput" type="'+(type||'text')+'" name="'+name+'" value="'+v(val)+'"'+(ph?' placeholder="'+ph+'"':'')+(extra||')+">');}'
+function fsl(label,name,options,selected){return fg(label,'<select class="fselect" name="'+name+'"><option value="">Select…</option>'+opts(options,selected)+'</select>');}
+
+const WORK_MODES   = ['On-Site','Hybrid','Remote','Flexible'];
+const JOB_TYPES    = ['Permanent','Contract','Contract to Hire','Temporary','Internship','Freelance'];
+const JOB_STATUSES = ['Active','On Hold','Closed','Cancelled','Filled'];
+const PRIORITIES   = ['Critical','High','Medium','Low'];
+const INTERVIEW_FORMATS = ['Video Call','Phone','In-Person','Technical Panel','HR Round'];
+const OFFER_STATUSES    = ['Draft','Sent','Accepted','Rejected','Withdrawn','Expired'];
+const STAGES = ['Applied','Screening','Technical','Offer','Placed','Rejected'];
+
+// ═══════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════
 export async function renderDashboard() {
-  setPageTitle('Talent Acquisition', 'Recruitment overview');
-  setBreadcrumb([{ label: 'Talent Acquisition' }]);
+  setPageTitle('Talent Acquisition', 'Recruitment & Hiring');
+  setBreadcrumb([{ label:'Talent Acquisition' }]);
   showLoader();
   try {
-    const d = await get('/recruitment/stats');
-    setContent(`
-      <div class="page-body">
-        <div class="kpi-grid">
-          ${kpi('Open Jobs',        d.open_jobs,          '📝','blue',  '/recruitment/jobs')}
-          ${kpi('Candidates',       d.total_candidates,   '🎯','purple','/candidates')}
-          ${kpi('Interviews Today', d.interviews_today,   '🎙','amber', '/recruitment/interviews')}
-          ${kpi('Offers Pending',   d.offers_pending,     '📨','green', '/recruitment/offers')}
-        </div>
-        <div class="card">
-          <div class="card-header"><h3 class="card-title">Pipeline by Stage</h3>
-            <a href="#/recruitment/pipeline" class="card-link">View Kanban →</a></div>
-          <div class="pipeline-bars">
-            ${(d.pipeline_by_stage||[]).map(s=>`
-              <div class="pipeline-row">
-                <div class="pipeline-label">${s.stage}</div>
-                <div class="pipeline-bar-wrap">
-                  <div class="pipeline-bar" style="width:${Math.min(100,(s.count||0)*8)}%;background:${s.color}"></div>
-                </div>
-                <div class="pipeline-count">${s.count}</div>
-              </div>`).join('')}
-          </div>
-        </div>
-      </div>`);
-  } catch (e) { showError(e.message); }
+    const stats = await get('/recruitment/stats');
+    const pipeline = stats.pipeline_by_stage || [];
+    const maxPipeline = Math.max(...pipeline.map(s=>s.count||0), 1);
+
+    setContent(
+      '<div class="page-body">'+
+      '<div class="kpi-grid kpi-4" style="margin-bottom:20px">'+
+        kpi('Open Jobs',        stats.open_jobs||0,         '💼','blue')+
+        kpi('Candidates',       stats.total_candidates||0,  '👥','green')+
+        kpi('Interviews Today', stats.interviews_today||0,  '🗓','amber')+
+        kpi('Onboarding',       stats.onboarding_pending||0,'📋','purple')+
+      '</div>'+
+      '<div class="dashboard-grid">'+
+        '<div class="card" style="grid-column:1/3">'+
+          '<div class="card-header"><h3 class="card-title">Recruitment Pipeline</h3>' +
+            '<button class="btn btn-ghost btn-sm" onclick="navigateTo(\'/recruitment/pipeline\')">View Kanban →</button>'+
+          '</div>'+
+          '<div class="pipeline-bars">'+
+            pipeline.map(s=>'<div class="pipeline-row"><div class="pipeline-label">'+v(s.stage||s.name)+'</div>'+
+              '<div class="pipeline-bar-wrap"><div class="pipeline-bar" style="width:'+Math.round((s.count||0)/maxPipeline*100)+'%;background:var(--brand)"></div></div>'+
+              '<div class="pipeline-count">'+(s.count||0)+'</div></div>').join('')+
+          '</div>'+
+        '</div>'+
+        '<div class="card">'+
+          '<div class="card-header"><h3 class="card-title">Quick Actions</h3></div>'+
+          '<div class="card-body" style="display:flex;flex-direction:column;gap:8px">'+
+            '<button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ Post New Job</button>'+
+            '<button class="btn btn-ghost" onclick="navigateTo(\'/candidates/new\')">+ Add Candidate</button>'+
+            '<button class="btn btn-ghost" onclick="navigateTo(\'/recruitment/pipeline\')">View Pipeline</button>'+
+            '<button class="btn btn-ghost" onclick="navigateTo(\'/interviews\')">Interviews</button>'+
+            '<button class="btn btn-ghost" onclick="navigateTo(\'/offers\')">Offers</button>'+
+            '<button class="btn btn-ghost" onclick="navigateTo(\'/onboarding\')">Onboarding</button>'+
+          '</div>'+
+        '</div>'+
+      '</div></div>'
+    );
+  } catch(e) { showError(e.message); }
 }
 
-function kpi(label, value, icon, color, link) {
-  return `<a class="kpi-card kpi-${color}" href="#${link}">
-    <div class="kpi-icon">${icon}</div>
-    <div class="kpi-body"><div class="kpi-value">${value??0}</div><div class="kpi-label">${label}</div></div>
-  </a>`;
-}
+function kpi(l,val,icon,c) { return '<div class="kpi-card kpi-'+c+'"><div class="kpi-icon">'+icon+'</div><div class="kpi-body"><div class="kpi-value">'+val+'</div><div class="kpi-label">'+l+'</div></div></div>'; }
 
+// ═══════════════════════════════════════════════════════════════
+// JOBS
+// ═══════════════════════════════════════════════════════════════
 export async function renderJobs() {
   setPageTitle('Job Requisitions', 'Open positions');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Jobs' }]);
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Jobs' }]);
   showLoader();
   try {
-    const data = await get('/recruitment/jobs');
+    const [data, masters] = await Promise.all([get('/recruitment/jobs'), get('/masters/all')]);
     const rows = data.items || [];
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <input class="search-input" placeholder="Search jobs…" type="search">
-          <button class="btn btn-primary" onclick="navigateTo('/recruitment/jobs/new')">+ New Job</button>
-        </div>
-        ${renderTable({
-          columns: [
-            { label: 'Code',       key: 'code' },
-            { label: 'Title',      key: 'title',       render: r => `<strong>${r.title}</strong>` },
-            { label: 'Client',     key: 'client_name', render: r => r.client_name||'—' },
-            { label: 'Positions',  key: 'positions',   render: r => `${r.filled_positions||0}/${r.positions}` },
-            { label: 'Apps',       key: 'application_count' },
-            { label: 'Priority',   key: 'priority_name', render: r => r.priority_name ? `<span class="badge badge-gray">${r.priority_name}</span>` : '—' },
-            { label: 'Status',     key: 'status',      render: r => badge(r.status) },
-            { label: 'Target',     key: 'target_date', render: r => fmt.date(r.target_date) },
-          ],
-          rows,
-          onRowClick: r => navigate(`/recruitment/jobs/${r.id}`),
-          emptyMessage: 'No job requisitions',
-        })}
-      </div>`);
-  } catch (e) { showError(e.message); }
+    let filterStatus = '', q = '';
+
+    function getFiltered() {
+      let d = [...rows];
+      if (q) d = d.filter(r => (r.title+' '+(r.client_name||'')).toLowerCase().includes(q.toLowerCase()));
+      if (filterStatus) d = d.filter(r => r.status === filterStatus);
+      return d;
+    }
+
+    function render() {
+      const d = getFiltered();
+      document.getElementById('jobs-content').innerHTML = d.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+            '<th>Job Title</th><th>Client</th><th>Type</th><th>Mode</th><th>Experience</th><th>CTC Range</th><th>Positions</th><th>Priority</th><th>Status</th><th>Actions</th>'+
+            '</tr></thead><tbody>'+
+            d.map(j=>'<tr class="tbl-clickable" onclick="navigateTo(\'/recruitment/jobs/'+j.id+'\')">' +
+              '<td><strong>'+v(j.title)+'</strong><div class="cell-sub">'+v(j.job_type||'Permanent')+'</div></td>'+
+              '<td>'+v(j.client_name,'—')+'</td>'+
+              '<td>'+v(j.engagement_type||'—')+'</td>'+
+              '<td>'+v(j.work_mode||'On-Site')+'</td>'+
+              '<td class="text-muted">'+(j.min_experience||0)+'–'+(j.max_experience||'any')+' yrs</td>'+
+              '<td class="mono">'+(j.comp_min?'₹'+Math.round(j.comp_min/100000)+'L':'—')+(j.comp_max?' – ₹'+Math.round(j.comp_max/100000)+'L':'')+'</td>'+
+              '<td>'+(j.positions||1)+'</td>'+
+              '<td>'+badge(j.priority_name||j.priority||'Medium')+'</td>'+
+              '<td>'+badge(j.status||'Active')+'</td>'+
+              '<td class="tbl-actions" onclick="event.stopPropagation()">'+
+                '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/recruitment/jobs/'+j.id+'\')">View</button>'+
+                '<button class="btn btn-ghost btn-xs" onclick="window._editJob('+j.id+')">✏</button>'+
+              '</td></tr>').join('')+
+            '</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No jobs found</div><button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ Post First Job</button></div>';
+    }
+
+    setContent('<div class="page-body">'+
+      '<div class="struct-toolbar">'+
+        '<input class="search-input" placeholder="Search jobs…" oninput="window._jobQ(this.value)">'+
+        '<div style="display:flex;gap:8px">'+
+          '<select class="fselect" style="width:130px" onchange="window._jobFilter(this.value)">'+
+            '<option value="">All Status</option>'+JOB_STATUSES.map(s=>'<option>'+s+'</option>').join('')+
+          '</select>'+
+          '<button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ New Job</button>'+
+        '</div>'+
+      '</div>'+
+      '<div id="jobs-content"></div></div>');
+
+    render();
+    window._jobQ = val=>{q=val;render();};
+    window._jobFilter = val=>{filterStatus=val;render();};
+    window._editJob = async id => {
+      const j = await get('/recruitment/jobs/'+id);
+      jobModal(j, masters);
+    };
+  } catch(e) { showError(e.message); }
 }
 
-export async function renderJobNew() {
-  setPageTitle('New Job Requisition', '');
-  setBreadcrumb([{ label: 'Jobs', url: '/recruitment/jobs' }, { label: 'New' }]);
+export async function renderNewJob() {
+  showLoader();
   const masters = await get('/masters/all');
-  setContent(`
-    <div class="page-body"><div class="card form-card">
-      <div class="card-header"><h3 class="card-title">New Job Requisition</h3></div>
-      <form id="job-form" class="form-grid">
-        <div class="fg"><label class="flabel">Job Title *</label><input class="finput" name="title" required></div>
-        <div class="fg"><label class="flabel">Client</label>
-          <select class="fselect" name="client_id"><option value="">Select client…</option>
-          ${(masters['clients-lookup']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
-          </select></div>
-        <div class="fg"><label class="flabel">Department</label>
-          <select class="fselect" name="department_id"><option value="">Select…</option>
-          ${(masters['departments']||[]).map(d=>`<option value="${d.id}">${d.name}</option>`).join('')}
-          </select></div>
-        <div class="fg"><label class="flabel">Positions</label><input class="finput" type="number" name="positions" value="1" min="1"></div>
-        <div class="fg"><label class="flabel">Employment Type</label>
-          <select class="fselect" name="employment_type_id"><option value="">Select…</option>
-          ${(masters['employment-types']||[]).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
-          </select></div>
-        <div class="fg"><label class="flabel">Location</label><input class="finput" name="location"></div>
-        <div class="fg"><label class="flabel">Min Experience (yrs)</label><input class="finput" type="number" name="min_experience"></div>
-        <div class="fg"><label class="flabel">Max Experience (yrs)</label><input class="finput" type="number" name="max_experience"></div>
-        <div class="fg"><label class="flabel">Target Date</label><input class="finput" type="date" name="target_date"></div>
-        <div class="fg"><label class="flabel">Priority</label>
-          <select class="fselect" name="priority_id"><option value="">Select…</option>
-          ${(masters['priority-levels']||[]).map(p=>`<option value="${p.id}">${p.name}</option>`).join('')}
-          </select></div>
-        <div class="fg full"><label class="flabel">Job Description</label>
-          <textarea class="finput" name="description" rows="5"></textarea></div>
-        <div class="fg full"><label class="flabel">Requirements</label>
-          <textarea class="finput" name="requirements" rows="4"></textarea></div>
-      </form>
-      <div class="form-actions">
-        <button class="btn btn-ghost" onclick="navigateTo('/recruitment/jobs')">Cancel</button>
-        <button class="btn btn-primary" onclick="window._saveJob()">Save Job</button>
-      </div>
-    </div></div>`);
+  setPageTitle('New Job', '');
+  setBreadcrumb([{ label:'Jobs', url:'/recruitment/jobs' }, { label:'New' }]);
+  jobModal(null, masters);
+}
 
-  window._saveJob = async () => {
-    const data = Object.fromEntries(new FormData(document.getElementById('job-form')));
-    Object.keys(data).forEach(k => { if (data[k]==='') data[k]=null; });
-    try {
-      const res = await post('/recruitment/jobs', data);
-      toast('Job requisition created', 'success');
-      navigate(`/recruitment/jobs/${res.id}`);
-    } catch (e) { toast(e.message, 'error'); }
-  };
+function jobModal(existing, masters) {
+  const isEdit = !!existing;
+  if (isEdit) {
+    openModal({
+      title: '✏ Edit Job: '+v(existing.title), size: 'lg',
+      body: buildJobForm(existing, masters),
+      submitLabel: 'Save Changes',
+      onSubmit: async () => { await saveJob(existing.id, masters); }
+    });
+  } else {
+    // Full page form for new job
+    setContent(
+      '<div class="page-body"><div class="card" style="max-width:900px;margin:0 auto">'+
+      '<div class="card-header"><h3 class="card-title">Post New Job</h3></div>'+
+      '<form id="job-form">'+buildJobForm(null, masters)+'</form>'+
+      '<div class="form-actions">'+
+        '<button type="button" class="btn btn-ghost" onclick="navigateTo(\'/recruitment/jobs\')">Cancel</button>'+
+        '<button type="button" class="btn btn-primary" onclick="window._saveNewJob()">Post Job</button>'+
+      '</div></div></div>'
+    );
+    window._saveNewJob = async () => saveJob(null, masters);
+  }
+}
+
+function buildJobForm(j, masters) {
+  return '<div class="form-grid">'+
+    '<div class="fg full"><label class="flabel">Job Title *</label><input class="finput" name="title" value="'+v(j?.title)+'" required placeholder="e.g. Senior React Developer"></div>'+
+    fsl('Client','client_id',masters['clients-lookup']||[],j?.client_id)+
+    fsl('Department','department_id',masters['departments']||[],j?.department_id)+
+    fsl('Priority','priority_id',masters['priority-levels']||[],j?.priority_id)+
+    fg('Status','<select class="fselect" name="status">'+opts(JOB_STATUSES,j?.status||'Active')+'</select>')+
+    fg('Work Mode','<select class="fselect" name="work_mode">'+opts(WORK_MODES,j?.work_mode||'On-Site')+'</select>')+
+    fg('Job Type','<select class="fselect" name="job_type">'+opts(JOB_TYPES,j?.job_type||'Permanent')+'</select>')+
+    '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v(j?.location)+'" placeholder="City or Remote"></div>'+
+    '<div class="fg"><label class="flabel">Number of Positions</label><input class="finput" type="number" name="positions" value="'+v(j?.positions,1)+'" min="1"></div>'+
+    '<div class="fg"><label class="flabel">Min Experience (years)</label><input class="finput" type="number" name="min_experience" value="'+v(j?.min_experience,0)+'" min="0"></div>'+
+    '<div class="fg"><label class="flabel">Max Experience (years)</label><input class="finput" type="number" name="max_experience" value="'+v(j?.max_experience)+'"></div>'+
+    '<div class="fg"><label class="flabel">Min CTC (₹ LPA)</label><input class="finput" type="number" name="comp_min" value="'+v(j?.comp_min)+'" step="0.5"></div>'+
+    '<div class="fg"><label class="flabel">Max CTC (₹ LPA)</label><input class="finput" type="number" name="comp_max" value="'+v(j?.comp_max)+'" step="0.5"></div>'+
+    '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v(j?.budget,0)+'"></div>'+
+    '<div class="fg"><label class="flabel">Notice Period</label><input class="finput" name="notice_period" value="'+v(j?.notice_period)+'" placeholder="e.g. Immediate, 30 days"></div>'+
+    fsl('Recruiter / Owner','recruiter_id',masters['employees-lookup']||[],j?.recruiter_id)+
+    '<div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start" value="'+v(j?.target_start?String(j.target_start).split('T')[0]:'')+'"></div>'+
+    '<div class="fg full"><label class="flabel">Job Description</label><textarea class="finput" name="description" rows="4" placeholder="Describe the role, responsibilities…">'+v(j?.description)+'</textarea></div>'+
+    '<div class="fg full"><label class="flabel">Requirements / Skills</label><textarea class="finput" name="requirements" rows="3" placeholder="Required skills and qualifications…">'+v(j?.requirements)+'</textarea></div>'+
+    '</div>';
+}
+
+async function saveJob(existingId, masters) {
+  const formEl = document.getElementById('job-form') || document.querySelector('#job-form');
+  if (!formEl) { toast('Form not found', 'error'); return; }
+  const data = Object.fromEntries(new FormData(formEl));
+  Object.keys(data).forEach(k=>{if(data[k]==='')data[k]=null;});
+  // Convert LPA to actual values if needed
+  try {
+    if (existingId) {
+      await put('/recruitment/jobs/'+existingId, data);
+      toast('Job updated', 'success');
+      navigate('/recruitment/jobs/'+existingId);
+    } else {
+      const r = await post('/recruitment/jobs', data);
+      toast('Job posted', 'success');
+      navigate('/recruitment/jobs/'+r.id);
+    }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 export async function renderJobDetail({ id }) {
   showLoader();
   try {
-    const job = await get(`/recruitment/jobs/${id}`);
-    setPageTitle(job.title, job.code);
-    setBreadcrumb([{ label: 'Jobs', url: '/recruitment/jobs' }, { label: job.title }]);
-    setContent(`
-      <div class="detail-layout">
-        <div class="detail-sidebar">
-          <div class="card">
-            <div class="card-body">
-              <div class="meta-row"><span>Status</span>${badge(job.status)}</div>
-              <div class="meta-row"><span>Client</span><strong>${job.client_name||'—'}</strong></div>
-              <div class="meta-row"><span>Positions</span><strong>${job.filled_positions||0} / ${job.positions}</strong></div>
-              <div class="meta-row"><span>Applications</span><strong>${job.application_count||0}</strong></div>
-              <div class="meta-row"><span>Target</span><strong>${fmt.date(job.target_date)}</strong></div>
-              <div class="meta-row"><span>Assigned</span><strong>${job.assigned_to_name||'—'}</strong></div>
-              <button class="btn btn-primary btn-full" style="margin-top:12px" onclick="navigateTo('/recruitment/pipeline?requisition_id=${id}')">View Pipeline</button>
-              <button class="btn btn-ghost btn-full" style="margin-top:8px" onclick="window._addCandidate(${id})">+ Add Candidate</button>
-            </div>
-          </div>
-        </div>
-        <div class="detail-main">
-          ${job.description ? `<div class="card" style="margin-bottom:16px">
-            <div class="card-header"><h3 class="card-title">Job Description</h3></div>
-            <div class="card-body prose">${job.description}</div>
-          </div>` : ''}
-          <div class="card">
-            <div class="card-header">
-              <h3 class="card-title">Applications (${(job.applications||[]).length})</h3>
-            </div>
-            ${job.applications?.length ? `<div class="tbl-wrap"><table class="data-table">
-              <thead><tr><th>Candidate</th><th>Stage</th><th>Applied</th><th>Action</th></tr></thead>
-              <tbody>${job.applications.map(a=>`<tr>
-                <td><a href="#/candidates/${a.candidate_id}" class="link">${a.candidate_name}</a></td>
-                <td>${a.stage_name ? badge(a.stage_name) : '—'}</td>
-                <td class="mono">${fmt.date(a.applied_at)}</td>
-                <td><a href="#/candidates/${a.candidate_id}" class="btn btn-sm btn-ghost">View</a></td>
-              </tr>`).join('')}</tbody></table></div>`
-            : `<div class="empty-mini">No applications yet</div>`}
-          </div>
-        </div>
-      </div>`);
-  } catch (e) { showError(e.message); }
+    const [job, masters] = await Promise.all([get('/recruitment/jobs/'+id), get('/masters/all')]);
+    setPageTitle(job.title, job.client_name||'');
+    setBreadcrumb([{ label:'Jobs', url:'/recruitment/jobs' }, { label:job.title }]);
+    const apps = job.applications || [];
+    setContent(
+      '<div class="detail-layout">'+
+      '<div class="detail-sidebar"><div class="card">'+
+        '<div class="profile-hero" style="background:linear-gradient(135deg,#1d4ed8,#1e40af)">'+
+          '<div style="font-size:40px;margin-bottom:8px">💼</div>'+
+          '<div class="profile-name">'+v(job.title)+'</div>'+
+          '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(job.client_name||'')+'</div>'+
+          '<div style="margin-top:8px">'+badge(job.status||'Active')+'</div>'+
+        '</div>'+
+        '<div class="profile-meta">'+
+          '<div class="meta-row"><span>Work Mode</span><strong>'+v(job.work_mode||'On-Site')+'</strong></div>'+
+          '<div class="meta-row"><span>Job Type</span><strong>'+v(job.job_type||'Permanent')+'</strong></div>'+
+          '<div class="meta-row"><span>Positions</span><strong>'+v(job.positions||1)+'</strong></div>'+
+          '<div class="meta-row"><span>Experience</span><strong>'+v(job.min_experience||0)+'–'+v(job.max_experience||'any')+' yrs</strong></div>'+
+          '<div class="meta-row"><span>CTC Range</span><strong>'+(job.comp_min?'₹'+Math.round(job.comp_min/100000)+'L – ₹'+Math.round((job.comp_max||0)/100000)+'L':'TBD')+'</strong></div>'+
+          '<div class="meta-row"><span>Location</span><strong>'+v(job.location,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Recruiter</span><strong>'+v(job.recruiter_name,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Applications</span><strong>'+apps.length+'</strong></div>'+
+        '</div>'+
+        '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+
+          '<button class="btn btn-primary btn-full" onclick="window._addCandidateToJob()">+ Add Candidate</button>'+
+          '<button class="btn btn-ghost btn-full" onclick="window._editThisJob()">✏ Edit Job</button>'+
+        '</div>'+
+      '</div></div>'+
+      '<div class="detail-main">'+
+        (job.description?'<div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Description</h3></div><div class="card-body"><p>'+v(job.description)+'</p></div></div>':'') +
+        '<div class="card">'+
+          '<div class="card-header"><h3 class="card-title">Applications ('+apps.length+')</h3></div>'+
+          (apps.length
+            ? '<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Candidate</th><th>Stage</th><th>Expected CTC</th><th>Applied</th><th>Actions</th></tr></thead><tbody>'+
+              apps.map(a=>'<tr class="tbl-clickable" onclick="navigateTo(\'/candidates/'+a.candidate_id+'\')">' +
+                '<td><strong>'+v(a.candidate_name)+'</strong><div class="cell-sub">'+v(a.email||'')+'</div></td>'+
+                '<td>'+badge(a.stage_name||'Applied')+'</td>'+
+                '<td class="mono">'+(a.expected_salary?'₹'+fmt.money(a.expected_salary):'—')+'</td>'+
+                '<td>'+fmt.date(a.applied_at)+'</td>'+
+                '<td class="tbl-actions" onclick="event.stopPropagation()">'+
+                  '<button class="btn btn-ghost btn-xs" onclick="window._scheduleInterview('+a.id+',\''+v(a.candidate_name)+'\')">🗓 Interview</button>'+
+                  '<button class="btn btn-ghost btn-xs" onclick="window._moveStage('+a.id+')">Move Stage</button>'+
+                '</td></tr>'
+              ).join('')+'</tbody></table></div>'
+            : '<div class="empty-mini">No applications yet</div>'
+          )+
+        '</div>'+
+      '</div></div>'
+    );
+    window._editThisJob     = () => jobModal(job, masters);
+    window._addCandidateToJob = () => {
+      openModal({
+        title: '+ Submit Candidate to '+v(job.title), size: 'md',
+        body: '<form id="submit-form" class="form-grid-sm">'+
+          '<div class="fg full"><label class="flabel">Candidate *</label>'+
+            '<select class="fselect" name="candidate_id" required>'+
+              '<option value="">Select candidate…</option>'+
+              opts(masters['employees-lookup']||[], null)+ // placeholder
+            '</select></div>'+
+          '<div class="fg full" style="font-size:12px;color:var(--txt3)">Or: <a href="#" onclick="event.preventDefault();navigateTo(\'/candidates/new\')">Add new candidate →</a></div>'+
+          '</form>',
+        submitLabel: 'Submit to Job',
+        onSubmit: async () => {
+          const data = fd('submit-form');
+          if (!data.candidate_id) { toast('Select a candidate', 'error'); return false; }
+          await post('/applications', { candidate_id: data.candidate_id, requisition_id: id });
+          toast('Candidate submitted', 'success');
+          navigate('/recruitment/jobs/'+id);
+        }
+      });
+      // Load actual candidates for the select
+      get('/candidates').then(res=>{
+        const sel = document.querySelector('#submit-form select[name=candidate_id]');
+        if (sel) sel.innerHTML = '<option value="">Select…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'">'+v(c.first_name+' '+c.last_name)+' ('+v(c.email||c.current_title||'')+')</option>').join('');
+      });
+    };
+    window._scheduleInterview = (appId, candidateName) => scheduleInterviewModal(appId, candidateName, masters);
+    window._moveStage = (appId) => moveStageModal(appId, masters);
+  } catch(e) { showError(e.message); }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PIPELINE (Kanban)
+// ═══════════════════════════════════════════════════════════════
+export async function renderPipeline() {
+  setPageTitle('Recruitment Pipeline', 'Kanban view');
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Pipeline' }]);
+  showLoader();
+  try {
+    const data = await get('/recruitment/pipeline');
+    const { stages, applications } = data;
+    const grouped = {};
+    stages.forEach(s => { grouped[s.id] = { stage: s, apps: [] }; });
+    applications.forEach(a => { if (grouped[a.stage_id]) grouped[a.stage_id].apps.push(a); });
+
+    setContent(
+      '<div class="page-body">'+
+      '<div class="kanban-board">'+
+        stages.map(s => {
+          const apps = grouped[s.id]?.apps || [];
+          return '<div class="kanban-col">'+
+            '<div class="kanban-header">'+
+              '<span>'+v(s.name)+'</span>'+
+              '<span class="kanban-count">'+apps.length+'</span>'+
+            '</div>'+
+            '<div class="kanban-cards">'+
+              apps.map(a =>
+                '<div class="kanban-card" onclick="navigateTo(\'/candidates/'+a.candidate_id+'\')">' +
+                '<div class="kanban-name">'+v(a.candidate_name)+'</div>'+
+                '<div class="kanban-job">'+v(a.job_title||'')+'</div>'+
+                '<div class="kanban-sub">'+v(a.client_name||'')+'</div>'+
+                (a.expected_ctc?'<div class="kanban-ctc">₹'+Math.round((a.expected_ctc||0)/100000)+'L</div>':'')+
+                '<div style="display:flex;gap:4px;margin-top:6px">'+
+                  '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();window._moveApp('+a.id+',\''+v(s.name)+'\')" style="font-size:10px">Move</button>'+
+                  '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();window._schedInt('+a.id+',\''+v(a.candidate_name)+'\')" style="font-size:10px">🗓</button>'+
+                '</div>'+
+                '</div>'
+              ).join('')+
+              '<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;font-size:11px" onclick="window._quickAdd('+s.id+')">+ Add</button>'+
+            '</div></div>';
+        }).join('')+
+      '</div></div>'
+    );
+
+    window._moveApp = async (appId, currentStage) => moveStageModal(appId, await get('/masters/all'));
+    window._schedInt = (appId, name) => scheduleInterviewModal(appId, name, null);
+    window._quickAdd = sid => navigate('/candidates/new');
+  } catch(e) { showError(e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CANDIDATES
+// ═══════════════════════════════════════════════════════════════
 export async function renderCandidates() {
-  setPageTitle('Candidates', 'Talent pool');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Candidates' }]);
+  setPageTitle('Candidates', 'All candidates');
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Candidates' }]);
   showLoader();
   try {
     const data = await get('/candidates');
     const rows = data.items || [];
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <input class="search-input" placeholder="Search candidates…" type="search">
-          <button class="btn btn-primary" onclick="navigateTo('/candidates/new')">+ Add Candidate</button>
-        </div>
-        ${renderTable({
-          columns: [
-            { label: 'Name',         key: 'first_name', render: r => `<strong>${r.first_name} ${r.last_name||''}</strong>` },
-            { label: 'Current Role', key: 'current_designation', render: r => r.current_designation||'—' },
-            { label: 'Company',      key: 'current_company',     render: r => r.current_company||'—' },
-            { label: 'Exp',          key: 'total_experience',    render: r => r.total_experience ? r.total_experience+'y' : '—' },
-            { label: 'CTC',          key: 'current_ctc',         render: r => fmt.money(r.current_ctc) },
-            { label: 'Notice',       key: 'notice_period',       render: r => r.notice_period ? r.notice_period+'d' : '—' },
-            { label: 'Source',       key: 'source_name',         render: r => r.source_name||'—' },
-            { label: 'Status',       key: 'status',              render: r => badge(r.status) },
-          ],
-          rows,
-          onRowClick: r => navigate(`/candidates/${r.id}`),
-          emptyMessage: 'No candidates found',
-        })}
-      </div>`);
-  } catch (e) { showError(e.message); }
+    let q = '';
+    function getF() { return q ? rows.filter(r=>(r.first_name+' '+r.last_name+' '+(r.email||'')).toLowerCase().includes(q.toLowerCase())) : rows; }
+    function render() {
+      const d = getF();
+      document.getElementById('cand-content').innerHTML = d.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+            '<th>Candidate</th><th>Title</th><th>Experience</th><th>CTC</th><th>Notice</th><th>Source</th><th>Stage</th><th>Actions</th>'+
+            '</tr></thead><tbody>'+
+            d.map(c=>'<tr class="tbl-clickable" onclick="navigateTo(\'/candidates/'+c.id+'\')">' +
+              '<td><div class="cell-person"><div class="av av-sm av-blue">'+fmt.ini(c.first_name+' '+c.last_name)+'</div>'+
+              '<div><div class="cell-name">'+v(c.first_name)+' '+v(c.last_name)+'</div><div class="cell-sub">'+v(c.email||c.phone||'')+'</div></div></div></td>'+
+              '<td>'+v(c.current_title,'—')+'</td>'+
+              '<td>'+(c.years_exp||0)+' yrs</td>'+
+              '<td class="mono">'+(c.current_ctc?'₹'+Math.round(c.current_ctc/100000)+'L':'—')+'</td>'+
+              '<td>'+(c.notice_period?c.notice_period+' days':'—')+'</td>'+
+              '<td>'+v(c.source_name||'—')+'</td>'+
+              '<td>'+badge(c.latest_stage||'—')+'</td>'+
+              '<td class="tbl-actions" onclick="event.stopPropagation()">'+
+                '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/candidates/'+c.id+'\')">View</button>'+
+              '</td></tr>').join('')+
+            '</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No candidates</div><button class="btn btn-primary" onclick="navigateTo(\'/candidates/new\')">+ Add First Candidate</button></div>';
+    }
+    setContent('<div class="page-body">'+
+      '<div class="struct-toolbar">'+
+        '<input class="search-input" placeholder="Search candidates…" oninput="window._candQ(this.value)">'+
+        '<button class="btn btn-primary" onclick="navigateTo(\'/candidates/new\')">+ Add Candidate</button>'+
+      '</div><div id="cand-content"></div></div>');
+    render();
+    window._candQ = val=>{q=val;render();};
+  } catch(e) { showError(e.message); }
 }
 
-export async function renderCandidateNew() {
-  setPageTitle('New Candidate', '');
-  setBreadcrumb([{ label: 'Candidates', url: '/candidates' }, { label: 'New' }]);
+export async function renderNewCandidate() {
+  showLoader();
   const masters = await get('/masters/all');
-  setContent(`
-    <div class="page-body"><div class="card form-card">
-      <div class="card-header"><h3 class="card-title">Add Candidate</h3></div>
-      <form id="cand-form" class="form-grid">
-        <div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" required></div>
-        <div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name"></div>
-        <div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email"></div>
-        <div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone"></div>
-        <div class="fg"><label class="flabel">Current Company</label><input class="finput" name="current_company"></div>
-        <div class="fg"><label class="flabel">Current Designation</label><input class="finput" name="current_designation"></div>
-        <div class="fg"><label class="flabel">Total Experience (yrs)</label><input class="finput" type="number" step="0.5" name="total_experience"></div>
-        <div class="fg"><label class="flabel">Current CTC (₹)</label><input class="finput" type="number" name="current_ctc"></div>
-        <div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_ctc"></div>
-        <div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period"></div>
-        <div class="fg"><label class="flabel">Source</label>
-          <select class="fselect" name="source_id"><option value="">Select…</option>
-          ${(masters['candidate-sources']||[]).map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
-          </select></div>
-        <div class="fg"><label class="flabel">Current Location</label><input class="finput" name="current_location"></div>
-        <div class="fg full"><label class="flabel">Skills</label>
-          <textarea class="finput" name="skills" rows="3" placeholder="Comma-separated skills…"></textarea></div>
-        <div class="fg"><label class="flabel">LinkedIn URL</label><input class="finput" type="url" name="linkedin_url"></div>
-      </form>
-      <div class="form-actions">
-        <button class="btn btn-ghost" onclick="navigateTo('/candidates')">Cancel</button>
-        <button class="btn btn-primary" onclick="window._saveCand()">Save Candidate</button>
-      </div>
-    </div></div>`);
+  setPageTitle('New Candidate', '');
+  setBreadcrumb([{ label:'Candidates', url:'/candidates' }, { label:'New' }]);
+  renderCandidateForm(null, masters);
+}
 
-  window._saveCand = async () => {
-    const data = Object.fromEntries(new FormData(document.getElementById('cand-form')));
-    Object.keys(data).forEach(k => { if (data[k]==='') data[k]=null; });
+function renderCandidateForm(existing, masters) {
+  const isEdit = !!existing;
+  setContent(
+    '<div class="page-body"><div class="card" style="max-width:900px;margin:0 auto">'+
+    '<div class="card-header"><h3 class="card-title">'+(isEdit?'Edit Candidate':'Add New Candidate')+'</h3></div>'+
+    '<form id="cand-form"><div class="form-grid">'+
+      // Personal
+      '<div class="form-section-title">Personal Information</div>'+
+      '<div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" value="'+v(existing?.first_name)+'" required></div>'+
+      '<div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="'+v(existing?.middle_name)+'"></div>'+
+      '<div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" value="'+v(existing?.last_name)+'" required></div>'+
+      '<div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender"><option value="">Select…</option>'+opts(['Male','Female','Other'],existing?.gender)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="'+v(existing?.email)+'"></div>'+
+      '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="'+v(existing?.phone)+'"></div>'+
+      '<div class="fg"><label class="flabel">LinkedIn URL</label><input class="finput" type="url" name="linkedin_url" value="'+v(existing?.linkedin_url)+'"></div>'+
+      '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v(existing?.location||existing?.current_location)+'"></div>'+
+      // Professional
+      '<div class="form-section-title">Professional Details</div>'+
+      '<div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" value="'+v(existing?.current_title||existing?.current_designation)+'"></div>'+
+      '<div class="fg"><label class="flabel">Current Company</label><input class="finput" name="current_company" value="'+v(existing?.current_company)+'"></div>'+
+      '<div class="fg"><label class="flabel">Total Experience (years)</label><input class="finput" type="number" name="years_exp" value="'+v(existing?.years_exp||existing?.total_experience,0)+'" min="0"></div>'+
+      '<div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="'+v(existing?.notice_period)+'"></div>'+
+      '<div class="fg"><label class="flabel">Current CTC (₹)</label><input class="finput" type="number" name="current_ctc" value="'+v(existing?.current_ctc)+'"></div>'+
+      '<div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_ctc" value="'+v(existing?.expected_ctc)+'"></div>'+
+      '<div class="fg full"><label class="flabel">Skills</label><input class="finput" name="skills" value="'+v(existing?.skills)+'" placeholder="React, Python, AWS… (comma separated)"></div>'+
+      // Recruitment
+      '<div class="form-section-title">Recruitment</div>'+
+      fsl('Source','source_id',masters['candidate-sources']||[],existing?.source_id)+
+      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],existing?.recruiter_id)+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option value="">Select…</option>'+opts(['Active','Inactive','Placed','Blacklisted'],existing?.status||'Active')+'</select></div>'+
+      fsl('Submit to Job','requisition_id',masters['clients-lookup']||[], null)+ // Will be loaded
+      '<div class="fg full"><label class="flabel">Resume File</label><input type="file" class="finput" id="resume-file" accept=".pdf,.doc,.docx"></div>'+
+      '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2">'+v(existing?.notes)+'</textarea></div>'+
+      '</div></form>'+
+      '<div class="form-actions">'+
+        '<button type="button" class="btn btn-ghost" onclick="navigateTo(\''+(isEdit?'/candidates/'+existing.id:'/candidates')+'\')">Cancel</button>'+
+        '<button type="button" class="btn btn-primary" onclick="window._saveCandidate()">'+( isEdit?'Save Changes':'Add Candidate')+'</button>'+
+      '</div>'+
+    '</div></div>'
+  );
+
+  // Load jobs for "Submit to Job" dropdown
+  get('/recruitment/jobs').then(res => {
+    const sel = document.querySelector('#cand-form select[name=requisition_id]');
+    if (sel) sel.innerHTML = '<option value="">None (add later)</option>'+(res.items||[]).map(j=>'<option value="'+j.id+'">'+v(j.title)+' — '+v(j.client_name||'')+'</option>').join('');
+  });
+
+  window._saveCandidate = async () => {
+    const formEl = document.getElementById('cand-form');
+    const data = Object.fromEntries(new FormData(formEl));
+    Object.keys(data).forEach(k=>{if(data[k]==='')data[k]=null;});
+    // Handle resume upload
+    const fi = document.getElementById('resume-file');
+    if (fi && fi.files[0]) {
+      const file = fi.files[0];
+      if (file.size < 5*1024*1024) {
+        const base64 = await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(file);});
+        data.resume_data   = base64;
+        data.resume_name   = file.name;
+        data.resume_mime   = file.type;
+      }
+    }
     try {
-      const res = await post('/candidates', data);
-      toast('Candidate added', 'success');
-      navigate(`/candidates/${res.id}`);
-    } catch (e) { toast(e.message, 'error'); }
+      if (isEdit) {
+        await put('/candidates/'+existing.id, data);
+        toast('Candidate updated', 'success');
+        navigate('/candidates/'+existing.id);
+      } else {
+        const r = await post('/candidates', data);
+        toast('Candidate added', 'success');
+        navigate('/candidates/'+r.id);
+      }
+    } catch(e) { toast(e.message, 'error'); }
   };
 }
 
 export async function renderCandidateDetail({ id }) {
   showLoader();
   try {
-    const cand = await get(`/candidates/${id}`);
-    const name = `${cand.first_name} ${cand.last_name||''}`.trim();
-    setPageTitle(name, 'Candidate Profile');
-    setBreadcrumb([{ label: 'Candidates', url: '/candidates' }, { label: name }]);
-    setContent(`
-      <div class="detail-layout">
-        <div class="detail-sidebar">
-          <div class="card profile-card">
-            <div class="profile-hero">
-              <div class="av av-lg ${fmt.avColor(name)}">${fmt.ini(name)}</div>
-              <div class="profile-name">${name}</div>
-              <div class="profile-title">${cand.current_designation||'—'}</div>
-              <div class="profile-title">${cand.current_company||'—'}</div>
-              ${badge(cand.status||'Active')}
-            </div>
-            <div class="profile-meta">
-              <div class="meta-row"><span>Experience</span><strong>${cand.total_experience||0}y</strong></div>
-              <div class="meta-row"><span>Current CTC</span><strong>${fmt.money(cand.current_ctc)}</strong></div>
-              <div class="meta-row"><span>Expected</span><strong>${fmt.money(cand.expected_ctc)}</strong></div>
-              <div class="meta-row"><span>Notice</span><strong>${cand.notice_period||'—'}d</strong></div>
-            </div>
-          </div>
-        </div>
-        <div class="detail-main">
-          <div class="card" style="margin-bottom:16px">
-            <div class="card-header"><h3 class="card-title">Contact</h3></div>
-            <div class="card-body">
-              <div class="field-grid">
-                ${f('Email',    cand.email)}${f('Phone',    cand.phone)}
-                ${f('Location',cand.current_location)}${f('LinkedIn', cand.linkedin_url)}
-                ${f('Source',  cand.source_name)}
-              </div>
-            </div>
-          </div>
-          ${cand.skills ? `<div class="card" style="margin-bottom:16px">
-            <div class="card-header"><h3 class="card-title">Skills</h3></div>
-            <div class="card-body">
-              <div class="skills-wrap">${cand.skills.split(',').map(s=>`<span class="skill-tag">${s.trim()}</span>`).join('')}</div>
-            </div>
-          </div>` : ''}
-          <div class="card">
-            <div class="card-header"><h3 class="card-title">Applications</h3></div>
-            ${cand.applications?.length ? `<div class="tbl-wrap"><table class="data-table">
-              <thead><tr><th>Job</th><th>Stage</th><th>Applied</th></tr></thead>
-              <tbody>${cand.applications.map(a=>`<tr>
-                <td><a href="#/recruitment/jobs/${a.requisition_id}" class="link">${a.job_title}</a>
-                <div class="cell-sub">${a.code}</div></td>
-                <td>${badge(a.stage_name||a.status)}</td>
-                <td class="mono">${fmt.date(a.applied_at)}</td>
-              </tr>`).join('')}</tbody></table></div>`
-            : `<div class="empty-mini">No applications</div>`}
-          </div>
-        </div>
-      </div>`);
-  } catch (e) { showError(e.message); }
+    const [cand, masters] = await Promise.all([get('/candidates/'+id), get('/masters/all')]);
+    setPageTitle(cand.first_name+' '+cand.last_name, cand.current_title||'Candidate');
+    setBreadcrumb([{ label:'Candidates', url:'/candidates' }, { label: cand.first_name+' '+cand.last_name }]);
+    const apps = cand.applications || [], ivs = cand.interviews || [];
+    setContent(
+      '<div class="detail-layout">'+
+      '<div class="detail-sidebar"><div class="card">'+
+        '<div class="profile-hero" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">'+
+          '<div class="av av-xl av-purple" style="margin:0 auto 10px">'+fmt.ini(cand.first_name+' '+cand.last_name)+'</div>'+
+          '<div class="profile-name">'+v(cand.first_name)+' '+v(cand.middle_name?cand.middle_name+' ':'')+v(cand.last_name)+'</div>'+
+          '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(cand.current_title||'Candidate')+'</div>'+
+          '<div style="margin-top:8px">'+badge(cand.status||'Active')+'</div>'+
+        '</div>'+
+        '<div class="profile-meta">'+
+          '<div class="meta-row"><span>Email</span><strong>'+v(cand.email,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Phone</span><strong>'+v(cand.phone,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Location</span><strong>'+v(cand.location,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Experience</span><strong>'+(cand.years_exp||0)+' years</strong></div>'+
+          '<div class="meta-row"><span>Current Co.</span><strong>'+v(cand.current_company,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Notice Period</span><strong>'+(cand.notice_period?cand.notice_period+' days':'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Current CTC</span><strong>'+(cand.current_ctc?'₹'+Math.round(cand.current_ctc/100000)+'L':'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Expected CTC</span><strong>'+(cand.expected_ctc?'₹'+Math.round(cand.expected_ctc/100000)+'L':'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Source</span><strong>'+v(cand.source_name,'—')+'</strong></div>'+
+        '</div>'+
+        '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+
+          '<button class="btn btn-primary btn-full" onclick="window._editCand()">✏ Edit</button>'+
+          '<button class="btn btn-ghost btn-full" onclick="window._submitToJob()">Submit to Job</button>'+
+          '<button class="btn btn-ghost btn-full" onclick="window._scheduleForCand()">🗓 Schedule Interview</button>'+
+          '<button class="btn btn-ghost btn-full" onclick="window._makeOffer()">Make Offer</button>'+
+        '</div>'+
+      '</div></div>'+
+      '<div class="detail-main">'+
+        (cand.skills?'<div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Skills</h3></div><div class="card-body"><div class="skills-wrap">'+cand.skills.split(',').map(s=>'<span class="skill-tag">'+v(s.trim())+'</span>').join('')+'</div></div></div>':'') +
+        '<div class="card" style="margin-bottom:16px">'+
+          '<div class="card-header"><h3 class="card-title">Applications ('+apps.length+')</h3></div>'+
+          (apps.length?'<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Job</th><th>Client</th><th>Stage</th><th>Applied</th></tr></thead><tbody>'+
+            apps.map(a=>'<tr><td><strong>'+v(a.job_title)+'</strong></td><td>'+v(a.client_name,'—')+'</td><td>'+badge(a.stage_name||'Applied')+'</td><td>'+fmt.date(a.applied_at)+'</td></tr>').join('')+
+            '</tbody></table></div>':'<div class="empty-mini">No applications yet</div>')+
+        '</div>'+
+        '<div class="card">'+
+          '<div class="card-header"><h3 class="card-title">Interviews ('+ivs.length+')</h3></div>'+
+          (ivs.length?'<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Round</th><th>Format</th><th>Scheduled</th><th>Interviewer</th><th>Decision</th></tr></thead><tbody>'+
+            ivs.map(i=>'<tr><td>Round '+v(i.round)+'</td><td>'+v(i.format_name||'—')+'</td><td>'+fmt.date(i.scheduled_at)+'</td><td>'+v(i.interviewer,'—')+'</td><td>'+badge(i.decision||'Pending')+'</td></tr>').join('')+
+            '</tbody></table></div>':'<div class="empty-mini">No interviews scheduled</div>')+
+        '</div>'+
+      '</div></div>'
+    );
+
+    window._editCand          = () => renderCandidateForm(cand, masters);
+    window._submitToJob       = () => submitToJobModal(cand, masters);
+    window._scheduleForCand   = () => scheduleInterviewForCandModal(cand, masters);
+    window._makeOffer         = () => offerModal(null, cand, masters);
+  } catch(e) { showError(e.message); }
 }
 
-export async function renderPipeline() {
-  setPageTitle('ATS Pipeline', 'Recruitment Kanban');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Pipeline' }]);
-  showLoader();
-  try {
-    const d = await get('/recruitment/pipeline');
-    const stages = d.stages || [];
-    const apps   = d.applications || [];
-
-    setContent(`
-      <div class="page-body">
-        <div class="kanban-board">
-          ${stages.map(s => {
-            const stageApps = apps.filter(a => a.stage_id === s.id);
-            return `<div class="kanban-col">
-              <div class="kanban-header" style="border-top:3px solid ${s.color}">
-                <span>${s.name}</span>
-                <span class="kanban-count">${stageApps.length}</span>
-              </div>
-              <div class="kanban-cards">
-                ${stageApps.map(a => `
-                  <div class="kanban-card" onclick="navigateTo('/candidates/${a.candidate_id}')">
-                    <div class="kanban-name">${a.candidate_name}</div>
-                    <div class="kanban-sub">${a.current_designation||'—'}</div>
-                    <div class="kanban-job">${a.job_title||'—'}</div>
-                    ${a.expected_ctc ? `<div class="kanban-ctc">${fmt.money(a.expected_ctc)}</div>` : ''}
-                  </div>`).join('')}
-              </div>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>`);
-  } catch (e) { showError(e.message); }
+// ─── Submit Candidate to Job ────────────────────────────────────
+function submitToJobModal(cand, masters) {
+  openModal({
+    title: 'Submit '+v(cand.first_name)+' to a Job', size: 'md',
+    body: '<form id="submit-job-form" class="form-grid-sm">'+
+      '<div class="fg full"><label class="flabel">Select Job *</label>'+
+        '<select class="fselect" name="requisition_id" required><option value="">Loading jobs…</option></select>'+
+      '</div>'+
+      '<div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_salary" value="'+v(cand.expected_ctc)+'"></div>'+
+    '</form>',
+    submitLabel: 'Submit Candidate',
+    onSubmit: async () => {
+      const data = fd('submit-job-form');
+      if (!data.requisition_id) { toast('Please select a job', 'error'); return false; }
+      await post('/applications', { candidate_id: cand.id, requisition_id: data.requisition_id, expected_salary: data.expected_salary });
+      toast('Submitted to job!', 'success');
+      navigate('/candidates/'+cand.id);
+    }
+  });
+  get('/recruitment/jobs').then(res=>{
+    const sel = document.querySelector('#submit-job-form select[name=requisition_id]');
+    if (sel) sel.innerHTML = '<option value="">Select job…</option>'+(res.items||[]).map(j=>'<option value="'+j.id+'">'+v(j.title)+' — '+v(j.client_name||'')+'</option>').join('');
+  });
 }
 
+// ─── Schedule Interview ─────────────────────────────────────────
+function scheduleInterviewModal(appId, candidateName, masters) {
+  openModal({
+    title: '🗓 Schedule Interview — '+v(candidateName), size: 'md',
+    body: '<form id="int-form" class="form-grid-sm">'+
+      '<div class="fg"><label class="flabel">Round *</label><select class="fselect" name="round" required>'+opts(['1','2','3','4','HR','Final'],null)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Format</label><select class="fselect" name="format">'+opts(INTERVIEW_FORMATS,null)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Date & Time *</label><input class="finput" type="datetime-local" name="scheduled_at" required></div>'+
+      '<div class="fg"><label class="flabel">Interviewer(s)</label><input class="finput" name="interviewer" placeholder="Name(s) of interviewer"></div>'+
+      '<div class="fg full"><label class="flabel">Meeting Link / Location</label><input class="finput" name="meeting_link" placeholder="Zoom/Meet URL or room number"></div>'+
+      '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>'+
+    '</form>',
+    submitLabel: 'Schedule Interview',
+    onSubmit: async () => {
+      const data = fd('int-form');
+      data.application_id = appId;
+      await post('/interviews', data);
+      toast('Interview scheduled!', 'success');
+    }
+  });
+}
+
+function scheduleInterviewForCandModal(cand, masters) {
+  openModal({
+    title: '🗓 Schedule Interview for '+v(cand.first_name), size: 'md',
+    body: '<form id="int2-form" class="form-grid-sm">'+
+      '<div class="fg full"><label class="flabel">Application *</label>'+
+        '<select class="fselect" name="application_id" required><option value="">Loading applications…</option></select></div>'+
+      '<div class="fg"><label class="flabel">Round *</label><select class="fselect" name="round" required>'+opts(['1','2','3','4','HR','Final'],null)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Format</label><select class="fselect" name="format">'+opts(INTERVIEW_FORMATS,null)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Date & Time *</label><input class="finput" type="datetime-local" name="scheduled_at" required></div>'+
+      '<div class="fg"><label class="flabel">Interviewer(s)</label><input class="finput" name="interviewer" placeholder="Names of interviewers"></div>'+
+      '<div class="fg full"><label class="flabel">Meeting Link</label><input class="finput" name="meeting_link" placeholder="Zoom/Meet URL"></div>'+
+    '</form>',
+    submitLabel: 'Schedule',
+    onSubmit: async () => {
+      const data = fd('int2-form');
+      await post('/interviews', data);
+      toast('Interview scheduled!', 'success');
+    }
+  });
+  get('/candidates/'+cand.id).then(res=>{
+    const apps = res.applications || [];
+    const sel = document.querySelector('#int2-form select[name=application_id]');
+    if (sel) sel.innerHTML = '<option value="">Select application…</option>'+apps.map(a=>'<option value="'+a.id+'">'+v(a.job_title)+' — '+v(a.client_name||'')+'</option>').join('');
+  });
+}
+
+function moveStageModal(appId, masters) {
+  openModal({
+    title: 'Move to Stage',
+    body: '<form id="stage-form" class="form-grid-sm">'+
+      '<div class="fg full"><label class="flabel">New Stage *</label>'+
+        '<select class="fselect" name="stage_id" required><option value="">Loading…</option></select></div>'+
+      '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>'+
+    '</form>',
+    submitLabel: 'Move',
+    onSubmit: async () => {
+      const data = fd('stage-form');
+      await put('/applications/'+appId, data);
+      toast('Stage updated', 'success');
+    }
+  });
+  get('/masters/all').then(m=>{
+    const stages = m['application-stages'] || [];
+    const sel = document.querySelector('#stage-form select[name=stage_id]');
+    if (sel) sel.innerHTML = '<option value="">Select stage…</option>'+stages.map(s=>'<option value="'+s.id+'">'+v(s.name)+'</option>').join('');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// INTERVIEWS
+// ═══════════════════════════════════════════════════════════════
 export async function renderInterviews() {
-  setPageTitle('Interviews', 'Scheduled and completed');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Interviews' }]);
+  setPageTitle('Interviews', 'Scheduled interviews');
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Interviews' }]);
   showLoader();
   try {
-    const rows = await get('/interviews');
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <div></div>
-          <button class="btn btn-primary" onclick="window._scheduleInterview()">+ Schedule Interview</button>
-        </div>
-        ${renderTable({
-          columns: [
-            { label: 'Candidate',    key: 'candidate_name', render: r => `<strong>${r.candidate_name}</strong>` },
-            { label: 'Job',          key: 'job_title',      render: r => r.job_title||'—' },
-            { label: 'Round',        key: 'round' },
-            { label: 'Format',       key: 'format_name',    render: r => r.format_name||'—' },
-            { label: 'Interviewer',  key: 'interviewer_name', render: r => r.interviewer_name||'—' },
-            { label: 'Scheduled',    key: 'scheduled_at',   render: r => fmt.date(r.scheduled_at) },
-            { label: 'Status',       key: 'status',         render: r => badge(r.status) },
-            { label: 'Rating',       key: 'overall_rating', render: r => r.overall_rating ? '⭐'.repeat(r.overall_rating) : '—' },
-          ],
-          rows: Array.isArray(rows) ? rows : [],
-          emptyMessage: 'No interviews scheduled',
-        })}
-      </div>`);
-  } catch (e) { showError(e.message); }
-}
-
-export async function renderInterviewDetail({ id }) {
-  showLoader();
-  try {
-    const iv = await get(`/interviews/${id}`);
-    setPageTitle(`Interview — ${iv.candidate_name}`, iv.format_name || '');
-    setBreadcrumb([{ label: 'Interviews', url: '/recruitment/interviews' }, { label: iv.candidate_name }]);
-    setContent(`<div class="page-body"><div class="card form-card">
-      <div class="card-body">
-        <div class="field-grid">
-          ${f('Candidate',   iv.candidate_name)}${f('Job',        iv.job_title)}
-          ${f('Interviewer', iv.interviewer_name)}${f('Format',   iv.format_name)}
-          ${f('Scheduled',   fmt.date(iv.scheduled_at))}${f('Duration', iv.duration_mins+'min')}
-          ${f('Status',      iv.status)}${f('Rating', iv.overall_rating ? '⭐'.repeat(iv.overall_rating) : '—')}
-        </div>
-        ${iv.feedback ? `<div style="margin-top:16px"><strong>Feedback:</strong><p>${iv.feedback}</p></div>` : ''}
-        ${iv.recommendation ? `<div><strong>Recommendation:</strong> ${iv.recommendation}</div>` : ''}
-      </div>
-    </div></div>`);
-  } catch (e) { showError(e.message); }
-}
-
-export async function renderOffers() {
-  setPageTitle('Offers', 'Offer management');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Offers' }]);
-  showLoader();
-  try {
-    const rows = await get('/offers');
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar"><div></div>
-          <button class="btn btn-primary" onclick="navigateTo('/recruitment/offers/new')">+ New Offer</button>
-        </div>
-        ${renderTable({
-          columns: [
-            { label: 'Candidate', key: 'candidate_name', render: r => `<strong>${r.candidate_name}</strong>` },
-            { label: 'Job',       key: 'job_title',      render: r => r.job_title||'—' },
-            { label: 'CTC',       key: 'offered_ctc',    render: r => fmt.money(r.offered_ctc) },
-            { label: 'Joining',   key: 'joining_date',   render: r => fmt.date(r.joining_date) },
-            { label: 'Expires',   key: 'expiry_date',    render: r => fmt.date(r.expiry_date) },
-            { label: 'Status',    key: 'status',         render: r => badge(r.status) },
-          ],
-          rows: Array.isArray(rows) ? rows : [],
-          onRowClick: r => navigate(`/recruitment/offers/${r.id}`),
-          emptyMessage: 'No offers yet',
-        })}
-      </div>`);
-  } catch (e) { showError(e.message); }
-}
-
-export async function renderOfferDetail({ id }) {
-  showLoader();
-  try {
-    const offer = await get(`/offers/${id}`);
-    setPageTitle(`Offer — ${offer.candidate_name}`, offer.status);
-    setBreadcrumb([{ label: 'Offers', url: '/recruitment/offers' }, { label: offer.candidate_name }]);
-    setContent(`<div class="page-body"><div class="card form-card">
-      <div class="card-header">
-        <h3 class="card-title">${offer.candidate_name} — ${offer.job_title}</h3>
-        <div>${badge(offer.status)}</div>
-      </div>
-      <div class="card-body">
-        <div class="field-grid">
-          ${f('Offered CTC',   fmt.money(offer.offered_ctc))}
-          ${f('Joining Date',  fmt.date(offer.joining_date))}
-          ${f('Offer Date',    fmt.date(offer.offer_date))}
-          ${f('Expiry Date',   fmt.date(offer.expiry_date))}
-        </div>
-      </div>
-      <div class="form-actions">
-        ${offer.status === 'Sent' ? `
-          <button class="btn btn-primary" onclick="window._offerAction(${id},'Accepted')">✓ Mark Accepted</button>
-          <button class="btn btn-danger"  onclick="window._offerAction(${id},'Rejected')">✗ Mark Rejected</button>` : ''}
-        ${offer.status === 'Draft' ? `
-          <button class="btn btn-primary" onclick="window._offerAction(${id},'Sent')">Send Offer</button>` : ''}
-      </div>
-    </div></div>`);
-
-    window._offerAction = async (oid, status) => {
-      await put(`/offers/${oid}`, { status });
-      toast(`Offer ${status.toLowerCase()}`, 'success');
-      renderOfferDetail({ id: oid });
+    const ivs = await get('/interviews');
+    const rows = Array.isArray(ivs) ? ivs : [];
+    setContent('<div class="page-body">'+
+      '<div class="list-toolbar"><div></div><button class="btn btn-primary" onclick="window._schedGeneral()">+ Schedule Interview</button></div>'+
+      (rows.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Candidate</th><th>Job</th><th>Round</th><th>Format</th><th>Scheduled</th><th>Interviewer</th><th>Decision</th><th>Actions</th></tr></thead><tbody>'+
+          rows.map(i=>'<tr><td><strong>'+v(i.candidate_name)+'</strong></td><td class="text-muted">'+v(i.job_title||'—')+'</td>'+
+            '<td>Round '+v(i.round)+'</td><td>'+v(i.format_name||'—')+'</td>'+
+            '<td class="mono">'+fmt.date(i.scheduled_at)+'</td>'+
+            '<td>'+v(i.interviewer,'—')+'</td>'+
+            '<td>'+badge(i.decision||'Pending')+'</td>'+
+            '<td class="tbl-actions"><button class="btn btn-ghost btn-xs" onclick="window._updateIV('+i.id+')">Update</button></td>'+
+          '</tr>').join('')+'</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">🗓</div><div class="empty-title">No interviews scheduled</div></div>')+
+      '</div>');
+    window._schedGeneral = () => scheduleInterviewModal(null, 'Candidate', null);
+    window._updateIV = (id) => {
+      const iv = rows.find(r=>r.id===id);
+      openModal({
+        title: 'Update Interview Feedback',
+        body: '<form id="iv-form" class="form-grid-sm">'+
+          '<div class="fg"><label class="flabel">Decision</label><select class="fselect" name="decision">'+opts(['Pending','Strong Yes','Yes','No','Strong No','No Show'],iv?.decision||'Pending')+'</select></div>'+
+          '<div class="fg"><label class="flabel">Scorecard Status</label><select class="fselect" name="scorecard_status">'+opts(['Not Started','Pending','Completed','Overdue'],iv?.scorecard_status||'Not Started')+'</select></div>'+
+          '<div class="fg full"><label class="flabel">Feedback / Notes</label><textarea class="finput" name="notes" rows="3">'+v(iv?.notes)+'</textarea></div>'+
+        '</form>',
+        submitLabel: 'Save Feedback',
+        onSubmit: async () => {
+          await put('/interviews/'+id, fd('iv-form'));
+          toast('Updated', 'success');
+          renderInterviews();
+        }
+      });
     };
-  } catch (e) { showError(e.message); }
+  } catch(e) { showError(e.message); }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// OFFERS
+// ═══════════════════════════════════════════════════════════════
+export async function renderOffers() {
+  setPageTitle('Offers', 'Job offers');
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Offers' }]);
+  showLoader();
+  try {
+    const [offers, masters] = await Promise.all([get('/offers'), get('/masters/all')]);
+    const rows = Array.isArray(offers) ? offers : [];
+    setContent('<div class="page-body">'+
+      '<div class="list-toolbar"><div></div><button class="btn btn-primary" onclick="window._newOffer()">+ New Offer</button></div>'+
+      (rows.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Candidate</th><th>Job</th><th>Designation</th><th>Offered CTC</th><th>Joining</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+
+          rows.map(o=>'<tr><td><strong>'+v(o.candidate_name)+'</strong><div class="cell-sub">'+v(o.email||'')+'</div></td>'+
+            '<td>'+v(o.job_title,'—')+'</td>'+
+            '<td>'+v(o.designation,'—')+'</td>'+
+            '<td class="mono">'+(o.offered_ctc?'₹'+Math.round(o.offered_ctc/100000)+'L':'—')+'</td>'+
+            '<td>'+fmt.date(o.joining_date)+'</td>'+
+            '<td>'+badge(o.status||'Draft')+'</td>'+
+            '<td class="tbl-actions">'+
+              '<button class="btn btn-ghost btn-xs" onclick="window._editOffer('+o.id+')">✏ Edit</button>'+
+              (o.status==='Sent'?'<button class="btn btn-primary btn-xs" onclick="window._acceptOffer('+o.id+')">Accept</button>':'')+
+            '</td></tr>').join('') +
+          '</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-title">No offers yet</div></div>')+
+      '</div>');
+    window._newOffer  = () => offerModal(null, null, masters);
+    window._editOffer = id => {
+      const o = rows.find(r=>r.id===id);
+      offerModal(o, null, masters);
+    };
+    window._acceptOffer = async id => {
+      await put('/offers/'+id, { status:'Accepted' });
+      toast('Offer accepted', 'success');
+      renderOffers();
+    };
+  } catch(e) { showError(e.message); }
+}
+
+function offerModal(existing, cand, masters) {
+  const isEdit = !!existing;
+  openModal({
+    title: isEdit ? '✏ Edit Offer' : '+ New Offer', size: 'lg',
+    body: '<form id="offer-form" class="form-grid-sm">'+
+      (cand
+        ? '<div class="fg full" style="background:var(--green-l);padding:10px;border-radius:6px">Candidate: <strong>'+v(cand.first_name+' '+cand.last_name)+'</strong></div>'
+        : '<div class="fg full"><label class="flabel">Candidate *</label><select class="fselect" name="candidate_id" required><option value="">Loading…</option></select></div>')+
+      '<div class="fg full"><label class="flabel">Job Requisition *</label><select class="fselect" name="requisition_id" required><option value="">Loading…</option></select></div>'+
+      '<div class="fg"><label class="flabel">Offered Designation</label><input class="finput" name="designation" value="'+v(existing?.designation)+'"></div>'+
+      '<div class="fg"><label class="flabel">Offered CTC (₹)</label><input class="finput" type="number" name="offered_ctc" value="'+v(existing?.offered_ctc)+'"></div>'+
+      '<div class="fg"><label class="flabel">Basic Salary (₹)</label><input class="finput" type="number" name="offered_basic" value="'+v(existing?.offered_basic)+'"></div>'+
+      '<div class="fg"><label class="flabel">Joining Date</label><input class="finput" type="date" name="joining_date" value="'+v(existing?.joining_date?String(existing.joining_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Offer Date</label><input class="finput" type="date" name="offer_date" value="'+v(existing?.offer_date?String(existing.offer_date).split('T')[0]:new Date().toISOString().split('T')[0])+'"></div>'+
+      '<div class="fg"><label class="flabel">Expiry Date</label><input class="finput" type="date" name="expiry_date" value="'+v(existing?.expiry_date?String(existing.expiry_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+opts(OFFER_STATUSES,existing?.status||'Draft')+'</select></div>'+
+    '</form>',
+    submitLabel: isEdit ? 'Save' : 'Create Offer',
+    onSubmit: async () => {
+      const data = fd('offer-form');
+      if (cand) data.candidate_id = cand.id;
+      if (isEdit) await put('/offers/'+existing.id, data);
+      else await post('/offers', data);
+      toast(isEdit?'Updated':'Offer created', 'success');
+      renderOffers();
+    }
+  });
+  // Load candidates and jobs
+  if (!cand) {
+    get('/candidates').then(res=>{
+      const sel = document.querySelector('#offer-form select[name=candidate_id]');
+      if (sel) sel.innerHTML = '<option value="">Select candidate…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'"'+(existing?.candidate_id==c.id?' selected':'')+'>'+v(c.first_name+' '+c.last_name)+'</option>').join('');
+    });
+  }
+  get('/recruitment/jobs').then(res=>{
+    const sel = document.querySelector('#offer-form select[name=requisition_id]');
+    if (sel) sel.innerHTML = '<option value="">Select job…</option>'+(res.items||[]).map(j=>'<option value="'+j.id+'"'+(existing?.requisition_id==j.id?' selected':'')+'>'+v(j.title)+' — '+v(j.client_name||'')+'</option>').join('');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// ONBOARDING
+// ═══════════════════════════════════════════════════════════════
 export async function renderOnboarding() {
-  setPageTitle('Onboarding', 'New joiner management');
-  setBreadcrumb([{ label: 'Talent Acquisition', url: '/recruitment' }, { label: 'Onboarding' }]);
+  setPageTitle('Onboarding', 'New joiner onboarding');
+  setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Onboarding' }]);
   showLoader();
   try {
     const rows = await get('/onboarding');
-    setContent(`
-      <div class="page-body">
-        ${renderTable({
-          columns: [
-            { label: 'Candidate/Employee', key: 'candidate_name', render: r => `<strong>${r.candidate_name||r.employee_name||'—'}</strong>` },
-            { label: 'Job',     key: 'job_title',    render: r => r.job_title||'—' },
-            { label: 'Joining', key: 'joining_date', render: r => fmt.date(r.joining_date) },
-            { label: 'Status',  key: 'status',       render: r => badge(r.status) },
-          ],
-          rows: Array.isArray(rows) ? rows : [],
-          onRowClick: r => navigate(`/recruitment/onboarding/${r.id}`),
-          emptyMessage: 'No onboarding records',
-        })}
-      </div>`);
-  } catch (e) { showError(e.message); }
+    const data = Array.isArray(rows) ? rows : [];
+    setContent('<div class="page-body">'+
+      '<div class="list-toolbar"><div class="struct-stat">'+data.length+' <span>Active</span></div>'+
+        '<button class="btn btn-primary" onclick="window._startOnboarding()">+ Start Onboarding</button></div>'+
+      (data.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Person</th><th>Type</th><th>Start Date</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+
+          data.map(o=>'<tr class="tbl-clickable" onclick="navigateTo(\'/onboarding/'+o.id+'\')">' +
+            '<td><strong>'+(o.employee_name||o.candidate_name||'—')+'</strong><div class="cell-sub">'+v(o.emp_id||'')+'</div></td>'+
+            '<td>'+badge(o.person_type||'employee')+'</td>'+
+            '<td>'+fmt.date(o.start_date)+'</td>'+
+            '<td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="width:'+(o.progress_pct||0)+'%;height:100%;background:var(--green);border-radius:3px"></div></div><span style="font-size:12px">'+(o.progress_pct||0)+'%</span></div></td>'+
+            '<td>'+badge(o.status||'In Progress')+'</td>'+
+            '<td class="tbl-actions" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/onboarding/'+o.id+'\')">View</button></td>'+
+          '</tr>').join('')+'</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No active onboarding</div></div>')+
+      '</div>');
+    window._startOnboarding = () => {
+      openModal({
+        title: '+ Start Onboarding', size: 'md',
+        body: '<form id="onb-form" class="form-grid-sm">'+
+          '<div class="fg"><label class="flabel">Person Type</label><select class="fselect" name="person_type" onchange="window._onbTypeChange(this.value)">'+opts(['employee','candidate'],'employee')+'</select></div>'+
+          '<div class="fg full" id="onb-person-sel"><label class="flabel">Employee *</label><select class="fselect" name="employee_id" required><option value="">Loading…</option></select></div>'+
+          '<div class="fg"><label class="flabel">Start Date *</label><input class="finput" type="date" name="start_date" value="'+new Date().toISOString().split('T')[0]+'" required></div>'+
+          '<div class="fg"><label class="flabel">Buddy / Mentor</label><input class="finput" name="buddy_name" placeholder="Buddy name"></div>'+
+          '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>'+
+        '</form>',
+        submitLabel: 'Start Onboarding',
+        onSubmit: async () => {
+          const data = fd('onb-form');
+          await post('/onboarding', data);
+          toast('Onboarding started!', 'success');
+          renderOnboarding();
+        }
+      });
+      get('/employees?per_page=200').then(res=>{
+        const sel = document.querySelector('#onb-form select[name=employee_id]');
+        if (sel) sel.innerHTML = '<option value="">Select employee…</option>'+(res.items||[]).map(e=>'<option value="'+e.id+'">'+v(e.first_name+' '+e.last_name)+'</option>').join('');
+      });
+      window._onbTypeChange = type => {
+        const sel = document.querySelector('#onb-form select');
+        const container = document.getElementById('onb-person-sel');
+        if (!container) return;
+        if (type === 'employee') {
+          container.innerHTML = '<label class="flabel">Employee *</label><select class="fselect" name="employee_id" required><option value="">Loading…</option></select>';
+          get('/employees?per_page=200').then(res=>{const s=container.querySelector('select');if(s)s.innerHTML='<option value="">Select employee…</option>'+(res.items||[]).map(e=>'<option value="'+e.id+'">'+v(e.first_name+' '+e.last_name)+'</option>').join('');});
+        } else {
+          container.innerHTML = '<label class="flabel">Candidate *</label><select class="fselect" name="candidate_id" required><option value="">Loading…</option></select>';
+          get('/candidates').then(res=>{const s=container.querySelector('select');if(s)s.innerHTML='<option value="">Select candidate…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'">'+v(c.first_name+' '+c.last_name)+'</option>').join('');});
+        }
+      };
+    };
+  } catch(e) { showError(e.message); }
 }
 
 export async function renderOnboardingDetail({ id }) {
   showLoader();
   try {
-    const onb = await get(`/onboarding/${id}`);
-    setPageTitle('Onboarding', onb.candidate_name || '');
-    setBreadcrumb([{ label: 'Onboarding', url: '/recruitment/onboarding' }, { label: onb.candidate_name||'Detail' }]);
-    setContent(`<div class="page-body"><div class="card">
-      <div class="card-header"><h3 class="card-title">${onb.candidate_name||'Onboarding'}</h3>${badge(onb.status)}</div>
-      <div class="card-body">
-        <div class="field-grid">
-          ${f('Joining Date', fmt.date(onb.joining_date))}
-          ${f('Status',       onb.status)}
-        </div>
-        <div style="margin-top:20px">
-          <h4>Tasks</h4>
-          ${(onb.tasks||[]).map(t=>`
-            <div class="task-row">
-              <input type="checkbox" ${t.status==='Completed'?'checked':''} onchange="window._toggleTask(${t.id}, this.checked)">
-              <span class="${t.status==='Completed'?'task-done':''}">${t.task_name}</span>
-              <span class="task-owner">${t.owner||''}</span>
-            </div>`).join('')}
-        </div>
-      </div>
-    </div></div>`);
-
-    window._toggleTask = async (tid, done) => {
-      await put(`/onboarding/tasks/${tid}`, { status: done ? 'Completed' : 'Pending' });
+    const onb = await get('/onboarding/'+id);
+    setPageTitle((onb.employee_name||onb.candidate_name||'Onboarding'), 'Onboarding');
+    setBreadcrumb([{ label:'Onboarding', url:'/onboarding' }, { label: onb.employee_name||onb.candidate_name||'' }]);
+    const tasks = onb.tasks || [];
+    setContent(
+      '<div class="page-body">'+
+      '<div class="card">'+
+        '<div class="card-header">'+
+          '<h3 class="card-title">'+(onb.employee_name||onb.candidate_name||'Onboarding')+'</h3>'+
+          '<div style="display:flex;align-items:center;gap:12px">'+
+            '<div style="display:flex;align-items:center;gap:8px;font-size:13px">'+
+              'Progress: <strong>'+(onb.progress_pct||0)+'%</strong>'+
+              '<div style="width:100px;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">'+
+                '<div style="width:'+(onb.progress_pct||0)+'%;height:100%;background:var(--green);border-radius:4px"></div></div>'+
+            '</div>'+
+            badge(onb.status||'In Progress')+
+          '</div>'+
+        '</div>'+
+        '<div class="card-body">'+
+          '<div class="field-grid" style="margin-bottom:16px">'+
+            '<div class="field-item"><div class="field-label">Start Date</div><div class="field-value">'+fmt.date(onb.start_date)+'</div></div>'+
+            '<div class="field-item"><div class="field-label">Buddy</div><div class="field-value">'+v(onb.buddy_name,'—')+'</div></div>'+
+            '<div class="field-item"><div class="field-label">Template</div><div class="field-value">'+v(onb.template,'Standard')+'</div></div>'+
+          '</div>'+
+          '<div style="font-weight:600;margin-bottom:12px">Onboarding Checklist</div>'+
+          tasks.map(t=>
+            '<div class="task-row">'+
+              '<input type="checkbox"'+(t.is_complete?' checked':'')+' onchange="window._toggleTask('+t.id+',this.checked)" style="margin-right:8px">'+
+              '<span class="'+(t.is_complete?'task-done':'')+'">'+(t.task_name||v(t.task))+'</span>'+
+              '<span class="task-owner text-muted">'+v(t.category||'')+'</span>'+
+            '</div>'
+          ).join('')+
+        '</div>'+
+      '</div></div>'
+    );
+    window._toggleTask = async (tid, checked) => {
+      await put('/onboarding/tasks/'+tid, { is_complete: checked ? 1 : 0 });
+      renderOnboardingDetail({ id });
     };
-  } catch (e) { showError(e.message); }
-}
-
-function f(label, value) {
-  return `<div class="field-item">
-    <div class="field-label">${label}</div>
-    <div class="field-value${!value?' empty':''}">${value||'—'}</div>
-  </div>`;
+  } catch(e) { showError(e.message); }
 }

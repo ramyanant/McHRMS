@@ -90,7 +90,14 @@ export async function renderNew() {
         <div class="fg"><label class="flabel">CGST %</label><input class="finput" type="number" name="cgst_pct" value="0" step="0.01" onchange="window._calcTotals()"></div>
         <div class="fg"><label class="flabel">SGST %</label><input class="finput" type="number" name="sgst_pct" value="0" step="0.01" onchange="window._calcTotals()"></div>
         <div class="fg"><label class="flabel">IGST %</label><input class="finput" type="number" name="igst_pct" value="0" step="0.01" onchange="window._calcTotals()"></div>
-        <div class="fg"><label class="flabel">Notes</label>
+        <div class="fg"><label class="flabel">PO Number</label>
+          <input class="finput" name="po_number" placeholder="Purchase Order reference"></div>
+        <div class="fg"><label class="flabel">Cost Centre</label>
+          <select class="fselect" name="cost_centre_id">
+            <option value="">Select cost centre…</option>
+            ${(masters['cost-centres']||[]).map(c=>`<option value="${c.id}">${c.name} (${c.code})</option>`).join('')}
+          </select></div>
+        <div class="fg full"><label class="flabel">Notes</label>
           <textarea class="finput" name="notes" rows="2"></textarea></div>
       </form>
       <!-- Line Items -->

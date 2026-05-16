@@ -207,13 +207,28 @@ function renderPage(org) {
   }, 'window.orgAddContact()', '+ Add Contact');
 
   // Identity
-  const identityHTML = multiGrid(identity, function(item) {
+  // Build "pinned" identity entries from org table (TAN, CIN, PAN, MSME, IEC)
+  const pinnedIds = [
+    {id_type:'PAN', id_number:org.pan}, {id_type:'TAN', id_number:org.tan},
+    {id_type:'CIN', id_number:org.cin}, {id_type:'MSME', id_number:org.msme_number},
+    {id_type:'IEC', id_number:org.iec_code}, {id_type:'PF', id_number:org.pf_number},
+    {id_type:'ESI', id_number:org.esi_number},
+  ].filter(function(x) { return x.id_number; });
+  const allIdentity = pinnedIds.map(function(p) {
+    return Object.assign({}, p, {id:'pinned_'+p.id_type, _pinned:true});
+  }).concat(identity);
+
+  const identityHTML = multiGrid(allIdentity, function(item) {
     const expiring = expirySoon(item.expiry_date);
-    return '<div class="multi-card">'
+    const isPinned = item._pinned;
+    return '<div class="multi-card' + (isPinned ? ' multi-card-pinned' : '') + '">'
       + '<div class="multi-card-header"><span class="badge badge-purple">' + v(item.id_type) + '</span>'
+      + (isPinned ? '<span class="badge badge-gray" style="font-size:9px">From Company</span>' : '')
       + '<div class="multi-card-actions">'
-      + '<button class="btn btn-ghost btn-xs" onclick="window.orgEditIdentity(' + item.id + ')">✏</button>'
-      + '<button class="btn btn-danger btn-xs" onclick="window.orgDelIdentity(' + item.id + ')">✕</button>'
+      + (isPinned
+        ? '<button class="btn btn-ghost btn-xs" onclick="window.orgEditCompany()" title="Edit in Company">✏</button>'
+        : '<button class="btn btn-ghost btn-xs" onclick="window.orgEditIdentity(' + item.id + ')">✏</button>'
+          + '<button class="btn btn-danger btn-xs" onclick="window.orgDelIdentity(' + item.id + ')">✕</button>')
       + '</div></div>'
       + '<div class="identity-number">' + v(item.id_number) + '</div>'
       + (item.issue_date ? '<div class="text-muted" style="font-size:11px">Issued: ' + fmt.date(item.issue_date) + '</div>' : '')
@@ -356,7 +371,7 @@ function bindActions() {
         + fg('Working Hours', '<input class="finput" name="hours_of_operation" value="' + v(org.hours_of_operation) + '" placeholder="Mon-Fri 9am-6pm IST">')
         + fg('Employee Range', '<select class="fselect" name="employee_count_range"><option value="">Select…</option>' + opts(EMP_RANGES, org.employee_count_range) + '</select>')
         + fg('Date of Incorporation', '<input class="finput" type="date" name="incorporation_date" value="' + v((org.incorporation_date||'').split('T')[0]) + '">')
-        + fg('PAN', '<input class="finput" name="pan" value="' + v(org.pan) + '" placeholder="AABCC1234D">')
+        + '<div class="fg full" style="background:var(--blue-l);border:1px solid var(--blue);border-radius:6px;padding:10px 12px;font-size:12px;color:#1e40af"><strong>💡 Statutory IDs</strong> — PAN, TAN, CIN, MSME, IEC are managed in the <strong>Identity &amp; Statutory Numbers</strong> section below. Scroll down to add or edit them.</div>'
         + '</form>',
       submitLabel: 'Save',
       onSubmit: async function() {

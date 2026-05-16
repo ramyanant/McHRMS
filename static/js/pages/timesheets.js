@@ -67,14 +67,20 @@ export async function renderApproval() {
       </div>`);
 
     window._approve = async (id) => {
-      await put(`/timesheets/${id}`, { status: 'Approved' });
-      toast('Approved', 'success'); renderApproval();
+      try {
+        await put('/timesheets/' + id, { status: 'Approved' });
+        toast('Timesheet approved', 'success');
+        await renderApproval();
+      } catch(e) { toast(e.message, 'error'); }
     };
     window._reject = async (id) => {
-      const r = prompt('Rejection reason:');
-      if (r===null) return;
-      await put(`/timesheets/${id}`, { status: 'Rejected', rejection_reason: r });
-      toast('Rejected', 'info'); renderApproval();
+      const r = prompt('Rejection reason (required):');
+      if (r === null || r.trim() === '') return;
+      try {
+        await put('/timesheets/' + id, { status: 'Rejected', rejection_reason: r });
+        toast('Timesheet rejected', 'info');
+        await renderApproval();
+      } catch(e) { toast(e.message, 'error'); }
     };
   } catch (e) { showError(e.message); }
 }
