@@ -171,25 +171,25 @@ function jobModal(existing, masters) {
 
 function buildJobForm(j, masters) {
   return '<div class="form-grid">'+
-    '<div class="fg full"><label class="flabel">Job Title *</label><input class="finput" name="title" value="'+v(j?.title)+'" required placeholder="e.g. Senior React Developer"></div>'+
-    fsl('Client','client_id',masters['clients-lookup']||[],j?.client_id)+
-    fsl('Department','department_id',masters['departments']||[],j?.department_id)+
-    fsl('Priority','priority_id',masters['priority-levels']||[],j?.priority_id)+
-    fg('Status','<select class="fselect" name="status">'+opts(JOB_STATUSES,j?.status||'Active')+'</select>')+
-    fg('Work Mode','<select class="fselect" name="work_mode">'+opts(WORK_MODES,j?.work_mode||'On-Site')+'</select>')+
-    fg('Job Type','<select class="fselect" name="job_type">'+opts(JOB_TYPES,j?.job_type||'Permanent')+'</select>')+
-    '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v(j?.location)+'" placeholder="City or Remote"></div>'+
-    '<div class="fg"><label class="flabel">Number of Positions</label><input class="finput" type="number" name="positions" value="'+v(j?.positions,1)+'" min="1"></div>'+
-    '<div class="fg"><label class="flabel">Min Experience (years)</label><input class="finput" type="number" name="min_experience" value="'+v(j?.min_experience,0)+'" min="0"></div>'+
-    '<div class="fg"><label class="flabel">Max Experience (years)</label><input class="finput" type="number" name="max_experience" value="'+v(j?.max_experience)+'"></div>'+
-    '<div class="fg"><label class="flabel">Min CTC (₹ LPA)</label><input class="finput" type="number" name="comp_min" value="'+v(j?.comp_min)+'" step="0.5"></div>'+
-    '<div class="fg"><label class="flabel">Max CTC (₹ LPA)</label><input class="finput" type="number" name="comp_max" value="'+v(j?.comp_max)+'" step="0.5"></div>'+
-    '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v(j?.budget,0)+'"></div>'+
-    '<div class="fg"><label class="flabel">Notice Period</label><input class="finput" name="notice_period" value="'+v(j?.notice_period)+'" placeholder="e.g. Immediate, 30 days"></div>'+
-    fsl('Recruiter / Owner','recruiter_id',masters['employees-lookup']||[],j?.recruiter_id)+
-    '<div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start" value="'+v(j?.target_start?String(j.target_start).split('T')[0]:'')+'"></div>'+
-    '<div class="fg full"><label class="flabel">Job Description</label><textarea class="finput" name="description" rows="4" placeholder="Describe the role, responsibilities…">'+v(j?.description)+'</textarea></div>'+
-    '<div class="fg full"><label class="flabel">Requirements / Skills</label><textarea class="finput" name="requirements" rows="3" placeholder="Required skills and qualifications…">'+v(j?.requirements)+'</textarea></div>'+
+    '<div class="fg full"><label class="flabel">Job Title *</label><input class="finput" name="title" value="'+v((j && j.title))+'" required placeholder="e.g. Senior React Developer"></div>'+
+    fsl('Client','client_id',masters['clients-lookup']||[],(j && j.client_id))+
+    fsl('Department','department_id',masters['departments']||[],(j && j.department_id))+
+    fsl('Priority','priority_id',masters['priority-levels']||[],(j && j.priority_id))+
+    fg('Status','<select class="fselect" name="status">'+opts(JOB_STATUSES,(j && j.status)||'Active')+'</select>')+
+    fg('Work Mode','<select class="fselect" name="work_mode">'+opts(WORK_MODES,(j && j.work_mode)||'On-Site')+'</select>')+
+    fg('Job Type','<select class="fselect" name="job_type">'+opts(JOB_TYPES,(j && j.job_type)||'Permanent')+'</select>')+
+    '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v((j && j.location))+'" placeholder="City or Remote"></div>'+
+    '<div class="fg"><label class="flabel">Number of Positions</label><input class="finput" type="number" name="positions" value="'+v((j && j.positions),1)+'" min="1"></div>'+
+    '<div class="fg"><label class="flabel">Min Experience (years)</label><input class="finput" type="number" name="min_experience" value="'+v((j && j.min_experience),0)+'" min="0"></div>'+
+    '<div class="fg"><label class="flabel">Max Experience (years)</label><input class="finput" type="number" name="max_experience" value="'+v((j && j.max_experience))+'"></div>'+
+    '<div class="fg"><label class="flabel">Min CTC (₹ LPA)</label><input class="finput" type="number" name="comp_min" value="'+v((j && j.comp_min))+'" step="0.5"></div>'+
+    '<div class="fg"><label class="flabel">Max CTC (₹ LPA)</label><input class="finput" type="number" name="comp_max" value="'+v((j && j.comp_max))+'" step="0.5"></div>'+
+    '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v((j && j.budget),0)+'"></div>'+
+    '<div class="fg"><label class="flabel">Notice Period</label><input class="finput" name="notice_period" value="'+v((j && j.notice_period))+'" placeholder="e.g. Immediate, 30 days"></div>'+
+    fsl('Recruiter / Owner','recruiter_id',masters['employees-lookup']||[],(j && j.recruiter_id))+
+    '<div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start" value="'+v((j && j.target_start)?String(j.target_start).split('T')[0]:'')+'"></div>'+
+    '<div class="fg full"><label class="flabel">Job Description</label><textarea class="finput" name="description" rows="4" placeholder="Describe the role, responsibilities…">'+v((j && j.description))+'</textarea></div>'+
+    '<div class="fg full"><label class="flabel">Requirements / Skills</label><textarea class="finput" name="requirements" rows="3" placeholder="Required skills and qualifications…">'+v((j && j.requirements))+'</textarea></div>'+
     '</div>';
 }
 
@@ -404,31 +404,31 @@ function renderCandidateForm(existing, masters) {
     '<form id="cand-form"><div class="form-grid">'+
       // Personal
       '<div class="form-section-title">Personal Information</div>'+
-      '<div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" value="'+v(existing?.first_name)+'" required></div>'+
-      '<div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="'+v(existing?.middle_name)+'"></div>'+
-      '<div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" value="'+v(existing?.last_name)+'" required></div>'+
-      '<div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender"><option value="">Select…</option>'+opts(['Male','Female','Other'],existing?.gender)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="'+v(existing?.email)+'"></div>'+
-      '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="'+v(existing?.phone)+'"></div>'+
-      '<div class="fg"><label class="flabel">LinkedIn URL</label><input class="finput" type="url" name="linkedin_url" value="'+v(existing?.linkedin_url)+'"></div>'+
-      '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v(existing?.location||existing?.current_location)+'"></div>'+
+      '<div class="fg"><label class="flabel">First Name *</label><input class="finput" name="first_name" value="'+v((existing && existing.first_name))+'" required></div>'+
+      '<div class="fg"><label class="flabel">Middle Name</label><input class="finput" name="middle_name" value="'+v((existing && existing.middle_name))+'"></div>'+
+      '<div class="fg"><label class="flabel">Last Name *</label><input class="finput" name="last_name" value="'+v((existing && existing.last_name))+'" required></div>'+
+      '<div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender"><option value="">Select…</option>'+opts(['Male','Female','Other'],(existing && existing.gender))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="'+v((existing && existing.email))+'"></div>'+
+      '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="'+v((existing && existing.phone))+'"></div>'+
+      '<div class="fg"><label class="flabel">LinkedIn URL</label><input class="finput" type="url" name="linkedin_url" value="'+v((existing && existing.linkedin_url))+'"></div>'+
+      '<div class="fg"><label class="flabel">Location</label><input class="finput" name="location" value="'+v((existing && existing.location)||(existing && existing.current_location))+'"></div>'+
       // Professional
       '<div class="form-section-title">Professional Details</div>'+
-      '<div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" value="'+v(existing?.current_title||existing?.current_designation)+'"></div>'+
-      '<div class="fg"><label class="flabel">Current Company</label><input class="finput" name="current_company" value="'+v(existing?.current_company)+'"></div>'+
-      '<div class="fg"><label class="flabel">Total Experience (years)</label><input class="finput" type="number" name="years_exp" value="'+v(existing?.years_exp||existing?.total_experience,0)+'" min="0"></div>'+
-      '<div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="'+v(existing?.notice_period)+'"></div>'+
-      '<div class="fg"><label class="flabel">Current CTC (₹)</label><input class="finput" type="number" name="current_ctc" value="'+v(existing?.current_ctc)+'"></div>'+
-      '<div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_ctc" value="'+v(existing?.expected_ctc)+'"></div>'+
-      '<div class="fg full"><label class="flabel">Skills</label><input class="finput" name="skills" value="'+v(existing?.skills)+'" placeholder="React, Python, AWS… (comma separated)"></div>'+
+      '<div class="fg"><label class="flabel">Current Title</label><input class="finput" name="current_title" value="'+v((existing && existing.current_title)||(existing && existing.current_designation))+'"></div>'+
+      '<div class="fg"><label class="flabel">Current Company</label><input class="finput" name="current_company" value="'+v((existing && existing.current_company))+'"></div>'+
+      '<div class="fg"><label class="flabel">Total Experience (years)</label><input class="finput" type="number" name="years_exp" value="'+v((existing && existing.years_exp)||(existing && existing.total_experience),0)+'" min="0"></div>'+
+      '<div class="fg"><label class="flabel">Notice Period (days)</label><input class="finput" type="number" name="notice_period" value="'+v((existing && existing.notice_period))+'"></div>'+
+      '<div class="fg"><label class="flabel">Current CTC (₹)</label><input class="finput" type="number" name="current_ctc" value="'+v((existing && existing.current_ctc))+'"></div>'+
+      '<div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_ctc" value="'+v((existing && existing.expected_ctc))+'"></div>'+
+      '<div class="fg full"><label class="flabel">Skills</label><input class="finput" name="skills" value="'+v((existing && existing.skills))+'" placeholder="React, Python, AWS… (comma separated)"></div>'+
       // Recruitment
       '<div class="form-section-title">Recruitment</div>'+
-      fsl('Source','source_id',masters['candidate-sources']||[],existing?.source_id)+
-      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],existing?.recruiter_id)+
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option value="">Select…</option>'+opts(['Active','Inactive','Placed','Blacklisted'],existing?.status||'Active')+'</select></div>'+
+      fsl('Source','source_id',masters['candidate-sources']||[],(existing && existing.source_id))+
+      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],(existing && existing.recruiter_id))+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option value="">Select…</option>'+opts(['Active','Inactive','Placed','Blacklisted'],(existing && existing.status)||'Active')+'</select></div>'+
       fsl('Submit to Job','requisition_id',masters['clients-lookup']||[], null)+ // Will be loaded
       '<div class="fg full"><label class="flabel">Resume File</label><input type="file" class="finput" id="resume-file" accept=".pdf,.doc,.docx"></div>'+
-      '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2">'+v(existing?.notes)+'</textarea></div>'+
+      '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2">'+v((existing && existing.notes))+'</textarea></div>'+
       '</div></form>'+
       '<div class="form-actions">'+
         '<button type="button" class="btn btn-ghost" onclick="navigateTo(\''+(isEdit?'/candidates/'+existing.id:'/candidates')+'\')">Cancel</button>'+
@@ -654,9 +654,9 @@ export async function renderInterviews() {
       openModal({
         title: 'Update Interview Feedback',
         body: '<form id="iv-form" class="form-grid-sm">'+
-          '<div class="fg"><label class="flabel">Decision</label><select class="fselect" name="decision">'+opts(['Pending','Strong Yes','Yes','No','Strong No','No Show'],iv?.decision||'Pending')+'</select></div>'+
-          '<div class="fg"><label class="flabel">Scorecard Status</label><select class="fselect" name="scorecard_status">'+opts(['Not Started','Pending','Completed','Overdue'],iv?.scorecard_status||'Not Started')+'</select></div>'+
-          '<div class="fg full"><label class="flabel">Feedback / Notes</label><textarea class="finput" name="notes" rows="3">'+v(iv?.notes)+'</textarea></div>'+
+          '<div class="fg"><label class="flabel">Decision</label><select class="fselect" name="decision">'+opts(['Pending','Strong Yes','Yes','No','Strong No','No Show'],(iv && iv.decision)||'Pending')+'</select></div>'+
+          '<div class="fg"><label class="flabel">Scorecard Status</label><select class="fselect" name="scorecard_status">'+opts(['Not Started','Pending','Completed','Overdue'],(iv && iv.scorecard_status)||'Not Started')+'</select></div>'+
+          '<div class="fg full"><label class="flabel">Feedback / Notes</label><textarea class="finput" name="notes" rows="3">'+v((iv && iv.notes))+'</textarea></div>'+
         '</form>',
         submitLabel: 'Save Feedback',
         onSubmit: async () => {
@@ -718,13 +718,13 @@ function offerModal(existing, cand, masters) {
         ? '<div class="fg full" style="background:var(--green-l);padding:10px;border-radius:6px">Candidate: <strong>'+v(cand.first_name+' '+cand.last_name)+'</strong></div>'
         : '<div class="fg full"><label class="flabel">Candidate *</label><select class="fselect" name="candidate_id" required><option value="">Loading…</option></select></div>')+
       '<div class="fg full"><label class="flabel">Job Requisition *</label><select class="fselect" name="requisition_id" required><option value="">Loading…</option></select></div>'+
-      '<div class="fg"><label class="flabel">Offered Designation</label><input class="finput" name="designation" value="'+v(existing?.designation)+'"></div>'+
-      '<div class="fg"><label class="flabel">Offered CTC (₹)</label><input class="finput" type="number" name="offered_ctc" value="'+v(existing?.offered_ctc)+'"></div>'+
-      '<div class="fg"><label class="flabel">Basic Salary (₹)</label><input class="finput" type="number" name="offered_basic" value="'+v(existing?.offered_basic)+'"></div>'+
-      '<div class="fg"><label class="flabel">Joining Date</label><input class="finput" type="date" name="joining_date" value="'+v(existing?.joining_date?String(existing.joining_date).split('T')[0]:'')+'"></div>'+
-      '<div class="fg"><label class="flabel">Offer Date</label><input class="finput" type="date" name="offer_date" value="'+v(existing?.offer_date?String(existing.offer_date).split('T')[0]:new Date().toISOString().split('T')[0])+'"></div>'+
-      '<div class="fg"><label class="flabel">Expiry Date</label><input class="finput" type="date" name="expiry_date" value="'+v(existing?.expiry_date?String(existing.expiry_date).split('T')[0]:'')+'"></div>'+
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+opts(OFFER_STATUSES,existing?.status||'Draft')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Offered Designation</label><input class="finput" name="designation" value="'+v((existing && existing.designation))+'"></div>'+
+      '<div class="fg"><label class="flabel">Offered CTC (₹)</label><input class="finput" type="number" name="offered_ctc" value="'+v((existing && existing.offered_ctc))+'"></div>'+
+      '<div class="fg"><label class="flabel">Basic Salary (₹)</label><input class="finput" type="number" name="offered_basic" value="'+v((existing && existing.offered_basic))+'"></div>'+
+      '<div class="fg"><label class="flabel">Joining Date</label><input class="finput" type="date" name="joining_date" value="'+v((existing && existing.joining_date)?String(existing.joining_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Offer Date</label><input class="finput" type="date" name="offer_date" value="'+v((existing && existing.offer_date)?String(existing.offer_date).split('T')[0]:new Date().toISOString().split('T')[0])+'"></div>'+
+      '<div class="fg"><label class="flabel">Expiry Date</label><input class="finput" type="date" name="expiry_date" value="'+v((existing && existing.expiry_date)?String(existing.expiry_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+opts(OFFER_STATUSES,(existing && existing.status)||'Draft')+'</select></div>'+
     '</form>',
     submitLabel: isEdit ? 'Save' : 'Create Offer',
     onSubmit: async () => {
@@ -740,12 +740,12 @@ function offerModal(existing, cand, masters) {
   if (!cand) {
     get('/candidates').then(res=>{
       const sel = document.querySelector('#offer-form select[name=candidate_id]');
-      if (sel) sel.innerHTML = '<option value="">Select candidate…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'"'+(existing?.candidate_id==c.id?' selected':'')+'>'+v(c.first_name+' '+c.last_name)+'</option>').join('');
+      if (sel) sel.innerHTML = '<option value="">Select candidate…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'"'+((existing && existing.candidate_id)==c.id?' selected':'')+'>'+v(c.first_name+' '+c.last_name)+'</option>').join('');
     });
   }
   get('/recruitment/jobs').then(res=>{
     const sel = document.querySelector('#offer-form select[name=requisition_id]');
-    if (sel) sel.innerHTML = '<option value="">Select job…</option>'+(res.items||[]).map(j=>'<option value="'+j.id+'"'+(existing?.requisition_id==j.id?' selected':'')+'>'+v(j.title)+' — '+v(j.client_name||'')+'</option>').join('');
+    if (sel) sel.innerHTML = '<option value="">Select job…</option>'+(res.items||[]).map(j=>'<option value="'+j.id+'"'+((existing && existing.requisition_id)==j.id?' selected':'')+'>'+v(j.title)+' — '+v(j.client_name||'')+'</option>').join('');
   });
 }
 

@@ -267,6 +267,7 @@ async function registerRoutes() {
   Router.route('/organisation/departments',           load('orgstructure',    'renderDepts'));
   Router.route('/organisation/departments/:id',       load('orgstructure',    'renderDeptDetail'));
   Router.route('/organisation/cost-centres',          load('orgstructure',    'renderCostCentres'));
+  Router.route('/organisation/cost-centres/:id',       load('orgstructure',    'renderCostCentreDetail'));
   Router.route('/organisation/locations',             load('orgstructure',    'renderLocations'));
   Router.route('/organisation/locations/:id',         load('orgstructure',    'renderLocationDetail'));
   Router.route('/employees',                          load('employees',       'renderList'));

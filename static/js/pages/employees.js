@@ -190,51 +190,51 @@ function renderEmployeeForm(emp, masters) {
   function tabForm(tab) {
     switch(tab) {
       case 'basic': return '<div class="form-grid">'+
-        fi('First Name *','first_name',emp?.first_name,'text','',  ' required')+
-        fi('Middle Name','middle_name',emp?.middle_name)+
-        fi('Last Name *','last_name',emp?.last_name,'text','', ' required')+
-        fi('Email','email',emp?.email,'email')+
-        fi('Phone','phone',emp?.phone)+
-        fi('Personal Email','personal_email',emp?.personal_email,'email')+
-        fi('Personal Phone','personal_phone',emp?.personal_phone)+
-        '<div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="'+v(emp?.job_title)+'"></div>'+
-        fs('Department','department_id',masters['departments']||[],emp?.department_id)+
-        fs('Reporting Manager','reporting_manager_id',masters['employees-lookup']||[],emp?.reporting_manager_id)+
-        fs('Employment Type','employment_type_id',masters['employment-types']||[],emp?.employment_type_id)+
-        fs('Client','client_id',masters['clients-lookup']||[],emp?.client_id)+
-        fs('Office Location','office_location_id',masters['locations']||[],emp?.office_location_id)+
-        fi('Location (free text)','location',emp?.location)+
-        fi('Start Date','start_date',emp?.start_date?String(emp.start_date).split('T')[0]:'','date')+
+        fi('First Name *','first_name',(emp && emp.first_name),'text','',  ' required')+
+        fi('Middle Name','middle_name',(emp && emp.middle_name))+
+        fi('Last Name *','last_name',(emp && emp.last_name),'text','', ' required')+
+        fi('Email','email',(emp && emp.email),'email')+
+        fi('Phone','phone',(emp && emp.phone))+
+        fi('Personal Email','personal_email',(emp && emp.personal_email),'email')+
+        fi('Personal Phone','personal_phone',(emp && emp.personal_phone))+
+        '<div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="'+v((emp && emp.job_title))+'"></div>'+
+        fs('Department','department_id',masters['departments']||[],(emp && emp.department_id))+
+        fs('Reporting Manager','reporting_manager_id',masters['employees-lookup']||[],(emp && emp.reporting_manager_id))+
+        fs('Employment Type','employment_type_id',masters['employment-types']||[],(emp && emp.employment_type_id))+
+        fs('Client','client_id',masters['clients-lookup']||[],(emp && emp.client_id))+
+        fs('Office Location','office_location_id',masters['locations']||[],(emp && emp.office_location_id))+
+        fi('Location (free text)','location',(emp && emp.location))+
+        fi('Start Date','start_date',(emp && emp.start_date)?String(emp.start_date).split('T')[0]:'','date')+
         '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+
-          opts(['Active','Inactive','On Leave','Resigned'],emp?.status||'Active')+'</select></div>'+
+          opts(['Active','Inactive','On Leave','Resigned'],(emp && emp.status)||'Active')+'</select></div>'+
         '</div>';
       case 'personal': return '<div class="form-grid">'+
-        '<div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">'+opts(['Male','Female','Other'],emp?.gender)+'</select></div>'+
-        fi('Date of Birth','dob',emp?.dob?String(emp.dob).split('T')[0]:'','date')+
-        '<div class="fg"><label class="flabel">Marital Status</label><select class="fselect" name="marital_status">'+opts(['Single','Married','Divorced','Widowed'],emp?.marital_status)+'</select></div>'+
-        fi('Nationality','nationality',emp?.nationality||'Indian')+
-        fi('Blood Group','blood_group',emp?.blood_group)+
-        fi('PAN','pan',emp?.pan,'text','AABCC1234D')+
-        fi('Aadhaar','aadhaar',emp?.aadhaar,'text','XXXX XXXX XXXX')+
-        fi('Passport Number','passport_number',emp?.passport_number)+
-        fi('LinkedIn URL','linkedin_url',emp?.linkedin_url,'url')+
+        '<div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">'+opts(['Male','Female','Other'],(emp && emp.gender))+'</select></div>'+
+        fi('Date of Birth','dob',(emp && emp.dob)?String(emp.dob).split('T')[0]:'','date')+
+        '<div class="fg"><label class="flabel">Marital Status</label><select class="fselect" name="marital_status">'+opts(['Single','Married','Divorced','Widowed'],(emp && emp.marital_status))+'</select></div>'+
+        fi('Nationality','nationality',(emp && emp.nationality)||'Indian')+
+        fi('Blood Group','blood_group',(emp && emp.blood_group))+
+        fi('PAN','pan',(emp && emp.pan),'text','AABCC1234D')+
+        fi('Aadhaar','aadhaar',(emp && emp.aadhaar),'text','XXXX XXXX XXXX')+
+        fi('Passport Number','passport_number',(emp && emp.passport_number))+
+        fi('LinkedIn URL','linkedin_url',(emp && emp.linkedin_url),'url')+
         '</div>';
       case 'employment': return '<div class="form-grid">'+
-        fi('PF Number','pf_number',emp?.pf_number)+
-        fi('ESI Number','esi_number',emp?.esi_number)+
-        fi('Notice Period (days)','notice_period',emp?.notice_period,'number')+
-        fi('Referred By','referred_by',emp?.referred_by)+
-        fi('Salary (₹)','salary',emp?.salary,'number')+
-        fi('Bill Rate (₹/hr)','bill_rate',emp?.bill_rate,'number')+
-        '<div class="fg"><label class="flabel">Billable</label><select class="fselect" name="billable">'+opts(['0','1'],String(emp?.billable||0),'','')+'</select></div>'+
-        fs('Business Unit','business_unit_id',masters['business-units']||[],emp?.business_unit_id)+
+        fi('PF Number','pf_number',(emp && emp.pf_number))+
+        fi('ESI Number','esi_number',(emp && emp.esi_number))+
+        fi('Notice Period (days)','notice_period',(emp && emp.notice_period),'number')+
+        fi('Referred By','referred_by',(emp && emp.referred_by))+
+        fi('Salary (₹)','salary',(emp && emp.salary),'number')+
+        fi('Bill Rate (₹/hr)','bill_rate',(emp && emp.bill_rate),'number')+
+        '<div class="fg"><label class="flabel">Billable</label><select class="fselect" name="billable">'+opts(['0','1'],String((emp && emp.billable)||0),'','')+'</select></div>'+
+        fs('Business Unit','business_unit_id',masters['business-units']||[],(emp && emp.business_unit_id))+
         '</div>';
       case 'banking': return '<div class="form-grid">'+
-        fi('Bank Name','bank_name',emp?.bank_name)+
-        fi('Branch','bank_branch',emp?.bank_branch)+
-        fi('Account Number','bank_account_number',emp?.bank_account_number)+
-        fi('IFSC Code','bank_ifsc',emp?.bank_ifsc,'text','HDFC0001234')+
-        fi('Account Holder Name','bank_account_name',emp?.bank_account_name)+
+        fi('Bank Name','bank_name',(emp && emp.bank_name))+
+        fi('Branch','bank_branch',(emp && emp.bank_branch))+
+        fi('Account Number','bank_account_number',(emp && emp.bank_account_number))+
+        fi('IFSC Code','bank_ifsc',(emp && emp.bank_ifsc),'text','HDFC0001234')+
+        fi('Account Holder Name','bank_account_name',(emp && emp.bank_account_name))+
         '</div>';
       default: return '';
     }

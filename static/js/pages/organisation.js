@@ -130,7 +130,7 @@ function renderPage(org) {
   }).join('');
 
   // Build sidebar
-  const logoHTML = org.logo_data
+  const logoHTML = org.has_logo || org.logo_data
     ? '<img src="/api/v1/organisation/logo" class="org-logo-img" alt="Logo">'
     : '<div class="org-logo-placeholder"><span>🏛</span></div>';
 
@@ -390,7 +390,7 @@ function bindActions() {
       title: '🖼 Upload Company Logo',
       body: '<div class="fg full" style="text-align:center">'
         + '<div style="margin-bottom:12px">'
-        + (_org && _org.logo_data ? '<img src="/api/v1/organisation/logo" style="width:80px;height:80px;border-radius:8px;object-fit:contain;border:1px solid var(--border)">' : '<div style="width:80px;height:80px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto">🏛</div>')
+        + (_org && (_org.has_logo || _org.logo_data) ? '<img src="/api/v1/organisation/logo" style="width:80px;height:80px;border-radius:8px;object-fit:contain;border:1px solid var(--border)">' : '<div style="width:80px;height:80px;background:var(--bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto">🏛</div>')
         + '</div>'
         + '<label class="flabel">Upload Logo (PNG, JPG, SVG — max 1MB)</label>'
         + '<input type="file" class="finput" id="logo-file" accept="image/png,image/jpeg,image/webp,image/svg+xml">'

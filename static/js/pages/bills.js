@@ -233,20 +233,20 @@ function billModal(existing, masters) {
     body: `<form id="bill-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div class="fg"><label class="flabel">Expense Type *</label>
         <select class="fselect" name="expense_type" required>
-          ${EXPENSE_TYPES.map(t=>`<option ${existing?.expense_type===t?'selected':''}>${t}</option>`).join('')}
+          ${EXPENSE_TYPES.map(t=>`<option ${(existing && existing.expense_type)===t?'selected':''}>${t}</option>`).join('')}
         </select></div>
       <div class="fg"><label class="flabel">Status</label>
         <select class="fselect" name="status">
-          ${STATUSES.map(s=>`<option ${(existing?.status||'Draft')===s?'selected':''}>${s}</option>`).join('')}
+          ${STATUSES.map(s=>`<option ${((existing && existing.status)||'Draft')===s?'selected':''}>${s}</option>`).join('')}
         </select></div>
       <div class="fg"><label class="flabel">Amount (₹) *</label>
-        <input class="finput" type="number" name="amount" value="${v(existing?.amount,0)}" step="0.01" required></div>
+        <input class="finput" type="number" name="amount" value="${v((existing && existing.amount),0)}" step="0.01" required></div>
       <div class="fg"><label class="flabel">Tax Amount (₹)</label>
-        <input class="finput" type="number" name="tax_amount" value="${v(existing?.tax_amount,0)}" step="0.01"></div>
+        <input class="finput" type="number" name="tax_amount" value="${v((existing && existing.tax_amount),0)}" step="0.01"></div>
       <div class="fg"><label class="flabel">Expense Date *</label>
-        <input class="finput" type="date" name="expense_date" value="${v(existing?.expense_date||new Date().toISOString().split('T')[0])}" required></div>
+        <input class="finput" type="date" name="expense_date" value="${v((existing && existing.expense_date)||new Date().toISOString().split('T')[0])}" required></div>
       <div class="fg"><label class="flabel">Due Date</label>
-        <input class="finput" type="date" name="due_date" value="${v(existing?.due_date||'').split('T')[0]}"></div>
+        <input class="finput" type="date" name="due_date" value="${v((existing && existing.due_date)||'').split('T')[0]}"></div>
       <div class="fg"><label class="flabel">Vendor</label>
         <select class="fselect" name="vendor_id">
           <option value="">None</option>
@@ -255,22 +255,22 @@ function billModal(existing, masters) {
       <div class="fg"><label class="flabel">Cost Centre</label>
         <select class="fselect" name="cost_centre_id">
           <option value="">None</option>
-          ${(masters['cost-centres']||[]).map(c=>`<option value="${c.id}" ${existing?.cost_centre_id==c.id?'selected':''}>${c.name} (${c.code})</option>`).join('')}
+          ${(masters['cost-centres']||[]).map(c=>`<option value="${c.id}" ${(existing && existing.cost_centre_id)==c.id?'selected':''}>${c.name} (${c.code})</option>`).join('')}
         </select></div>
       <div class="fg"><label class="flabel">Currency</label>
         <select class="fselect" name="currency">
-          ${['INR','USD','EUR','GBP'].map(c=>`<option ${(existing?.currency||'INR')===c?'selected':''}>${c}</option>`).join('')}
+          ${['INR','USD','EUR','GBP'].map(c=>`<option ${((existing && existing.currency)||'INR')===c?'selected':''}>${c}</option>`).join('')}
         </select></div>
       <div class="fg"><label class="flabel">Payment Mode</label>
         <select class="fselect" name="payment_mode">
-          ${PAYMENT_MODES.map(m=>`<option ${(existing?.payment_mode||'Bank Transfer')===m?'selected':''}>${m}</option>`).join('')}
+          ${PAYMENT_MODES.map(m=>`<option ${((existing && existing.payment_mode)||'Bank Transfer')===m?'selected':''}>${m}</option>`).join('')}
         </select></div>
       <div class="fg"><label class="flabel">Bill Number</label>
-        <input class="finput mono" name="bill_number" value="${v(existing?.bill_number)}"></div>
+        <input class="finput mono" name="bill_number" value="${v((existing && existing.bill_number))}"></div>
       <div class="fg"><label class="flabel">PO Number</label>
-        <input class="finput mono" name="po_number" value="${v(existing?.po_number)}"></div>
+        <input class="finput mono" name="po_number" value="${v((existing && existing.po_number))}"></div>
       <div class="fg full"><label class="flabel">Description</label>
-        <input class="finput" name="description" value="${v(existing?.description)}"></div>
+        <input class="finput" name="description" value="${v((existing && existing.description))}"></div>
       <div class="fg full"><label class="flabel">Receipt / Invoice File</label>
         <input type="file" class="finput" id="receipt-file" accept=".pdf,.png,.jpg,.jpeg">
         <div class="field-hint">PDF or image. Max 5MB.</div>
@@ -280,7 +280,7 @@ function billModal(existing, masters) {
     onSubmit: async () => {
       const data = fd('bill-form');
       const fileInput = document.getElementById('receipt-file');
-      if (fileInput?.files?.[0]) {
+      if ((fileInput && fileInput.files)?.[0]) {
         const file = fileInput.files[0];
         const base64 = await new Promise((res, rej) => {
           const reader = new FileReader();

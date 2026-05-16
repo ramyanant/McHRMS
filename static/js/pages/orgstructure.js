@@ -37,7 +37,7 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
   setBreadcrumb(breadcrumb);
 
   let sortCol = null, sortDir = 1, filterStatus = '';
-  let view = 'grid';
+  let view = 'table';
 
   function getFiltered() {
     let data = [...rows];
@@ -190,14 +190,14 @@ function buModal(existing, masters) {
   openModal({
     title: isEdit ? '✏ Edit Business Unit' : '+ New Business Unit', size: 'md',
     body: '<form id="bu-form" class="form-grid-sm">' +
-      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v(existing?.name) + '" required></div>' +
-      '<div class="fg"><label class="flabel">Code</label><input class="finput mono" name="code" value="' + v(existing?.code) + '" placeholder="e.g. TECH"></div>' +
+      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v((existing && existing.name)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Code</label><input class="finput mono" name="code" value="' + v((existing && existing.code)) + '" placeholder="e.g. TECH"></div>' +
       '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active">' +
-        '<option value="1"' + (existing?.is_active != 0 ? ' selected' : '') + '>Active</option>' +
-        '<option value="0"' + (existing?.is_active == 0 ? ' selected' : '') + '>Inactive</option>' +
+        '<option value="1"' + ((existing && existing.is_active) != 0 ? ' selected' : '') + '>Active</option>' +
+        '<option value="0"' + ((existing && existing.is_active) == 0 ? ' selected' : '') + '>Inactive</option>' +
       '</select></div>' +
-      '<div class="fg full"><label class="flabel">Description</label><input class="finput" name="description" value="' + v(existing?.description) + '"></div>' +
-      '<div class="fg full"><label class="flabel">Head / Leader</label><select class="fselect" name="head_emp_id"><option value="">Select…</option>' + opts(masters['employees-lookup']||[], existing?.head_emp_id) + '</select></div>' +
+      '<div class="fg full"><label class="flabel">Description</label><input class="finput" name="description" value="' + v((existing && existing.description)) + '"></div>' +
+      '<div class="fg full"><label class="flabel">Head / Leader</label><select class="fselect" name="head_emp_id"><option value="">Select…</option>' + opts(masters['employees-lookup']||[], (existing && existing.head_emp_id)) + '</select></div>' +
       '</form>',
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
@@ -384,16 +384,16 @@ export async function renderDepts() {
 function deptModal(existing, masters) {
   const isEdit = !!existing;
   openModal({
-    title: isEdit ? '✏ Edit: ' + (existing?.name||'') : '+ New Department', size: 'lg',
+    title: isEdit ? '✏ Edit: ' + ((existing && existing.name)||'') : '+ New Department', size: 'lg',
     body: '<form id="dept-form" class="form-grid-sm">' +
-      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v(existing?.name) + '" required></div>' +
-      '<div class="fg"><label class="flabel">Business Unit *</label><select class="fselect" name="business_unit_id" required><option value="">Select BU…</option>' + opts(masters['business-units']||[], existing?.business_unit_id) + '</select></div>' +
-      '<div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">None</option>' + opts(masters['cost-centres']||[], existing?.cost_centre_id) + '</select></div>' +
-      '<div class="fg"><label class="flabel">Manager</label><select class="fselect" name="manager_id"><option value="">None</option>' + opts(masters['employees-lookup']||[], existing?.manager_id) + '</select></div>' +
-      '<div class="fg"><label class="flabel">Location</label><select class="fselect" name="location_id"><option value="">None</option>' + opts(masters['locations']||[], existing?.location_id) + '</select></div>' +
-      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="' + v(existing?.budget,0) + '"></div>' +
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + (existing?.is_active!=0?' selected':'') + '>Active</option><option value="0"' + (existing?.is_active==0?' selected':'') + '>Inactive</option></select></div>' +
-      '<div class="fg full"><label class="flabel">Location / Floor</label><input class="finput" name="location" value="' + v(existing?.location) + '" placeholder="Floor, wing, city"></div>' +
+      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v((existing && existing.name)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Business Unit *</label><select class="fselect" name="business_unit_id" required><option value="">Select BU…</option>' + opts(masters['business-units']||[], (existing && existing.business_unit_id)) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">None</option>' + opts(masters['cost-centres']||[], (existing && existing.cost_centre_id)) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Manager</label><select class="fselect" name="manager_id"><option value="">None</option>' + opts(masters['employees-lookup']||[], (existing && existing.manager_id)) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Location</label><select class="fselect" name="location_id"><option value="">None</option>' + opts(masters['locations']||[], (existing && existing.location_id)) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="' + v((existing && existing.budget),0) + '"></div>' +
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + ((existing && existing.is_active)!=0?' selected':'') + '>Active</option><option value="0"' + ((existing && existing.is_active)==0?' selected':'') + '>Inactive</option></select></div>' +
+      '<div class="fg full"><label class="flabel">Location / Floor</label><input class="finput" name="location" value="' + v((existing && existing.location)) + '" placeholder="Floor, wing, city"></div>' +
       '</form>',
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
@@ -450,10 +450,7 @@ export async function renderCostCentres() {
     const ccDeptCount = {};
     depts.forEach(d => { if (d.cost_centre_id) ccDeptCount[d.cost_centre_id] = (ccDeptCount[d.cost_centre_id]||0)+1; });
 
-    window._orgRowClick = (entity, id) => {
-      const cc = rows.find(r=>r.id===id);
-      if (cc) ccModal(cc, masters);
-    };
+    window._orgRowClick = (entity, id) => navigate('/organisation/cost-centres/' + id);
     window._orgEdit = (entity, id) => { const cc = rows.find(r=>r.id===id); if(cc) ccModal(cc,masters); };
     window._addCC   = () => ccModal(null, masters);
 
@@ -471,7 +468,7 @@ export async function renderCostCentres() {
         { label:'Status', key:'is_active', render: r=>badge(r.is_active?'Active':'Inactive') },
       ],
       cardRender: r =>
-        '<div class="struct-card" onclick="event.stopPropagation();window._orgEdit(\'\','+r.id+')">' +
+        '<div class="struct-card" onclick="navigateTo(\'/organisation/cost-centres/'+r.id+'\')">' +
         '<div class="struct-card-header"><div class="struct-card-icon">💰</div>' +
         '<div class="multi-card-actions"><button class="btn btn-ghost btn-xs" onclick="window._orgEdit(\'\','+r.id+')">✏</button></div></div>' +
         '<div class="struct-card-title">' + v(r.name) + '</div>' +
@@ -492,12 +489,12 @@ function ccModal(existing, masters) {
   openModal({
     title: isEdit ? '✏ Edit Cost Centre' : '+ New Cost Centre',
     body: '<form id="cc-form" class="form-grid-sm">' +
-      '<div class="fg"><label class="flabel">Code *</label><input class="finput mono" name="code" value="' + v(existing?.code) + '" required placeholder="CC-IT-001"' + (isEdit?' readonly':'') + '></div>' +
-      '<div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v(existing?.name) + '" required></div>' +
-      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Cross-BU</option>' + opts(masters['business-units']||[],existing?.business_unit_id) + '</select></div>' +
-      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="' + v(existing?.budget,0) + '"></div>' +
-      '<div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency">' + opts(['INR','USD','EUR','GBP'],existing?.currency||'INR') + '</select></div>' +
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + (existing?.is_active!=0?' selected':'') + '>Active</option><option value="0"' + (existing?.is_active==0?' selected':'') + '>Inactive</option></select></div>' +
+      '<div class="fg"><label class="flabel">Code *</label><input class="finput mono" name="code" value="' + v((existing && existing.code)) + '" required placeholder="CC-IT-001"' + (isEdit?' readonly':'') + '></div>' +
+      '<div class="fg"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v((existing && existing.name)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Cross-BU</option>' + opts(masters['business-units']||[],(existing && existing.business_unit_id)) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="' + v((existing && existing.budget),0) + '"></div>' +
+      '<div class="fg"><label class="flabel">Currency</label><select class="fselect" name="currency">' + opts(['INR','USD','EUR','GBP'],(existing && existing.currency)||'INR') + '</select></div>' +
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + ((existing && existing.is_active)!=0?' selected':'') + '>Active</option><option value="0"' + ((existing && existing.is_active)==0?' selected':'') + '>Inactive</option></select></div>' +
       '</form>',
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
@@ -562,17 +559,17 @@ function locModal(existing, masters) {
   openModal({
     title: isEdit ? '✏ Edit Location' : '+ New Location', size: 'lg',
     body: '<form id="loc-form" class="form-grid-sm">' +
-      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v(existing?.name) + '" required></div>' +
-      '<div class="fg"><label class="flabel">Type</label><select class="fselect" name="type">' + opts(LOC_TYPES,existing?.type||'Regional') + '</select></div>' +
-      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Shared</option>' + opts(masters['business-units']||[],existing?.business_unit_id) + '</select></div>' +
-      '<div class="fg full"><label class="flabel">Address</label><input class="finput" name="address_line1" value="' + v(existing?.address_line1) + '"></div>' +
-      '<div class="fg"><label class="flabel">City *</label><input class="finput" name="city" value="' + v(existing?.city) + '" required></div>' +
-      '<div class="fg"><label class="flabel">Pincode</label><input class="finput mono" name="pincode" value="' + v(existing?.pincode) + '"></div>' +
-      '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="' + v(existing?.phone) + '"></div>' +
-      '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="' + v(existing?.email) + '"></div>' +
-      '<div class="fg"><label class="flabel">Headcount</label><input class="finput" type="number" name="headcount" value="' + v(existing?.headcount,0) + '"></div>' +
-      '<div class="fg"><label class="flabel">Headquarters?</label><select class="fselect" name="is_hq"><option value="0"' + (!existing?.is_hq?' selected':'') + '>No</option><option value="1"' + (existing?.is_hq?' selected':'') + '>Yes — HQ</option></select></div>' +
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + (existing?.is_active!=0?' selected':'') + '>Active</option><option value="0"' + (existing?.is_active==0?' selected':'') + '>Inactive</option></select></div>' +
+      '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="name" value="' + v((existing && existing.name)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Type</label><select class="fselect" name="type">' + opts(LOC_TYPES,(existing && existing.type)||'Regional') + '</select></div>' +
+      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Shared</option>' + opts(masters['business-units']||[],(existing && existing.business_unit_id)) + '</select></div>' +
+      '<div class="fg full"><label class="flabel">Address</label><input class="finput" name="address_line1" value="' + v((existing && existing.address_line1)) + '"></div>' +
+      '<div class="fg"><label class="flabel">City *</label><input class="finput" name="city" value="' + v((existing && existing.city)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Pincode</label><input class="finput mono" name="pincode" value="' + v((existing && existing.pincode)) + '"></div>' +
+      '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="' + v((existing && existing.phone)) + '"></div>' +
+      '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="' + v((existing && existing.email)) + '"></div>' +
+      '<div class="fg"><label class="flabel">Headcount</label><input class="finput" type="number" name="headcount" value="' + v((existing && existing.headcount),0) + '"></div>' +
+      '<div class="fg"><label class="flabel">Headquarters?</label><select class="fselect" name="is_hq"><option value="0"' + (!(existing && existing.is_hq)?' selected':'') + '>No</option><option value="1"' + ((existing && existing.is_hq)?' selected':'') + '>Yes — HQ</option></select></div>' +
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active"><option value="1"' + ((existing && existing.is_active)!=0?' selected':'') + '>Active</option><option value="0"' + ((existing && existing.is_active)==0?' selected':'') + '>Inactive</option></select></div>' +
       '</form>',
     submitLabel: isEdit ? 'Save' : 'Add',
     onSubmit: async () => {
@@ -617,5 +614,72 @@ export async function renderLocationDetail({ id }) {
       '</div></div></div>'
     );
     window._editL = () => locModal(loc, masters);
+  } catch(e) { showError(e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COST CENTRE DETAIL
+// ═══════════════════════════════════════════════════════════════
+export async function renderCostCentreDetail({ id }) {
+  showLoader();
+  try {
+    const [cc, masters, depts] = await Promise.all([
+      get('/cost-centres/' + id).catch(() => null),
+      getMasters(),
+      get('/departments'),
+    ]);
+    if (!cc) { showError('Cost Centre not found'); return; }
+    setPageTitle(cc.name, 'Cost Centre — ' + v(cc.code));
+    setBreadcrumb([{ label:'Cost Centres', url:'/organisation/cost-centres' }, { label: cc.name }]);
+
+    const linkedDepts = depts.filter(d => d.cost_centre_id == id);
+
+    setContent(
+      '<div class="detail-layout">' +
+      '<div class="detail-sidebar"><div class="card">' +
+        '<div class="profile-hero" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">' +
+          '<div style="font-size:48px;margin-bottom:8px">💰</div>' +
+          '<div class="profile-name">' + v(cc.name) + '</div>' +
+          '<div class="profile-title" style="color:rgba(255,255,255,.7)">' + v(cc.code) + '</div>' +
+          '<div style="margin-top:8px">' + badge(cc.is_active ? 'Active' : 'Inactive') + '</div>' +
+        '</div>' +
+        '<div class="profile-meta">' +
+          '<div class="meta-row"><span>Code</span><strong class="mono">' + v(cc.code) + '</strong></div>' +
+          '<div class="meta-row"><span>Business Unit</span><strong>' + v(cc.bu_name || cc.business_unit, '—') + '</strong></div>' +
+          '<div class="meta-row"><span>Budget</span><strong>' + fmt.money(cc.budget) + '</strong></div>' +
+          '<div class="meta-row"><span>Currency</span><strong>' + v(cc.currency, 'INR') + '</strong></div>' +
+          '<div class="meta-row"><span>Departments</span><strong>' + linkedDepts.length + '</strong></div>' +
+        '</div>' +
+        '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">' +
+          '<button class="btn btn-primary btn-full" onclick="window._editCC()">✏ Edit</button>' +
+          '<button class="btn btn-danger btn-full" onclick="window._deleteCC()">Delete</button>' +
+        '</div>' +
+      '</div></div>' +
+      '<div class="detail-main">' +
+        '<div class="card">' +
+          '<div class="card-header"><h3 class="card-title">Departments using this Cost Centre (' + linkedDepts.length + ')</h3></div>' +
+          (linkedDepts.length
+            ? '<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Department</th><th>Business Unit</th><th>Headcount</th></tr></thead><tbody>' +
+              linkedDepts.map(d =>
+                '<tr class="tbl-clickable" onclick="navigateTo('/organisation/departments/' + d.id + '')">' +
+                '<td><strong>' + v(d.name) + '</strong></td>' +
+                '<td>' + v(d.bu_name || d.business_unit, '—') + '</td>' +
+                '<td>' + (d.headcount || 0) + '</td>' +
+                '</tr>'
+              ).join('') +
+              '</tbody></table></div>'
+            : '<div class="empty-mini">No departments linked to this cost centre</div>'
+          ) +
+        '</div>' +
+      '</div></div>'
+    );
+
+    window._editCC   = () => ccModal(cc, masters);
+    window._deleteCC = async () => {
+      if (!confirm('Deactivate this cost centre?')) return;
+      await put('/cost-centres/' + id, { is_active: 0 });
+      toast('Cost centre deactivated', 'info');
+      navigate('/organisation/cost-centres');
+    };
   } catch(e) { showError(e.message); }
 }

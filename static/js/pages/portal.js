@@ -333,11 +333,11 @@ export async function renderTeam() {
       <div class="page-body">
         ${t.manager ? `<div class="team-section"><div class="section-label">📊 Reporting Manager</div>
           <div class="team-grid">${card(t.manager,'Manager','purple')}</div></div>` : ''}
-        ${t.peers?.length ? `<div class="team-section"><div class="section-label">🤝 Peers (${t.peers.length})</div>
+        ${t.(peers && peers.length) ? `<div class="team-section"><div class="section-label">🤝 Peers (${t.peers.length})</div>
           <div class="team-grid">${t.peers.map(p=>card(p,'Peer','blue')).join('')}</div></div>` : ''}
-        ${t.reportees?.length ? `<div class="team-section"><div class="section-label">👤 My Reportees (${t.reportees.length})</div>
+        ${t.(reportees && reportees.length) ? `<div class="team-section"><div class="section-label">👤 My Reportees (${t.reportees.length})</div>
           <div class="team-grid">${t.reportees.map(r=>card(r,'Reportee','green')).join('')}</div></div>` : ''}
-        ${!t.manager&&!t.peers?.length&&!t.reportees?.length ? `<div class="empty-state"><div class="empty-icon">👥</div>
+        ${!t.manager&&!t.(peers && peers.length)&&!t.(reportees && reportees.length) ? `<div class="empty-state"><div class="empty-icon">👥</div>
           <div class="empty-title">No team configured</div>
           <div class="empty-sub">Ask admin to set your reporting manager</div></div>` : ''}
       </div>`);

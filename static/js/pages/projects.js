@@ -79,10 +79,12 @@ export async function renderList() {
 
 export async function renderNew() {
   showLoader();
-  const masters = await get('/masters/all');
-  setPageTitle('New Project', '');
-  setBreadcrumb([{ label:'Projects', url:'/projects' }, { label:'New' }]);
-  renderProjectForm(null, masters);
+  try {
+    const masters = await get('/masters/all');
+    setPageTitle('New Project', '');
+    setBreadcrumb([{ label:'Projects', url:'/projects' }, { label:'New' }]);
+    renderProjectForm(null, masters);
+  } catch(e) { showError(e.message); }
 }
 
 function renderProjectForm(proj, masters) {
@@ -93,35 +95,35 @@ function renderProjectForm(proj, masters) {
     '<form id="proj-form"><div class="form-grid">'+
       // Basic
       '<div class="form-section-title">Project Details</div>'+
-      '<div class="fg full"><label class="flabel">Project Name *</label><input class="finput" name="name" value="'+v(proj?.name)+'" required placeholder="e.g. Digital Transformation Phase 2"></div>'+
-      '<div class="fg"><label class="flabel">Short Name</label><input class="finput" name="short_name" value="'+v(proj?.short_name)+'" placeholder="Acronym"></div>'+
-      '<div class="fg"><label class="flabel">Project Type</label><select class="fselect" name="project_type">'+opts(PROJ_TYPES,proj?.project_type||'T&M')+'</select></div>'+
-      '<div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority">'+opts(PRIORITIES,proj?.priority||'Medium')+'</select></div>'+
-      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+opts(PROJ_STATUS,proj?.status||'Draft')+'</select></div>'+
-      '<div class="fg"><label class="flabel">Health Score</label><input class="finput" type="number" name="health_score" value="'+v(proj?.health_score,80)+'" min="0" max="100"></div>'+
+      '<div class="fg full"><label class="flabel">Project Name *</label><input class="finput" name="name" value="'+v((proj && proj.name))+'" required placeholder="e.g. Digital Transformation Phase 2"></div>'+
+      '<div class="fg"><label class="flabel">Short Name</label><input class="finput" name="short_name" value="'+v((proj && proj.short_name))+'" placeholder="Acronym"></div>'+
+      '<div class="fg"><label class="flabel">Project Type</label><select class="fselect" name="project_type">'+opts(PROJ_TYPES,(proj && proj.project_type)||'T&M')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Priority</label><select class="fselect" name="priority">'+opts(PRIORITIES,(proj && proj.priority)||'Medium')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">'+opts(PROJ_STATUS,(proj && proj.status)||'Draft')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Health Score</label><input class="finput" type="number" name="health_score" value="'+v((proj && proj.health_score),80)+'" min="0" max="100"></div>'+
       // Commercial
       '<div class="form-section-title">Commercial</div>'+
-      '<div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id"><option value="">Select client…</option>'+opts(masters['clients-lookup']||[],proj?.client_id)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id"><option value="">Select…</option>'+opts(masters['employees-lookup']||[],proj?.account_manager_id)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Project Manager</label><select class="fselect" name="project_manager_id"><option value="">Select…</option>'+opts(masters['employees-lookup']||[],proj?.project_manager_id)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Billing Type</label><select class="fselect" name="billing_type">'+opts(PROJ_TYPES,proj?.billing_type||'T&M')+'</select></div>'+
-      '<div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle">'+opts(BILLING_CYCLE,proj?.billing_cycle||'Monthly')+'</select></div>'+
-      '<div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" value="'+v(proj?.contract_value,0)+'"></div>'+
-      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v(proj?.budget,0)+'"></div>'+
-      '<div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number" value="'+v(proj?.po_number)+'"></div>'+
-      '<div class="fg"><label class="flabel">SOW Reference</label><input class="finput" name="sow_reference" value="'+v(proj?.sow_reference)+'"></div>'+
+      '<div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id"><option value="">Select client…</option>'+opts(masters['clients-lookup']||[],(proj && proj.client_id))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Account Manager</label><select class="fselect" name="account_manager_id"><option value="">Select…</option>'+opts(masters['employees-lookup']||[],(proj && proj.account_manager_id))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Project Manager</label><select class="fselect" name="project_manager_id"><option value="">Select…</option>'+opts(masters['employees-lookup']||[],(proj && proj.project_manager_id))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Billing Type</label><select class="fselect" name="billing_type">'+opts(PROJ_TYPES,(proj && proj.billing_type)||'T&M')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Billing Cycle</label><select class="fselect" name="billing_cycle">'+opts(BILLING_CYCLE,(proj && proj.billing_cycle)||'Monthly')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Contract Value (₹)</label><input class="finput" type="number" name="contract_value" value="'+v((proj && proj.contract_value),0)+'"></div>'+
+      '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v((proj && proj.budget),0)+'"></div>'+
+      '<div class="fg"><label class="flabel">PO Number</label><input class="finput" name="po_number" value="'+v((proj && proj.po_number))+'"></div>'+
+      '<div class="fg"><label class="flabel">SOW Reference</label><input class="finput" name="sow_reference" value="'+v((proj && proj.sow_reference))+'"></div>'+
       // Org
       '<div class="form-section-title">Organisation</div>'+
-      '<div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id"><option value="">Select…</option>'+opts(masters['departments']||[],proj?.department_id)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Select…</option>'+opts(masters['business-units']||[],proj?.business_unit_id)+'</select></div>'+
-      '<div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">Select…</option>'+opts(masters['cost-centres']||[],proj?.cost_centre_id)+'</select></div>'+
+      '<div class="fg"><label class="flabel">Department</label><select class="fselect" name="department_id"><option value="">Select…</option>'+opts(masters['departments']||[],(proj && proj.department_id))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Select…</option>'+opts(masters['business-units']||[],(proj && proj.business_unit_id))+'</select></div>'+
+      '<div class="fg"><label class="flabel">Cost Centre</label><select class="fselect" name="cost_centre_id"><option value="">Select…</option>'+opts(masters['cost-centres']||[],(proj && proj.cost_centre_id))+'</select></div>'+
       // Timeline
       '<div class="form-section-title">Timeline</div>'+
-      '<div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="'+v(proj?.start_date?String(proj.start_date).split('T')[0]:'')+'"></div>'+
-      '<div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date" value="'+v(proj?.end_date?String(proj.end_date).split('T')[0]:'')+'"></div>'+
-      '<div class="fg"><label class="flabel">Go Live Date</label><input class="finput" type="date" name="go_live_date" value="'+v(proj?.go_live_date?String(proj.go_live_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Start Date</label><input class="finput" type="date" name="start_date" value="'+v((proj && proj.start_date)?String(proj.start_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">End Date</label><input class="finput" type="date" name="end_date" value="'+v((proj && proj.end_date)?String(proj.end_date).split('T')[0]:'')+'"></div>'+
+      '<div class="fg"><label class="flabel">Go Live Date</label><input class="finput" type="date" name="go_live_date" value="'+v((proj && proj.go_live_date)?String(proj.go_live_date).split('T')[0]:'')+'"></div>'+
       // Description
-      '<div class="fg full"><label class="flabel">Description</label><textarea class="finput" name="description" rows="3">'+v(proj?.description)+'</textarea></div>'+
+      '<div class="fg full"><label class="flabel">Description</label><textarea class="finput" name="description" rows="3">'+v((proj && proj.description))+'</textarea></div>'+
     '</div></form>'+
     '<div class="form-actions">'+
       '<button type="button" class="btn btn-ghost" onclick="navigateTo(\''+(isEdit?'/projects/'+proj.id:'/projects')+'\')">Cancel</button>'+

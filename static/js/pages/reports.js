@@ -83,7 +83,7 @@ function renderReportData(type, d) {
 }
 
 function chart(title, rows, labelKey, valueKey, color) {
-  if (!rows?.length) return `<div class="card"><div class="card-header"><h3 class="card-title">${title}</h3></div><div class="empty-mini">No data</div></div>`;
+  if (!(rows && rows.length)) return `<div class="card"><div class="card-header"><h3 class="card-title">${title}</h3></div><div class="empty-mini">No data</div></div>`;
   const max = Math.max(...rows.map(r => parseFloat(r[valueKey])||0), 1);
   return `<div class="card">
     <div class="card-header"><h3 class="card-title">${title}</h3></div>

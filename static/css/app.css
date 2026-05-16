@@ -733,3 +733,17 @@ input, select, textarea { font: inherit; }
 .text-muted        { color: #6b7280 !important; }
 
 .multi-card-pinned { border-left: 3px solid var(--brand); background: var(--brand-l); }
+
+/* ═══ STRONG label color override - Issue #2 ═══ */
+label.flabel,
+.field-label,
+.org-section-body .field-label,
+.card-body .field-label,
+.multi-card .field-label,
+.detail-sidebar .meta-row > span,
+.profile-meta .meta-row > span {
+  color: #1f2937 !important;
+  font-weight: 600 !important;
+}
+.field-value { color: #111827 !important; }
+.field-value.empty { color: #9ca3af !important; }

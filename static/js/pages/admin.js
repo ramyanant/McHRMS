@@ -88,19 +88,19 @@ function userModal(existing, masters) {
     title: isEdit ? '✏ Edit User: '+v(existing.username) : '+ Create New User', size: 'lg',
     body:
       '<form id="user-form" class="form-grid-sm">'+
-      '<div class="fg"><label class="flabel">Username *</label><input class="finput" name="username" value="'+v(existing?.username)+'" required placeholder="lowercase_username"></div>'+
-      '<div class="fg"><label class="flabel">Full Name *</label><input class="finput" name="full_name" value="'+v(existing?.full_name)+'" required></div>'+
-      '<div class="fg"><label class="flabel">Email *</label><input class="finput" type="email" name="email" value="'+v(existing?.email)+'" required></div>'+
+      '<div class="fg"><label class="flabel">Username *</label><input class="finput" name="username" value="'+v((existing && existing.username))+'" required placeholder="lowercase_username"></div>'+
+      '<div class="fg"><label class="flabel">Full Name *</label><input class="finput" name="full_name" value="'+v((existing && existing.full_name))+'" required></div>'+
+      '<div class="fg"><label class="flabel">Email *</label><input class="finput" type="email" name="email" value="'+v((existing && existing.email))+'" required></div>'+
       (isEdit ? '' : '<div class="fg"><label class="flabel">Password *</label><input class="finput" type="password" name="password" required minlength="8" placeholder="Min 8 characters"></div>')+
       '<div class="fg"><label class="flabel">Role *</label><select class="fselect" name="role_id" required>'+
-        '<option value="">Select role…</option>'+opts(roles,existing?.role_id)+'</select>'+
+        '<option value="">Select role…</option>'+opts(roles,(existing && existing.role_id))+'</select>'+
         '<div class="field-hint">Determines what this user can access</div></div>'+
       '<div class="fg"><label class="flabel">Link to Employee</label><select class="fselect" name="employee_id">'+
-        '<option value="">None (standalone user)</option>'+opts(emps,existing?.employee_id)+'</select>'+
+        '<option value="">None (standalone user)</option>'+opts(emps,(existing && existing.employee_id))+'</select>'+
         '<div class="field-hint">Links this login to an employee record (enables self-service portal)</div></div>'+
       '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="is_active">'+
-        '<option value="1"'+(existing?.is_active!=0?' selected':'') +'>Active</option>'+
-        '<option value="0"'+(existing?.is_active==0?' selected':'')+'>Inactive</option>'+
+        '<option value="1"'+((existing && existing.is_active)!=0?' selected':'') +'>Active</option>'+
+        '<option value="0"'+((existing && existing.is_active)==0?' selected':'')+'>Inactive</option>'+
       '</select></div>'+
       '</form>',
     submitLabel: isEdit ? 'Save Changes' : 'Create User',
@@ -248,8 +248,8 @@ function roleModal(existing) {
   openModal({
     title: isEdit ? '✏ Edit Role' : '+ New Role',
     body: '<form id="role-form" class="form-grid-sm">'+
-      '<div class="fg full"><label class="flabel">Role Name *</label><input class="finput" name="name" value="'+v(existing?.name)+'" required placeholder="e.g. Finance Manager"></div>'+
-      '<div class="fg full"><label class="flabel">Description</label><textarea class="finput" name="description" rows="2">'+v(existing?.description)+'</textarea></div>'+
+      '<div class="fg full"><label class="flabel">Role Name *</label><input class="finput" name="name" value="'+v((existing && existing.name))+'" required placeholder="e.g. Finance Manager"></div>'+
+      '<div class="fg full"><label class="flabel">Description</label><textarea class="finput" name="description" rows="2">'+v((existing && existing.description))+'</textarea></div>'+
     '</form>',
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
@@ -297,20 +297,33 @@ export async function renderAuditLogs() {
 // SETTINGS
 // ═══════════════════════════════════════════════════════════════
 export async function renderSettings() {
-  setPageTitle('Settings', 'System configuration');
-  setBreadcrumb([{ label:'Admin' }, { label:'Settings' }]);
-  setContent(
-    '<div class="page-body"><div class="reports-grid">'+
-    [
-      ['🏛','Organisation Profile',  '/organisation/profile'],
-      ['👤','Users & Access',        '/admin/users'],
-      ['🔐','Roles & Permissions',   '/admin/roles'],
-      ['🔍','Audit Logs',            '/audit-logs'],
-    ].map(([icon,label,href])=>'<div class="report-card" onclick="navigateTo(\''+href+'\')">'+
-      '<div class="report-icon">'+icon+'</div><div class="report-title">'+label+'</div></div>').join('')+
-    '</div></div>'
-  );
+  setPageTitle('Settings', 'System administration');
+  setBreadcrumb([{ label:'Settings' }]);
+
+  const sections = [
+    { icon:'🏛', label:'Organisation Profile',  desc:'Company info, logo, statutory details', href:'/organisation/profile' },
+    { icon:'🏢', label:'Business Units',         desc:'Manage top-level divisions', href:'/organisation/business-units' },
+    { icon:'📂', label:'Departments',            desc:'Departments and structure', href:'/organisation/departments' },
+    { icon:'💰', label:'Cost Centres',           desc:'Budget tracking and GL codes', href:'/organisation/cost-centres' },
+    { icon:'📍', label:'Locations',              desc:'Office and site management', href:'/organisation/locations' },
+    { icon:'👤', label:'Users & Access',         desc:'User accounts and login management', href:'/admin/users' },
+    { icon:'🔐', label:'Roles & Permissions',    desc:'Role-based access control', href:'/admin/roles' },
+    { icon:'🔍', label:'Audit Logs',             desc:'System activity and change history', href:'/audit-logs' },
+  ];
+
+  var html = '<div class="page-body"><div class="reports-grid">';
+  sections.forEach(function(s) {
+    html += '<div class="report-card" onclick="navigateTo(\'' + s.href + '\')">' +
+      '<div class="report-icon">' + s.icon + '</div>' +
+      '<div class="report-title">' + s.label + '</div>' +
+      '<div class="report-desc">' + s.desc + '</div>' +
+      '<div class="report-arrow">Go to →</div>' +
+      '</div>';
+  });
+  html += '</div></div>';
+  setContent(html);
 }
+
 
 export async function renderOrganisation() {
   navigate('/organisation/profile');

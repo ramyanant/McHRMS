@@ -34,9 +34,11 @@ def get_organisation():
         LEFT JOIN master_states s1 ON s1.id=o.reg_state_id
         LEFT JOIN master_countries c1 ON c1.id=o.reg_country_id
         LIMIT 1""")
-    # Remove large binary fields from response to keep it fast
+    # Don't include raw binary in response - just flag if logo exists
     if org:
+        has_logo = bool(org.get('logo_data'))
         org.pop('logo_data', None)
+        org['has_logo'] = has_logo
     if not org:
         return ok({"_exists": False, "completion": 0})
 
