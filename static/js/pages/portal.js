@@ -321,6 +321,7 @@ function docTab(empId) {
 }
 
 function securityTab() {
+  setTimeout(registerPwdHandler, 50);
   return '<div class="card"><div class="card-header"><h3 class="card-title">🔐 Change Password</h3></div>' +
     '<div class="card-body"><form id="pwd-form" class="form-grid-sm" style="max-width:400px">' +
     '<div class="fg full"><label class="flabel">Current Password *</label><input class="finput" type="password" name="current_password" required></div>' +
@@ -448,8 +449,9 @@ export async function renderApprovals() {
   navigate('/timesheets/approval');
 }
 
-// Password change (called from security tab)
-window._changePwd = async function() {
+// Password change handler - registered when security tab is shown
+function registerPwdHandler() {
+  window._changePwd = async function() {
   var form = document.getElementById('pwd-form');
   if (!form) return;
   var data = Object.fromEntries(new FormData(form));
@@ -460,4 +462,5 @@ window._changePwd = async function() {
     toast('Password changed successfully. Please log in again.','success');
     setTimeout(function(){ window.location.reload(); }, 2000);
   } catch(e) { toast(e.message,'error'); }
-};
+  };
+}
