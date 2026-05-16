@@ -12,7 +12,7 @@ function v(val,fb){if(val===null||val===undefined)return fb!==undefined?fb:'';re
 function fd(id){const d=Object.fromEntries(new FormData(document.getElementById(id)));Object.keys(d).forEach(k=>{if(d[k]==='')d[k]=null;});return d;}
 function opts(arr,sel,vk,lk){return arr.map(item=>{const val=typeof item==='string'?item:item[vk||'id'];const lbl=typeof item==='string'?item:item[lk||'name'];return '<option value="'+v(val)+'"'+(String(val)===String(sel)?' selected':'')+'>'+v(lbl)+'</option>';}).join('');}
 function fg(label,input,hint){return '<div class="fg"><label class="flabel">'+label+'</label>'+input+(hint?'<div class="field-hint">'+hint+'</div>':'')+'</div>';}
-function fi(label,name,val,type,ph,extra){return fg(label,'<input class="finput" type="'+(type||'text')+'" name="'+name+'" value="'+v(val)+'"'+(ph?' placeholder="'+ph+'"':'')+(extra||')+">');}'
+function fi(label,name,val,type,ph,extra){return fg(label,'<input class="finput" type="'+(type||'text')+'" name="'+name+'" value="'+v(val)+'"'+(ph?' placeholder="'+ph+'"':'')+(extra||'')+'>');}
 function fsl(label,name,options,selected){return fg(label,'<select class="fselect" name="'+name+'"><option value="">Select…</option>'+opts(options,selected)+'</select>');}
 
 const WORK_MODES   = ['On-Site','Hybrid','Remote','Flexible'];

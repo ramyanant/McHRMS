@@ -210,3 +210,39 @@ def manage_milestone(mid):
 def lookup_projects():
     _ensure_projects()
     return ok(db_rows("SELECT id, project_code, name FROM projects WHERE is_active=1 ORDER BY name"))
+
+
+@projects_bp.route('/projects/<int:pid>/documents', methods=['GET','POST'])
+@require_auth
+def project_documents(pid):
+    _ensure_projects()
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM project_documents
+                WHERE project_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (pid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS project_documents (
+            id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id),
+            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
+            mime_type TEXT, notes TEXT, is_active INTEGER DEFAULT 1,
+            uploaded_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("""INSERT INTO project_documents (project_id, doc_type, doc_name, file_data, file_size, mime_type, notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (pid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
+             d.get('file_size'), d.get('mime_type'), d.get('notes')))
+        doc_id = cur.fetchone()['id']; conn.close()
+        return created({'id': doc_id})
+    except Exception as e: return err(str(e))
+
+@projects_bp.route('/projects/documents/<int:did>', methods=['GET','DELETE'])
+@require_auth
+def project_doc_detail(did):
+    if request.method == 'DELETE':
+        db_execute("UPDATE project_documents SET is_active=0 WHERE id=%s",(did,)); return ok(message="Deleted")
+    doc = db_row1("SELECT * FROM project_documents WHERE id=%s",(did,))
+    return ok(doc) if doc else not_found("Document")

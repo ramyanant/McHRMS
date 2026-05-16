@@ -143,13 +143,47 @@ function renderVendorDetail(vendor, masters) {
         fld('SWIFT',vendor.bank_swift,true)+
         '</div></div></div>'
       );
-      case 'documents': return (
-        '<div class="card"><div class="card-header"><h3 class="card-title">Documents</h3>'+
-          '<button class="btn btn-ghost btn-sm" onclick="window._uploadVDoc()">+ Upload</button>'+
-        '</div>'+
-        '<div class="empty-mini">Document management coming soon</div>'+
-        '</div>'
-      );
+      case 'documents':
+        var vDocHtml = '<div class="card"><div class="card-header"><h3 class="card-title">📄 Documents</h3>' +
+          '<button class="btn btn-ghost btn-sm" onclick="window._uploadVDoc()">+ Upload</button>' +
+        '</div><div id="vdoc-list"><div class="empty-mini">Loading…</div></div></div>';
+        setTimeout(function() {
+          get('/vendors/' + vendor.id + '/documents').then(function(docs) {
+            var el = document.getElementById('vdoc-list'); if (!el) return;
+            if (!docs || !docs.length) { el.innerHTML = '<div class="empty-mini">No documents yet</div>'; return; }
+            el.innerHTML = '<div class="doc-grid">' + docs.map(function(d) {
+              return '<div class="doc-card"><div class="doc-icon">📄</div>' +
+                '<div class="doc-info"><div class="doc-name">' + v(d.doc_name) + '</div>' +
+                '<div class="doc-meta"><span class="badge badge-gray">' + v(d.doc_type || 'Doc') + '</span></div></div>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._rmVDoc(' + d.id + ')">✕</button></div>';
+            }).join('') + '</div>';
+          }).catch(function() {});
+          window._uploadVDoc = function() {
+            openModal({ title: '📎 Upload Document',
+              body: '<form id="vdoc-form" class="form-grid-sm">' +
+                '<div class="fg full"><label class="flabel">Name *</label><input class="finput" name="doc_name" required></div>' +
+                '<div class="fg full"><label class="flabel">File *</label><input type="file" class="finput" id="vdoc-file"></div>' +
+                '</form>',
+              submitLabel: 'Upload',
+              onSubmit: async function() {
+                var data = Object.fromEntries(new FormData(document.getElementById('vdoc-form')));
+                var fi = document.getElementById('vdoc-file');
+                if (!fi || !fi.files || !fi.files[0]) { toast('Select a file','error'); return false; }
+                var file = fi.files[0];
+                var b64 = await new Promise(function(res,rej) { var r=new FileReader(); r.onload=function(){res(r.result.split(',')[1]);}; r.onerror=rej; r.readAsDataURL(file); });
+                data.file_data=b64; data.file_size=(file.size/1024).toFixed(1)+' KB'; data.mime_type=file.type; data.doc_type='Document';
+                await post('/vendors/'+vendor.id+'/documents', data);
+                toast('Uploaded!','success');
+              }
+            });
+          };
+          window._rmVDoc = async function(docId) {
+            if (!confirm('Remove?')) return;
+            await put('/vendors/documents/'+docId,{is_active:0}).catch(function(){});
+            toast('Removed','info');
+          };
+        }, 100);
+        return vDocHtml;
       default: return '';
     }
   }

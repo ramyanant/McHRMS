@@ -277,14 +277,89 @@ async function loadTSTab(clientId) {
 }
 
 function docSection(entityId, entityType) {
-  return '<div class="card">'+
-    '<div class="card-header"><h3 class="card-title">📄 Documents</h3>'+
-      '<button class="btn btn-ghost btn-sm" onclick="window._uploadEntityDoc('+entityId+',\''+entityType+'\')">+ Upload</button>'+
-    '</div>'+
-    '<div id="entity-docs-'+entityId+'"><div class="page-loader"><div class="spinner"></div></div></div>'+
+  var DOC_TYPES = ['Contract','NDA','SOW','PO','Certificate','Invoice','Correspondence','Other'];
+
+  setTimeout(function() {
+    get('/' + entityType + 's/' + entityId + '/documents').then(function(docs) {
+      var el = document.getElementById('entity-docs-' + entityId);
+      if (!el) return;
+      if (!docs || !docs.length) {
+        el.innerHTML = '<div class="empty-mini">No documents uploaded yet</div>';
+        return;
+      }
+      el.innerHTML = '<div class="doc-grid">' + docs.map(function(d) {
+        var icon = (d.mime_type && d.mime_type.includes('pdf')) ? '📕' :
+                   (d.mime_type && d.mime_type.includes('image')) ? '🖼' : '📄';
+        return '<div class="doc-card">' +
+          '<div class="doc-icon">' + icon + '</div>' +
+          '<div class="doc-info"><div class="doc-name">' + v(d.doc_name) + '</div>' +
+          '<div class="doc-meta"><span class="badge badge-gray">' + v(d.doc_type || 'Document') + '</span>' +
+          (d.file_size ? '<span class="text-muted">' + v(d.file_size) + '</span>' : '') +
+          '</div></div>' +
+          '<div style="display:flex;gap:4px">' +
+            '<button class="btn btn-ghost btn-xs" onclick="window._dlDoc('' + entityType + '',' + d.id + ')" title="Download">⬇</button>' +
+            '<button class="btn btn-danger btn-xs" onclick="window._rmDoc('' + entityType + '','+ d.id + ',' + entityId + ')">✕</button>' +
+          '</div></div>';
+      }).join('') + '</div>';
+    }).catch(function() {
+      var el = document.getElementById('entity-docs-' + entityId);
+      if (el) el.innerHTML = '<div class="empty-mini">No documents yet</div>';
+    });
+  }, 100);
+
+  window._uploadDoc = function(eId, eType) {
+    openModal({
+      title: '📎 Upload Document',
+      body: '<form id="doc-up-form" class="form-grid-sm">' +
+        '<div class="fg"><label class="flabel">Type *</label><select class="fselect" name="doc_type" required>' +
+        DOC_TYPES.map(function(t) { return '<option>' + t + '</option>'; }).join('') + '</select></div>' +
+        '<div class="fg"><label class="flabel">Name *</label><input class="finput" name="doc_name" required placeholder="e.g. MSA 2024"></div>' +
+        '<div class="fg full"><label class="flabel">File *</label><input type="file" class="finput" id="doc-up-file" accept=".pdf,.doc,.docx,.png,.jpg,.xls,.xlsx"></div>' +
+        '<div class="fg full"><label class="flabel">Notes</label><input class="finput" name="notes"></div>' +
+        '</form>',
+      submitLabel: 'Upload',
+      onSubmit: async function() {
+        var data = Object.fromEntries(new FormData(document.getElementById('doc-up-form')));
+        var fi = document.getElementById('doc-up-file');
+        if (!fi || !fi.files || !fi.files[0]) { toast('Select a file', 'error'); return false; }
+        var file = fi.files[0];
+        if (file.size > 5 * 1024 * 1024) { toast('Max 5MB', 'error'); return false; }
+        var b64 = await new Promise(function(res, rej) {
+          var r = new FileReader(); r.onload = function() { res(r.result.split(',')[1]); }; r.onerror = rej; r.readAsDataURL(file);
+        });
+        data.file_data = b64; data.file_size = (file.size/1024).toFixed(1)+' KB'; data.mime_type = file.type;
+        await post('/' + eType + 's/' + eId + '/documents', data);
+        toast('Uploaded!', 'success');
+        var el = document.getElementById('entity-docs-' + eId);
+        if (el) el.innerHTML = '<div class="empty-mini">Reload to see documents</div>';
+      }
+    });
+  };
+  window._dlDoc = async function(eType, docId) {
+    try {
+      var doc = await get('/' + eType + 's/documents/' + docId);
+      if (!doc || !doc.file_data) { toast('File not available', 'error'); return; }
+      var link = document.createElement('a');
+      link.href = 'data:' + (doc.mime_type || 'application/octet-stream') + ';base64,' + doc.file_data;
+      link.download = doc.doc_name || 'document';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    } catch(e) { toast(e.message, 'error'); }
+  };
+  window._rmDoc = async function(eType, docId, eId) {
+    if (!confirm('Remove document?')) return;
+    await put('/' + eType + 's/documents/' + docId, { is_active: 0 }).catch(function() {});
+    toast('Removed', 'info');
+    var el = document.getElementById('entity-docs-' + eId);
+    if (el) el.innerHTML = '<div class="empty-mini">Removed. Reload to refresh.</div>';
+  };
+
+  return '<div class="card">' +
+    '<div class="card-header"><h3 class="card-title">📄 Documents</h3>' +
+      '<button class="btn btn-ghost btn-sm" onclick="window._uploadDoc(' + entityId + ','' + entityType + '')">+ Upload</button>' +
+    '</div>' +
+    '<div id="entity-docs-' + entityId + '"><div class="empty-mini">Loading…</div></div>' +
   '</div>';
 }
-
 function renderClientForm(existing, masters) {
   const isEdit = !!existing;
   if(isEdit) {

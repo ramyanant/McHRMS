@@ -157,8 +157,8 @@ export async function renderDetail({ id }) {
     const milestones = proj.milestones  || [];
     const timesheets = proj.timesheets  || [];
 
-    const tabs = ['overview','resources','milestones','timesheets'];
-    const tabLabels = { overview:'📋 Overview', resources:'👥 Resources', milestones:'🏁 Milestones', timesheets:'⏱ Timesheets' };
+    const tabs = ['overview','resources','milestones','timesheets','documents'];
+    const tabLabels = { overview:'📋 Overview', resources:'👥 Resources', milestones:'🏁 Milestones', timesheets:'⏱ Timesheets', documents:'📄 Documents' };
     let activeTab = 'overview';
 
     function tabContent(tab) {
@@ -207,7 +207,54 @@ export async function renderDetail({ id }) {
             : '<div class="empty-mini">No timesheets for this project yet</div>')+
           '</div>'
         );
-        default: return '';
+        case 'documents':
+        var docHtml = '<div class="card"><div class="card-header"><h3 class="card-title">📄 Documents</h3>' +
+          '<button class="btn btn-ghost btn-sm" onclick="window._uploadProjDoc()">+ Upload</button>' +
+          '</div><div id="proj-doc-list"><div class="empty-mini">Loading…</div></div></div>';
+        setTimeout(function() {
+          get('/projects/' + id + '/documents').then(function(docs) {
+            var el = document.getElementById('proj-doc-list'); if(!el) return;
+            if (!docs || !docs.length) { el.innerHTML = '<div class="empty-mini">No documents yet</div>'; return; }
+            el.innerHTML = '<div class="doc-grid">' + docs.map(function(d) {
+              return '<div class="doc-card"><div class="doc-icon">📄</div>' +
+                '<div class="doc-info"><div class="doc-name">' + v(d.doc_name) + '</div>' +
+                '<div class="doc-meta"><span class="badge badge-gray">' + v(d.doc_type || 'Doc') + '</span>' +
+                (d.file_size ? '<span class="text-muted">' + v(d.file_size) + '</span>' : '') + '</div></div>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._rmProjDoc(' + d.id + ')">✕</button></div>';
+            }).join('') + '</div>';
+          }).catch(function() { var el=document.getElementById('proj-doc-list'); if(el) el.innerHTML='<div class="empty-mini">No documents yet</div>'; });
+          window._uploadProjDoc = function() {
+            openModal({ title: '📎 Upload Document',
+              body: '<form id="pdoc-form" class="form-grid-sm">' +
+                '<div class="fg full"><label class="flabel">Document Name *</label><input class="finput" name="doc_name" required placeholder="e.g. SOW v1.2"></div>' +
+                '<div class="fg"><label class="flabel">Type</label><select class="fselect" name="doc_type">' +
+                ['SOW','Contract','PO','Proposal','Report','Minutes','Other'].map(function(t){return '<option>'+t+'</option>';}).join('') +
+                '</select></div>' +
+                '<div class="fg full"><label class="flabel">File *</label><input type="file" class="finput" id="pdoc-file" accept=".pdf,.doc,.docx,.png,.jpg,.xls,.xlsx"></div>' +
+                '</form>',
+              submitLabel: 'Upload',
+              onSubmit: async function() {
+                var data = Object.fromEntries(new FormData(document.getElementById('pdoc-form')));
+                var fi = document.getElementById('pdoc-file');
+                if (!fi||!fi.files||!fi.files[0]) { toast('Select a file','error'); return false; }
+                var file=fi.files[0];
+                var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+                data.file_data=b64; data.file_size=(file.size/1024).toFixed(1)+' KB'; data.mime_type=file.type;
+                await post('/projects/'+id+'/documents', data);
+                toast('Uploaded!','success');
+                var el=document.getElementById('proj-doc-list');
+                if(el) el.innerHTML='<div class="empty-mini">Reload tab to see updated list</div>';
+              }
+            });
+          };
+          window._rmProjDoc = async function(docId) {
+            if(!confirm('Remove document?')) return;
+            await put('/projects/documents/'+docId,{is_active:0}).catch(function(){});
+            toast('Removed','info');
+          };
+        }, 100);
+        return docHtml;
+      default: return '';
       }
     }
 

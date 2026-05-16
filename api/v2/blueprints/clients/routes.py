@@ -108,3 +108,46 @@ def client_detail(cid):
 @require_auth
 def lookup_clients():
     return ok(db_rows("SELECT id, name FROM clients WHERE is_active=1 ORDER BY name"))
+
+
+@clients_bp.route('/clients/<int:cid>/documents', methods=['GET'])
+@require_auth
+def client_documents(cid):
+    try:
+        docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+            uploaded_at, expiry_date, notes FROM client_documents
+            WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (cid,))
+        return ok(docs)
+    except Exception:
+        return ok([])
+
+@clients_bp.route('/clients/<int:cid>/documents', methods=['POST'])
+@require_auth
+def upload_client_doc(cid):
+    d = request.get_json() or {}
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS client_documents (
+            id SERIAL PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
+            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
+            mime_type TEXT, expiry_date DATE, notes TEXT, is_active INTEGER DEFAULT 1,
+            uploaded_at TIMESTAMP DEFAULT NOW(), uploaded_by INTEGER)""")
+        cur.execute("""INSERT INTO client_documents
+            (client_id, doc_type, doc_name, file_data, file_size, mime_type, expiry_date, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (cid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
+             d.get('file_size'), d.get('mime_type'), d.get('expiry_date'),
+             d.get('notes'), g.user.get('employee_id')))
+        doc_id = cur.fetchone()['id']; conn.close()
+        return created({'id': doc_id})
+    except Exception as e:
+        return err(str(e))
+
+@clients_bp.route('/clients/documents/<int:did>', methods=['GET','DELETE'])
+@require_auth
+def client_document_detail(did):
+    if request.method == 'DELETE':
+        db_execute("UPDATE client_documents SET is_active=0 WHERE id=%s", (did,))
+        return ok(message="Deleted")
+    doc = db_row1("SELECT * FROM client_documents WHERE id=%s", (did,))
+    return ok(doc) if doc else not_found("Document")

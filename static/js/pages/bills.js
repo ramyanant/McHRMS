@@ -1,23 +1,36 @@
 /**
- * Bills & Expenses — Issue #20
- * Track vendor bills, employee expenses, project costs
+ * Bills & Expenses — Zero backticks, zero optional chaining
  */
 import { get, post, put } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
-         openModal, toast, badge, fmt, renderTable } from '../ui.js';
+         openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
 
-const EXPENSE_TYPES = ['Travel','Accommodation','Meals','Office Supplies','Software/Subscriptions',
-  'Equipment','Marketing','Training','Utilities','Professional Services',
-  'Contractor Invoice','Vendor Bill','Miscellaneous'];
-const PAYMENT_MODES = ['Bank Transfer','Cheque','Cash','UPI','Credit Card','Debit Card','Online'];
-const STATUSES      = ['Draft','Submitted','Approved','Paid','Rejected'];
-
-function v(val, fb='') { return val==null ? fb : String(val).replace(/"/g,'&quot;'); }
+function v(val, fb) {
+  if (val === null || val === undefined) return fb !== undefined ? fb : '';
+  return String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function fd(id) {
-  const d = Object.fromEntries(new FormData(document.getElementById(id)));
-  Object.keys(d).forEach(k => { if(d[k]==='') d[k]=null; });
+  var d = Object.fromEntries(new FormData(document.getElementById(id)));
+  Object.keys(d).forEach(function(k) { if (d[k] === '') d[k] = null; });
   return d;
+}
+function opts(arr, sel, vk, lk) {
+  return arr.map(function(i) {
+    var val = typeof i === 'string' ? i : i[vk || 'id'];
+    var lbl = typeof i === 'string' ? i : i[lk || 'name'];
+    return '<option value="' + v(val) + '"' + (String(val) === String(sel) ? ' selected' : '') + '>' + v(lbl) + '</option>';
+  }).join('');
+}
+
+var EXPENSE_TYPES = ['Travel','Accommodation','Meals','Office Supplies','Software/Subscriptions',
+  'Equipment','Marketing','Training','Utilities','Professional Services','Contractor Invoice','Vendor Bill','Miscellaneous'];
+var PAYMENT_MODES = ['Bank Transfer','Cheque','Cash','UPI','Credit Card','Debit Card'];
+var STATUSES      = ['Draft','Submitted','Approved','Paid','Rejected'];
+
+function kpi(l, val, icon, c) {
+  return '<div class="kpi-card kpi-' + c + '"><div class="kpi-icon">' + icon + '</div>' +
+    '<div class="kpi-body"><div class="kpi-value">' + val + '</div><div class="kpi-label">' + l + '</div></div></div>';
 }
 
 export async function renderList() {
@@ -25,280 +38,229 @@ export async function renderList() {
   setBreadcrumb([{ label: 'Bills & Expenses' }]);
   showLoader();
   try {
-    const [data, summary, masters] = await Promise.all([
-      get('/bills'), get('/bills/summary'), get('/masters/all')
-    ]);
-    const rows = data.items || [];
+    var data = await get('/bills');
+    var rows = data.items || [];
+    var filterStatus = '', filterType = '';
 
-    setContent(`
-      <div class="page-body">
-        <!-- KPIs -->
-        <div class="kpi-grid kpi-4" style="margin-bottom:16px">
-          ${kpi('Total Bills',     summary.total||0,                     '📋','blue')}
-          ${kpi('Total Amount',    fmt.money(summary.amount||0),         '💰','purple')}
-          ${kpi('Pending Approval',summary.pending||0,                   '⏳','amber')}
-          ${kpi('Paid',           (summary.by_type||[]).filter(t=>t).length,'✅','green')}
-        </div>
+    function getF() {
+      var d = rows.slice();
+      if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
+      if (filterType)   d = d.filter(function(r) { return r.expense_type === filterType; });
+      return d;
+    }
 
-        <div class="list-toolbar">
-          <div style="display:flex;gap:8px;align-items:center">
-            <select class="fselect" id="type-filter" style="width:160px" onchange="window._filterBills()">
-              <option value="">All Types</option>
-              ${EXPENSE_TYPES.map(t=>`<option>${t}</option>`).join('')}
-            </select>
-            <select class="fselect" id="status-filter" style="width:120px" onchange="window._filterBills()">
-              <option value="">All Status</option>
-              ${STATUSES.map(s=>`<option>${s}</option>`).join('')}
-            </select>
-          </div>
-          <button class="btn btn-primary" onclick="window._addBill()">+ Add Bill / Expense</button>
-        </div>
+    var totalAmt = rows.reduce(function(s, r) { return s + parseFloat(r.total_amount || 0); }, 0);
+    var pending  = rows.filter(function(r) { return r.status === 'Draft' || r.status === 'Submitted'; }).length;
+    var paid     = rows.filter(function(r) { return r.status === 'Paid'; }).length;
 
-        <div class="card" id="bills-table">
-          ${renderBillsTable(rows)}
-        </div>
+    function render() {
+      var d = getF();
+      var tableHTML = '';
+      if (!d.length) {
+        tableHTML = '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No bills or expenses</div>' +
+          '<button class="btn btn-primary" onclick="window._addBill()">+ Add Bill/Expense</button></div>';
+      } else {
+        tableHTML = '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+          '<th>Type</th><th>Description</th><th>Vendor</th><th>Date</th>' +
+          '<th>Amount</th><th>Tax</th><th>Total</th><th>Status</th><th>Actions</th>' +
+          '</tr></thead><tbody>' +
+          d.map(function(b) {
+            return '<tr class="tbl-clickable" onclick="navigateTo(\'/bills/' + b.id + '\')">' +
+              '<td><span class="badge badge-purple">' + v(b.expense_type) + '</span></td>' +
+              '<td>' + v(b.description || b.bill_number || '—') + '</td>' +
+              '<td>' + v(b.vendor_name || b.cost_centre_name || '—') + '</td>' +
+              '<td class="mono">' + fmt.date(b.expense_date) + '</td>' +
+              '<td class="mono">' + fmt.money(b.amount) + '</td>' +
+              '<td class="mono">' + fmt.money(b.tax_amount) + '</td>' +
+              '<td class="mono fw-bold">' + fmt.money(b.total_amount) + '</td>' +
+              '<td>' + badge(b.status || 'Draft') + '</td>' +
+              '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+                '<button class="btn btn-ghost btn-xs" onclick="window._editBillRow(' + b.id + ')">✏</button>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._deleteBill(' + b.id + ')">Delete</button>' +
+              '</td></tr>';
+          }).join('') +
+          '</tbody></table></div></div>';
+      }
+      document.getElementById('bills-content').innerHTML = tableHTML;
+    }
 
-        <!-- Spend by Type -->
-        ${(summary.by_type||[]).length ? `
-          <div class="card" style="margin-top:16px">
-            <div class="card-header"><h3 class="card-title">📊 Spend by Category</h3></div>
-            <div class="card-body">
-              <div class="report-chart">
-                ${(summary.by_type||[]).slice(0,10).map(t => {
-                  const max = Math.max(...(summary.by_type||[]).map(x=>parseFloat(x.amount)||0),1);
-                  const pct = Math.round((parseFloat(t.amount)||0)/max*100);
-                  return `<div class="report-row">
-                    <div class="report-label">${t.expense_type}</div>
-                    <div class="report-bar-wrap">
-                      <div class="report-bar report-bar-blue" style="width:${pct}%"></div>
-                    </div>
-                    <div class="report-val">${fmt.money(t.amount)}</div>
-                  </div>`;
-                }).join('')}
-              </div>
-            </div>
-          </div>` : ''}
-      </div>`);
+    setContent(
+      '<div class="page-body">' +
+      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">' +
+        kpi('Total Bills', rows.length, '📋', 'blue') +
+        kpi('Total Amount', fmt.money(totalAmt), '💰', 'purple') +
+        kpi('Pending', pending, '⏳', 'amber') +
+        kpi('Paid', paid, '✅', 'green') +
+      '</div>' +
+      '<div class="struct-toolbar">' +
+        '<div style="display:flex;gap:8px">' +
+          '<select class="fselect" style="width:170px" onchange="window._billType(this.value)">' +
+            '<option value="">All Types</option>' + EXPENSE_TYPES.map(function(t) { return '<option>' + t + '</option>'; }).join('') +
+          '</select>' +
+          '<select class="fselect" style="width:130px" onchange="window._billStatus(this.value)">' +
+            '<option value="">All Status</option>' + STATUSES.map(function(s) { return '<option>' + s + '</option>'; }).join('') +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="window._addBill()">+ Add Bill / Expense</button>' +
+      '</div>' +
+      '<div id="bills-content"></div></div>'
+    );
 
-    window._addBill = () => billModal(null, masters);
-    window._filterBills = async () => {
-      const type   = document.getElementById('type-filter').value;
-      const status = document.getElementById('status-filter').value;
-      let url = '/bills?';
-      if (type)   url += `expense_type=${encodeURIComponent(type)}&`;
-      if (status) url += `status=${encodeURIComponent(status)}`;
-      const res = await get(url);
-      document.getElementById('bills-table').innerHTML = renderBillsTable(res.items||[]);
+    render();
+    window._billType   = function(val) { filterType = val; render(); };
+    window._billStatus = function(val) { filterStatus = val; render(); };
+    window._addBill    = async function() {
+      var masters = await get('/masters/all');
+      billModal(null, masters);
+    };
+    window._editBillRow = async function(id) {
+      var b = await get('/bills/' + id);
+      var masters = await get('/masters/all');
+      billModal(b, masters);
+    };
+    window._deleteBill = async function(id) {
+      if (!confirm('Delete this bill/expense?')) return;
+      await put('/bills/' + id, { is_active: 0 });
+      toast('Deleted', 'info');
+      renderList();
     };
   } catch(e) { showError(e.message); }
-}
-
-function renderBillsTable(rows) {
-  if (!rows.length) return '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No bills or expenses found</div></div>';
-  return `<div class="tbl-wrap"><table class="data-table">
-    <thead><tr>
-      <th>Type</th><th>Description</th><th>Vendor</th><th>Date</th>
-      <th>Amount</th><th>Tax</th><th>Total</th><th>Status</th><th>Actions</th>
-    </tr></thead>
-    <tbody>${rows.map(b=>`<tr class="tbl-clickable" onclick="navigateTo('/bills/${b.id}')">
-      <td><span class="badge badge-purple">${b.expense_type}</span></td>
-      <td>
-        <div class="cell-name">${b.description||b.bill_number||'—'}</div>
-        ${b.vendor_name ? `<div class="cell-sub">${b.vendor_name}</div>` : ''}
-      </td>
-      <td>${b.vendor_name||b.cost_centre_name||'—'}</td>
-      <td class="mono">${fmt.date(b.expense_date)}</td>
-      <td class="mono">${fmt.money(b.amount)}</td>
-      <td class="mono">${fmt.money(b.tax_amount)}</td>
-      <td class="mono fw-bold">${fmt.money(b.total_amount)}</td>
-      <td>${badge(b.status||'Draft')}</td>
-      <td class="tbl-actions">
-        <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();window._editBillRow(${b.id})">✏</button>
-      </td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
-}
-
-function kpi(l, v2, icon, color) {
-  return `<div class="kpi-card kpi-${color}"><div class="kpi-icon">${icon}</div>
-    <div class="kpi-body"><div class="kpi-value">${v2}</div><div class="kpi-label">${l}</div></div></div>`;
 }
 
 export async function renderDetail({ id }) {
   showLoader();
   try {
-    const [bill, masters] = await Promise.all([get(`/bills/${id}`), get('/masters/all')]);
-    setPageTitle(bill.expense_type, bill.description||'Bill/Expense');
+    var bill = await get('/bills/' + id);
+    var masters = await get('/masters/all');
+    setPageTitle(bill.expense_type, bill.description || 'Bill/Expense');
     setBreadcrumb([{ label: 'Bills & Expenses', url: '/bills' }, { label: bill.expense_type }]);
-    setContent(`
-      <div class="detail-layout">
-        <div class="detail-sidebar">
-          <div class="card">
-            <div class="profile-hero" style="background:linear-gradient(135deg,#6d28d9,#4c1d95)">
-              <div style="font-size:40px;margin-bottom:8px">💸</div>
-              <div class="profile-name">${bill.expense_type}</div>
-              <div class="profile-title" style="color:rgba(255,255,255,.75)">${bill.description||'—'}</div>
-              <div style="margin-top:8px">${badge(bill.status||'Draft')}</div>
-            </div>
-            <div class="profile-meta">
-              <div class="meta-row"><span>Amount</span><strong>${fmt.money(bill.amount)}</strong></div>
-              <div class="meta-row"><span>Tax</span><strong>${fmt.money(bill.tax_amount)}</strong></div>
-              <div class="meta-row"><span>Total</span><strong class="text-lg">${fmt.money(bill.total_amount)}</strong></div>
-              <div class="meta-row"><span>Date</span><strong>${fmt.date(bill.expense_date)}</strong></div>
-              <div class="meta-row"><span>Vendor</span><strong>${bill.vendor_name||'—'}</strong></div>
-              <div class="meta-row"><span>Payment</span><strong>${bill.payment_mode||'—'}</strong></div>
-              ${bill.bill_number ? `<div class="meta-row"><span>Bill #</span><strong class="mono">${bill.bill_number}</strong></div>` : ''}
-              ${bill.po_number   ? `<div class="meta-row"><span>PO #</span><strong class="mono">${bill.po_number}</strong></div>` : ''}
-            </div>
-            <div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">
-              <button class="btn btn-primary btn-full" onclick="window._editBill()">✏ Edit</button>
-              ${bill.status==='Draft' ? `<button class="btn btn-ghost btn-full" onclick="window._updateStatus('Submitted')">📤 Submit for Approval</button>` : ''}
-              ${bill.status==='Submitted' ? `<button class="btn btn-primary btn-full" onclick="window._updateStatus('Approved')">✓ Approve</button>` : ''}
-              ${bill.status==='Approved' ? `<button class="btn btn-ghost btn-full" onclick="window._markPaid()">✓ Mark Paid</button>` : ''}
-            </div>
-          </div>
-        </div>
-        <div class="detail-main">
-          <div class="card">
-            <div class="card-header"><h3 class="card-title">Details</h3></div>
-            <div class="card-body"><div class="field-grid">
-              ${f('Expense Type',   bill.expense_type)}
-              ${f('Vendor',         bill.vendor_name)}
-              ${f('Client',         bill.client_name)}
-              ${f('Cost Centre',    bill.cost_centre_name)}
-              ${f('Currency',       bill.currency||'INR')}
-              ${f('Expense Date',   fmt.date(bill.expense_date))}
-              ${f('Due Date',       fmt.date(bill.due_date))}
-              ${f('Payment Date',   fmt.date(bill.payment_date))}
-              ${f('Payment Ref',    bill.payment_ref, true)}
-              ${f('Submitted By',   bill.submitted_by_name)}
-              ${f('Description',    bill.description)}
-            </div></div>
-          </div>
-          ${bill.receipt_data ? `<div class="card" style="margin-top:12px">
-            <div class="card-header"><h3 class="card-title">📎 Receipt</h3></div>
-            <div class="card-body">
-              <button class="btn btn-ghost" onclick="window._downloadReceipt()">⬇ Download ${bill.receipt_name||'Receipt'}</button>
-            </div>
-          </div>` : ''}
-        </div>
-      </div>`);
 
-    window._editBill     = () => billModal(bill, masters);
-    window._updateStatus = async (status) => {
-      await put(`/bills/${id}`, { status });
-      toast(`Bill ${status.toLowerCase()}`, 'success');
-      renderDetail({ id });
+    setContent(
+      '<div class="detail-layout">' +
+      '<div class="detail-sidebar"><div class="card">' +
+        '<div class="profile-hero" style="background:linear-gradient(135deg,#6d28d9,#4c1d95)">' +
+          '<div style="font-size:40px;margin-bottom:8px">💸</div>' +
+          '<div class="profile-name">' + v(bill.expense_type) + '</div>' +
+          '<div class="profile-title" style="color:rgba(255,255,255,.75)">' + v(bill.description || '—') + '</div>' +
+          '<div style="margin-top:8px">' + badge(bill.status || 'Draft') + '</div>' +
+        '</div>' +
+        '<div class="profile-meta">' +
+          '<div class="meta-row"><span>Amount</span><strong>' + fmt.money(bill.amount) + '</strong></div>' +
+          '<div class="meta-row"><span>Tax</span><strong>' + fmt.money(bill.tax_amount) + '</strong></div>' +
+          '<div class="meta-row"><span>Total</span><strong>' + fmt.money(bill.total_amount) + '</strong></div>' +
+          '<div class="meta-row"><span>Date</span><strong>' + fmt.date(bill.expense_date) + '</strong></div>' +
+          '<div class="meta-row"><span>Vendor</span><strong>' + v(bill.vendor_name, '—') + '</strong></div>' +
+          '<div class="meta-row"><span>Payment</span><strong>' + v(bill.payment_mode, '—') + '</strong></div>' +
+          (bill.bill_number ? '<div class="meta-row"><span>Bill #</span><strong class="mono">' + v(bill.bill_number) + '</strong></div>' : '') +
+          (bill.po_number   ? '<div class="meta-row"><span>PO #</span><strong class="mono">' + v(bill.po_number) + '</strong></div>' : '') +
+        '</div>' +
+        '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">' +
+          '<button class="btn btn-primary btn-full" onclick="window._editBill()">✏ Edit</button>' +
+          (bill.status === 'Draft' ? '<button class="btn btn-ghost btn-full" onclick="window._updateStatus(\'Submitted\')">📤 Submit</button>' : '') +
+          (bill.status === 'Submitted' ? '<button class="btn btn-primary btn-full" onclick="window._updateStatus(\'Approved\')">✓ Approve</button>' : '') +
+          (bill.status === 'Approved' ? '<button class="btn btn-ghost btn-full" onclick="window._updateStatus(\'Paid\')">✓ Mark Paid</button>' : '') +
+          '<button class="btn btn-danger btn-full" onclick="window._deleteBillDetail()">Delete</button>' +
+        '</div>' +
+      '</div></div>' +
+      '<div class="detail-main"><div class="card"><div class="card-header"><h3 class="card-title">Details</h3></div>' +
+      '<div class="card-body"><div class="field-grid">' +
+        '<div class="field-item"><div class="field-label">Expense Type</div><div class="field-value">' + v(bill.expense_type) + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Vendor</div><div class="field-value">' + v(bill.vendor_name, '—') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Cost Centre</div><div class="field-value">' + v(bill.cost_centre_name, '—') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Submitted By</div><div class="field-value">' + v(bill.submitted_by_name, '—') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Description</div><div class="field-value">' + v(bill.description, '—') + '</div></div>' +
+      '</div></div></div></div></div>'
+    );
+
+    window._editBill = async function() {
+      billModal(bill, masters);
     };
-    window._markPaid = () => openModal({
-      title: 'Mark as Paid',
-      body: `<form id="pay-form" class="form-grid-sm">
-        <div class="fg"><label class="flabel">Payment Date</label>
-          <input class="finput" type="date" name="payment_date" value="${new Date().toISOString().split('T')[0]}"></div>
-        <div class="fg"><label class="flabel">Payment Reference</label>
-          <input class="finput" name="payment_ref" placeholder="UTR / Transaction ID"></div>
-        <div class="fg"><label class="flabel">Payment Mode</label>
-          <select class="fselect" name="payment_mode">
-            ${PAYMENT_MODES.map(m=>`<option>${m}</option>`).join('')}
-          </select></div>
-      </form>`,
-      submitLabel: 'Confirm Payment',
-      onSubmit: async () => {
-        const data = fd('pay-form');
-        data.status = 'Paid';
-        await put(`/bills/${id}`, data);
-        toast('Bill marked as paid', 'success');
-        renderDetail({ id });
-      }
-    });
-    window._downloadReceipt = () => {
-      const link = document.createElement('a');
-      link.href  = `data:${bill.receipt_mime||'application/octet-stream'};base64,${bill.receipt_data}`;
-      link.download = bill.receipt_name || 'receipt';
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    window._updateStatus = async function(status) {
+      await put('/bills/' + id, { status: status });
+      toast(bill.expense_type + ' ' + status.toLowerCase(), 'success');
+      renderDetail({ id: id });
+    };
+    window._deleteBillDetail = async function() {
+      if (!confirm('Delete this bill?')) return;
+      await put('/bills/' + id, { is_active: 0 });
+      toast('Deleted', 'info');
+      navigate('/bills');
     };
   } catch(e) { showError(e.message); }
 }
 
-function f(l, val, mono=false) {
-  return `<div class="field-item"><div class="field-label">${l}</div>
-    <div class="field-value${!val?' empty':''}${mono?' mono':''}">${val||'—'}</div></div>`;
-}
-
 function billModal(existing, masters) {
-  const isEdit = !!existing;
+  var isEdit = !!existing;
   openModal({
     title: isEdit ? '✏ Edit Bill/Expense' : '+ New Bill / Expense',
     size: 'lg',
-    body: `<form id="bill-form" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="fg"><label class="flabel">Expense Type *</label>
-        <select class="fselect" name="expense_type" required>
-          ${EXPENSE_TYPES.map(t=>`<option ${(existing && existing.expense_type)===t?'selected':''}>${t}</option>`).join('')}
-        </select></div>
-      <div class="fg"><label class="flabel">Status</label>
-        <select class="fselect" name="status">
-          ${STATUSES.map(s=>`<option ${((existing && existing.status)||'Draft')===s?'selected':''}>${s}</option>`).join('')}
-        </select></div>
-      <div class="fg"><label class="flabel">Amount (₹) *</label>
-        <input class="finput" type="number" name="amount" value="${v((existing && existing.amount),0)}" step="0.01" required></div>
-      <div class="fg"><label class="flabel">Tax Amount (₹)</label>
-        <input class="finput" type="number" name="tax_amount" value="${v((existing && existing.tax_amount),0)}" step="0.01"></div>
-      <div class="fg"><label class="flabel">Expense Date *</label>
-        <input class="finput" type="date" name="expense_date" value="${v((existing && existing.expense_date)||new Date().toISOString().split('T')[0])}" required></div>
-      <div class="fg"><label class="flabel">Due Date</label>
-        <input class="finput" type="date" name="due_date" value="${v((existing && existing.due_date)||'').split('T')[0]}"></div>
-      <div class="fg"><label class="flabel">Vendor</label>
-        <select class="fselect" name="vendor_id">
-          <option value="">None</option>
-          ${/* vendors from lookup */''}
-        </select></div>
-      <div class="fg"><label class="flabel">Cost Centre</label>
-        <select class="fselect" name="cost_centre_id">
-          <option value="">None</option>
-          ${(masters['cost-centres']||[]).map(c=>`<option value="${c.id}" ${(existing && existing.cost_centre_id)==c.id?'selected':''}>${c.name} (${c.code})</option>`).join('')}
-        </select></div>
-      <div class="fg"><label class="flabel">Currency</label>
-        <select class="fselect" name="currency">
-          ${['INR','USD','EUR','GBP'].map(c=>`<option ${((existing && existing.currency)||'INR')===c?'selected':''}>${c}</option>`).join('')}
-        </select></div>
-      <div class="fg"><label class="flabel">Payment Mode</label>
-        <select class="fselect" name="payment_mode">
-          ${PAYMENT_MODES.map(m=>`<option ${((existing && existing.payment_mode)||'Bank Transfer')===m?'selected':''}>${m}</option>`).join('')}
-        </select></div>
-      <div class="fg"><label class="flabel">Bill Number</label>
-        <input class="finput mono" name="bill_number" value="${v((existing && existing.bill_number))}"></div>
-      <div class="fg"><label class="flabel">PO Number</label>
-        <input class="finput mono" name="po_number" value="${v((existing && existing.po_number))}"></div>
-      <div class="fg full"><label class="flabel">Description</label>
-        <input class="finput" name="description" value="${v((existing && existing.description))}"></div>
-      <div class="fg full"><label class="flabel">Receipt / Invoice File</label>
-        <input type="file" class="finput" id="receipt-file" accept=".pdf,.png,.jpg,.jpeg">
-        <div class="field-hint">PDF or image. Max 5MB.</div>
-      </div>
-    </form>`,
+    body: '<form id="bill-form" class="form-grid-sm">' +
+      '<div class="fg"><label class="flabel">Expense Type *</label>' +
+        '<select class="fselect" name="expense_type" required>' +
+        EXPENSE_TYPES.map(function(t) { return '<option' + (existing && existing.expense_type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
+        '</select></div>' +
+      '<div class="fg"><label class="flabel">Status</label>' +
+        '<select class="fselect" name="status">' +
+        STATUSES.map(function(s) { return '<option' + ((existing && existing.status || 'Draft') === s ? ' selected' : '') + '>' + s + '</option>'; }).join('') +
+        '</select></div>' +
+      '<div class="fg"><label class="flabel">Amount (₹) *</label>' +
+        '<input class="finput" type="number" name="amount" value="' + v(existing && existing.amount, 0) + '" step="0.01" required></div>' +
+      '<div class="fg"><label class="flabel">Tax Amount (₹)</label>' +
+        '<input class="finput" type="number" name="tax_amount" value="' + v(existing && existing.tax_amount, 0) + '" step="0.01"></div>' +
+      '<div class="fg"><label class="flabel">Expense Date *</label>' +
+        '<input class="finput" type="date" name="expense_date" value="' + v(existing && existing.expense_date ? String(existing.expense_date).split('T')[0] : new Date().toISOString().split('T')[0]) + '" required></div>' +
+      '<div class="fg"><label class="flabel">Due Date</label>' +
+        '<input class="finput" type="date" name="due_date" value="' + v(existing && existing.due_date ? String(existing.due_date).split('T')[0] : '') + '"></div>' +
+      '<div class="fg"><label class="flabel">Vendor</label>' +
+        '<select class="fselect" name="vendor_id"><option value="">None</option>' +
+        opts(masters['vendors-lookup'] || [], existing && existing.vendor_id) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Cost Centre</label>' +
+        '<select class="fselect" name="cost_centre_id"><option value="">None</option>' +
+        opts(masters['cost-centres'] || [], existing && existing.cost_centre_id) + '</select></div>' +
+      '<div class="fg"><label class="flabel">Currency</label>' +
+        '<select class="fselect" name="currency">' +
+        ['INR','USD','EUR','GBP'].map(function(c) { return '<option' + ((existing && existing.currency || 'INR') === c ? ' selected' : '') + '>' + c + '</option>'; }).join('') +
+        '</select></div>' +
+      '<div class="fg"><label class="flabel">Payment Mode</label>' +
+        '<select class="fselect" name="payment_mode">' +
+        PAYMENT_MODES.map(function(m) { return '<option' + ((existing && existing.payment_mode || 'Bank Transfer') === m ? ' selected' : '') + '>' + m + '</option>'; }).join('') +
+        '</select></div>' +
+      '<div class="fg"><label class="flabel">Bill Number</label>' +
+        '<input class="finput mono" name="bill_number" value="' + v(existing && existing.bill_number) + '"></div>' +
+      '<div class="fg"><label class="flabel">PO Number</label>' +
+        '<input class="finput mono" name="po_number" value="' + v(existing && existing.po_number) + '"></div>' +
+      '<div class="fg full"><label class="flabel">Description</label>' +
+        '<input class="finput" name="description" value="' + v(existing && existing.description) + '"></div>' +
+      '<div class="fg full"><label class="flabel">Receipt File</label>' +
+        '<input type="file" class="finput" id="receipt-file" accept=".pdf,.png,.jpg,.jpeg">' +
+        '<div class="field-hint">PDF or image. Max 5MB.</div></div>' +
+    '</form>',
     submitLabel: isEdit ? 'Save Changes' : 'Create',
-    onSubmit: async () => {
-      const data = fd('bill-form');
-      const fileInput = document.getElementById('receipt-file');
-      if ((fileInput && fileInput.files)?.[0]) {
-        const file = fileInput.files[0];
-        const base64 = await new Promise((res, rej) => {
-          const reader = new FileReader();
-          reader.onload = () => res(reader.result.split(',')[1]);
-          reader.onerror = rej;
-          reader.readAsDataURL(file);
-        });
-        data.receipt_data = base64;
-        data.receipt_name = file.name;
-        data.receipt_mime = file.type;
+    onSubmit: async function() {
+      var data = fd('bill-form');
+      var fi = document.getElementById('receipt-file');
+      if (fi && fi.files && fi.files[0]) {
+        var file = fi.files[0];
+        if (file.size < 5 * 1024 * 1024) {
+          var base64 = await new Promise(function(res, rej) {
+            var reader = new FileReader();
+            reader.onload = function() { res(reader.result.split(',')[1]); };
+            reader.onerror = rej;
+            reader.readAsDataURL(file);
+          });
+          data.receipt_data = base64;
+          data.receipt_name = file.name;
+        }
       }
-      if (isEdit) { await put(`/bills/${existing.id}`, data); toast('Updated','success'); renderDetail({id:existing.id}); }
-      else { const r = await post('/bills', data); toast('Created','success'); navigate(`/bills/${r.id}`); }
+      if (isEdit) {
+        await put('/bills/' + existing.id, data);
+        toast('Updated', 'success');
+        renderDetail({ id: existing.id });
+      } else {
+        var r = await post('/bills', data);
+        toast('Created', 'success');
+        navigate('/bills/' + r.id);
+      }
     }
   });
 }
-
-window._editBillRow = async (id) => {
-  const [bill, masters] = await Promise.all([get(`/bills/${id}`), get('/masters/all')]);
-  billModal(bill, masters);
-};
