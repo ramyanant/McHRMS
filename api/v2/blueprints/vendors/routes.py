@@ -79,3 +79,39 @@ def vendor_detail(vid):
         return ok(message="Updated")
     db_execute("UPDATE vendors SET is_active=0, updated_at=NOW() WHERE id=%s", (vid,))
     return ok(message="Deleted")
+
+
+@vendors_bp.route('/vendors/<int:vid>/documents', methods=['GET','POST'])
+@require_auth
+def vendor_documents(vid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM vendor_documents
+                WHERE vendor_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (vid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS vendor_documents (
+            id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL REFERENCES vendors(id),
+            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
+            mime_type TEXT, notes TEXT, is_active INTEGER DEFAULT 1,
+            uploaded_at TIMESTAMP DEFAULT NOW())""")
+        cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type, notes)
+            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (vid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
+             d.get('file_size'), d.get('mime_type'), d.get('notes')))
+        doc_id = cur.fetchone()['id']; conn.close()
+        return created({'id': doc_id})
+    except Exception as e: return err(str(e))
+
+@vendors_bp.route('/vendors/documents/<int:did>', methods=['GET','DELETE'])
+@require_auth
+def vendor_doc_detail(did):
+    if request.method == 'DELETE':
+        db_execute("UPDATE vendor_documents SET is_active=0 WHERE id=%s",(did,))
+        return ok(message="Deleted")
+    doc = db_row1("SELECT * FROM vendor_documents WHERE id=%s",(did,))
+    return ok(doc) if doc else not_found("Document")
