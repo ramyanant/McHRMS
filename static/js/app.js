@@ -279,6 +279,7 @@ async function registerRoutes() {
   Router.route('/vendors',                            load('vendors',         'renderList'));
   Router.route('/vendors/:id',                        load('vendors',         'renderDetail'));
   Router.route('/projects',                           load('projects',        'renderList'));
+  Router.route('/projects/new',                        load('projects',        'renderNew'));
   Router.route('/projects/:id',                       load('projects',        'renderDetail'));
   Router.route('/timesheets',                         load('timesheets',      'renderList'));
   Router.route('/timesheets/approval',                load('timesheets',      'renderApproval'));
