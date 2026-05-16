@@ -1,421 +1,264 @@
 /**
- * Employee Self-Service Portal
- * My Dashboard, Profile, Timesheets, Leaves, Payslips, Team, Approvals
+ * Employee Self-Service Portal — No template literals, no optional chaining
  */
-import { get, post, put }  from '../api.js';
+import { get, post } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
-         openModal, toast, badge, fmt }  from '../ui.js';
-import { navigate }        from '../router.js';
+         openModal, toast, badge, fmt } from '../ui.js';
+import { navigate } from '../router.js';
 
-// ── Portal Dashboard ──────────────────────────────────────────
+function v(val, fb) {
+  if (val === null || val === undefined) return fb !== undefined ? fb : '';
+  return String(val).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fd(id) {
+  var d = Object.fromEntries(new FormData(document.getElementById(id)));
+  Object.keys(d).forEach(function(k) { if (d[k] === '') d[k] = null; });
+  return d;
+}
+function opts(arr, sel) {
+  return arr.map(function(i) {
+    var val = typeof i === 'string' ? i : i.id;
+    var lbl = typeof i === 'string' ? i : i.name;
+    return '<option value="' + v(val) + '"' + (String(val) === String(sel) ? ' selected' : '') + '>' + v(lbl) + '</option>';
+  }).join('');
+}
+function fld(l, val, mono) {
+  return '<div class="field-item"><div class="field-label">' + l + '</div>' +
+    '<div class="field-value' + (val ? '' : ' empty') + (mono ? ' mono' : '') + '">' + v(val, '—') + '</div></div>';
+}
+
 export async function renderDashboard() {
-  setPageTitle('My Portal', 'Self-service dashboard');
+  setPageTitle('My Dashboard', 'Employee self-service');
   setBreadcrumb([{ label: 'My Portal' }]);
   showLoader();
   try {
-    const d = await get('/portal/dashboard');
-    const e = d.employee || {};
-    const name = `${e.first_name||''} ${e.last_name||''}`.trim();
-    setContent(`
-      <div class="page-body">
-        <!-- Hero -->
-        <div class="portal-hero">
-          <div class="av av-xl ${fmt.avColor(name)}">${fmt.ini(name)}</div>
-          <div class="portal-hero-info">
-            <div class="portal-name">${name}</div>
-            <div class="portal-title">${e.job_title||'—'} · ${e.department_name||'—'}</div>
-            <div class="portal-meta">${e.emp_id||''} · ${e.employment_type||''} · ${e.client_name||''}</div>
-          </div>
-        </div>
-        <!-- Stats -->
-        <div class="kpi-grid kpi-4">
-          ${kpi('Leave Balance',       d.leave_balance,        '🏖', 'green')}
-          ${kpi('Leaves Taken',        d.leaves_taken,         '📅', 'blue')}
-          ${kpi('Pending Timesheets',  d.pending_timesheets,   '⏱', 'amber')}
-          ${kpi('Hours This Month',    d.approved_hours_mtd+'h','✅', 'purple')}
-        </div>
-        <!-- Quick Actions -->
-        <div class="quick-actions">
-          <a class="quick-btn" href="#/portal/timesheets">⏱ Submit Timesheet</a>
-          <a class="quick-btn" href="#/portal/leaves">🏖 Apply for Leave</a>
-          <a class="quick-btn" href="#/portal/profile">👤 My Profile</a>
-          <a class="quick-btn" href="#/portal/payslips">💰 Payslips</a>
-        </div>
-      </div>`);
-  } catch (e) { showError(e.message); }
+    var emp = await get('/portal/dashboard');
+    var e = emp || {};
+    var name = (e.first_name || '') + ' ' + (e.last_name || '');
+
+    setContent(
+      '<div class="page-body">' +
+      '<div class="detail-layout">' +
+        '<div class="detail-sidebar"><div class="card">' +
+          '<div class="profile-hero" style="background:linear-gradient(135deg,#1a5c2e,#144825)">' +
+            '<div class="av av-xl av-green" style="margin:0 auto 10px">' + fmt.ini(name) + '</div>' +
+            '<div class="profile-name">' + v(name) + '</div>' +
+            '<div class="profile-title" style="color:rgba(255,255,255,.75)">' + v(e.job_title || 'Employee') + '</div>' +
+            '<div style="margin-top:8px">' + badge(e.status || 'Active') + '</div>' +
+          '</div>' +
+          '<div class="profile-meta">' +
+            '<div class="meta-row"><span>Employee ID</span><strong class="mono">' + v(e.emp_id, '—') + '</strong></div>' +
+            '<div class="meta-row"><span>Department</span><strong>' + v(e.department_name, '—') + '</strong></div>' +
+            '<div class="meta-row"><span>Manager</span><strong>' + v(e.reporting_manager_name, '—') + '</strong></div>' +
+            '<div class="meta-row"><span>Start Date</span><strong>' + fmt.date(e.start_date) + '</strong></div>' +
+          '</div>' +
+          '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">' +
+            '<button class="btn btn-primary btn-full" onclick="navigateTo(\'/portal/timesheets\')">📋 My Timesheets</button>' +
+            '<button class="btn btn-ghost btn-full" onclick="navigateTo(\'/portal/leaves\')">🌴 My Leaves</button>' +
+            '<button class="btn btn-ghost btn-full" onclick="navigateTo(\'/portal/payslips\')">💰 My Payslips</button>' +
+          '</div>' +
+        '</div></div>' +
+        '<div class="detail-main">' +
+          '<div class="kpi-grid kpi-4" style="margin-bottom:16px">' +
+            kpi('Leave Balance', (e.leave_balance || 0) + ' days', '🌴', 'green') +
+            kpi('Pending TSs', e.pending_ts || 0, '⏱', 'amber') +
+            kpi('Approved TSs', e.approved_ts || 0, '✅', 'blue') +
+            kpi('Notifications', e.notifications || 0, '🔔', 'purple') +
+          '</div>' +
+          '<div class="card">' +
+            '<div class="card-header"><h3 class="card-title">Quick Actions</h3></div>' +
+            '<div class="card-body" style="display:flex;gap:12px;flex-wrap:wrap">' +
+              '<button class="btn btn-primary" onclick="navigateTo(\'/portal/timesheets\')">+ Submit Timesheet</button>' +
+              '<button class="btn btn-ghost" onclick="navigateTo(\'/portal/leaves\')">+ Apply Leave</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div></div>'
+    );
+  } catch(e) { showError(e.message); }
 }
 
-function kpi(label, value, icon, color) {
-  return `<div class="kpi-card kpi-${color}">
-    <div class="kpi-icon">${icon}</div>
-    <div class="kpi-body">
-      <div class="kpi-value">${value ?? 0}</div>
-      <div class="kpi-label">${label}</div>
-    </div>
-  </div>`;
+function kpi(l, val, icon, c) {
+  return '<div class="kpi-card kpi-' + c + '"><div class="kpi-icon">' + icon + '</div>' +
+    '<div class="kpi-body"><div class="kpi-value">' + val + '</div><div class="kpi-label">' + l + '</div></div></div>';
 }
 
-// ── My Profile ────────────────────────────────────────────────
 export async function renderProfile() {
   setPageTitle('My Profile', 'Personal information');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'My Profile' }]);
+  setBreadcrumb([{ label: 'My Portal' }, { label: 'Profile' }]);
   showLoader();
   try {
-    const d = await get('/portal/dashboard');
-    const e = d.employee || {};
-    const name = `${e.first_name||''} ${e.last_name||''}`.trim();
-
-    setContent(`
-      <div class="detail-layout">
-        <div class="detail-sidebar">
-          <div class="card profile-card">
-            <div class="profile-hero">
-              <div class="av av-lg ${fmt.avColor(name)}">${fmt.ini(name)}</div>
-              <div class="profile-name">${name}</div>
-              <div class="profile-title">${e.job_title||'—'}</div>
-            </div>
-            <div class="profile-nav">
-              ${['personal','role','identity','finance'].map(s => `
-                <div class="pnav-item" onclick="document.getElementById('psec-${s}').scrollIntoView({behavior:'smooth'})">
-                  ${{personal:'👤 Personal',role:'🏢 Role & Org',identity:'🪪 Identity',finance:'💰 Finance'}[s]}
-                </div>`).join('')}
-            </div>
-          </div>
-        </div>
-        <div class="detail-main">
-          ${pSection('personal','Personal Information','👤',[
-            ['First Name',e.first_name],['Last Name',e.last_name],
-            ['Date of Birth',fmt.date(e.dob)],['Gender',e.gender],
-            ['Marital Status',e.marital_status],['Blood Group',e.blood_group],
-            ['Personal Email',e.personal_email],['Personal Phone',e.personal_phone],
-          ],'personal')}
-          ${pSection('role','Role & Organisation','🏢',[
-            ['Job Title',e.job_title],['Department',e.department_name],
-            ['Business Unit',e.business_unit_name],['Employment Type',e.employment_type],
-            ['Start Date',fmt.date(e.start_date)],['Reporting Manager',e.reporting_manager_name],
-            ['Location',e.location],['Client',e.client_name],
-          ],null)}
-          ${pSection('identity','Identity & Compliance','🪪',[
-            ['PAN',e.pan],['Aadhaar',e.aadhaar],
-            ['Passport',e.passport_number],['PF Number',e.pf_number],
-            ['ESI Number',e.esi_number],['UAN',e.uan],
-          ],'identity')}
-          ${pSection('finance','Finance & Banking','💰',[
-            ['Bank Name',e.bank_name],['Account Number',e.bank_account_number],
-            ['IFSC',e.bank_ifsc],
-          ],null)}
-        </div>
-      </div>`);
-  } catch (err) { showError(err.message); }
+    var e = await get('/portal/dashboard');
+    setContent(
+      '<div class="page-body"><div class="card" style="max-width:700px;margin:0 auto">' +
+      '<div class="card-header"><h3 class="card-title">My Profile</h3></div>' +
+      '<div class="card-body"><div class="field-grid">' +
+        fld('Full Name', (e.first_name || '') + ' ' + (e.last_name || '')) +
+        fld('Employee ID', e.emp_id, true) +
+        fld('Email', e.email) + fld('Phone', e.phone) +
+        fld('Department', e.department_name) + fld('Job Title', e.job_title) +
+        fld('Manager', e.reporting_manager_name) + fld('Start Date', fmt.date(e.start_date)) +
+      '</div></div></div></div>'
+    );
+  } catch(e) { showError(e.message); }
 }
 
-function pSection(id, title, icon, fields, editSection) {
-  const editBtn = editSection ? `<button class="btn btn-ghost btn-sm" onclick="window._editProfile('${editSection}')">✏ Edit</button>` : '';
-  return `<div class="card" id="psec-${id}" style="margin-bottom:16px;scroll-margin-top:20px">
-    <div class="card-header"><h3 class="card-title">${icon} ${title}</h3>${editBtn}</div>
-    <div class="card-body">
-      <div class="field-grid">
-        ${fields.map(([l,v]) => `<div class="field-item">
-          <div class="field-label">${l}</div>
-          <div class="field-value${!v?' empty':''}">${v||'—'}</div>
-        </div>`).join('')}
-      </div>
-    </div>
-  </div>`;
-}
-
-window._editProfile = (section) => {
-  get('/portal/dashboard').then(d => {
-    const e = d.employee || {};
-    const fields = {
-      personal: `
-        <div class="frow"><div class="fg"><label class="flabel">First Name</label><input class="finput" name="first_name" value="${e.first_name||''}"></div>
-        <div class="fg"><label class="flabel">Last Name</label><input class="finput" name="last_name" value="${e.last_name||''}"></div></div>
-        <div class="frow"><div class="fg"><label class="flabel">Date of Birth</label><input class="finput" type="date" name="dob" value="${e.dob||''}"></div>
-        <div class="fg"><label class="flabel">Gender</label><select class="fselect" name="gender">${['','Male','Female','Non-binary'].map(g=>`<option ${e.gender===g?'selected':''}>${g}</option>`).join('')}</select></div></div>
-        <div class="fg"><label class="flabel">Personal Email</label><input class="finput" type="email" name="personal_email" value="${e.personal_email||''}"></div>
-        <div class="fg"><label class="flabel">Personal Phone</label><input class="finput" name="personal_phone" value="${e.personal_phone||''}"></div>`,
-      identity: `
-        <div class="frow"><div class="fg"><label class="flabel">PAN</label><input class="finput" name="pan" value="${e.pan||''}"></div>
-        <div class="fg"><label class="flabel">Aadhaar</label><input class="finput" name="aadhaar" value="${e.aadhaar||''}"></div></div>
-        <div class="frow"><div class="fg"><label class="flabel">Passport</label><input class="finput" name="passport_number" value="${e.passport_number||''}"></div>
-        <div class="fg"><label class="flabel">PF Number</label><input class="finput" name="pf_number" value="${e.pf_number||''}"></div></div>`,
-    };
-    openModal({
-      title: `Edit ${section === 'personal' ? 'Personal Information' : 'Identity'}`,
-      body: `<form id="profile-form" class="form-grid-sm">${fields[section]||''}</form>`,
-      submitLabel: 'Save',
-      onSubmit: async () => {
-        const data = Object.fromEntries(new FormData(document.getElementById('profile-form')));
-        await put(`/employees/${e.id}`, data);
-        toast('Profile updated', 'success');
-        renderProfile();
-      }
-    });
-  });
-};
-
-// ── My Timesheets ─────────────────────────────────────────────
 export async function renderTimesheets() {
-  setPageTitle('My Timesheets', 'Submit and view timesheets');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'Timesheets' }]);
+  setPageTitle('My Timesheets', '');
+  setBreadcrumb([{ label: 'My Portal' }, { label: 'Timesheets' }]);
   showLoader();
   try {
-    const [rows, masters] = await Promise.all([
-      get('/my/timesheets'),
-      get('/masters/all'),
-    ]);
-    const statMap = { Approved: 'green', Rejected: 'red', Pending: 'amber' };
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <div></div>
-          <button class="btn btn-primary" onclick="window._submitTs()">+ Submit Timesheet</button>
-        </div>
-        <div class="kpi-grid kpi-3">
-          ${kpi('Total Hours',  rows.reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0).toFixed(1)+'h', '⏱', 'blue')}
-          ${kpi('Approved',     rows.filter(t=>t.status==='Approved').reduce((s,t)=>s+(parseFloat(t.total_hours)||0),0).toFixed(1)+'h', '✅', 'green')}
-          ${kpi('Pending',      rows.filter(t=>t.status==='Pending').length, '⏳', 'amber')}
-        </div>
-        ${rows.length ? `<div class="card"><div class="tbl-wrap"><table class="data-table">
-          <thead><tr><th>Week Ending</th><th>Project</th><th>Mon</th><th>Tue</th><th>Wed</th><th>Thu</th><th>Fri</th><th>Total</th><th>Status</th></tr></thead>
-          <tbody>${rows.sort((a,b)=>new Date(b.week_ending)-new Date(a.week_ending)).map(t => `<tr>
-            <td class="mono">${fmt.date(t.week_ending)}</td>
-            <td>${t.project_name||t.client_name||'—'}</td>
-            <td class="mono">${t.mon||0}</td><td class="mono">${t.tue||0}</td>
-            <td class="mono">${t.wed||0}</td><td class="mono">${t.thu||0}</td><td class="mono">${t.fri||0}</td>
-            <td class="mono fw-bold">${t.total_hours||0}h</td>
-            <td>${badge(t.status||'Pending')}</td>
-          </tr>`).join('')}
-          </tbody></table></div></div>`
-        : `<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets yet</div></div>`}`);
+    var data = await get('/my/timesheets');
+    var rows = Array.isArray(data) ? data : [];
+    var masters = await get('/masters/all');
 
-    window._submitTs = () => {
-      const today = new Date();
-      const day   = today.getDay();
-      const diff  = 5 - day; // days to next Friday
-      const nextFri = new Date(today.getTime() + diff * 86400000);
-      const weekEnding = nextFri.toISOString().split('T')[0];
+    setContent(
+      '<div class="page-body">' +
+      '<div class="list-toolbar"><div></div>' +
+        '<button class="btn btn-primary" onclick="window._newTS()">+ Submit Timesheet</button>' +
+      '</div>' +
+      (rows.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+          '<th>Week Ending</th><th>Project/Client</th><th>Hours</th><th>Status</th>' +
+          '</tr></thead><tbody>' +
+          rows.map(function(t) {
+            return '<tr>' +
+              '<td class="mono">' + fmt.date(t.week_ending) + '</td>' +
+              '<td>' + v(t.project || t.client_name, '—') + '</td>' +
+              '<td class="mono fw-bold">' + (t.total_hours || 0) + 'h</td>' +
+              '<td>' + badge(t.status || 'Pending') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets yet</div></div>'
+      ) +
+      '</div>'
+    );
 
+    window._newTS = function() {
       openModal({
-        title: 'Submit Timesheet',
-        body: `<form id="ts-form" class="form-grid-sm">
-          <div class="fg"><label class="flabel">Week Ending (Friday) *</label>
-            <input class="finput" type="date" name="week_ending" value="${weekEnding}" required></div>
-          <div class="fg"><label class="flabel">Project / Client</label>
-            <select class="fselect" name="project_id">
-              <option value="">Select project…</option>
-              ${(masters['clients-lookup']||[]).map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}
-            </select></div>
-          <div class="frow">
-            ${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>`
-              <div class="fg-day"><label class="flabel">${d}</label>
-              <input class="finput" type="number" name="${d.toLowerCase()}" value="0" min="0" max="24" step="0.5"></div>`).join('')}
-          </div>
-          <div class="fg"><label class="flabel">Notes</label>
-            <textarea class="finput" name="notes" rows="2" placeholder="Optional notes…"></textarea></div>
-        </form>`,
-        submitLabel: 'Submit',
-        onSubmit: async () => {
-          const data = Object.fromEntries(new FormData(document.getElementById('ts-form')));
-          await post('/my/timesheets', data);
-          toast('Timesheet submitted!', 'success');
-          renderTimesheets();
+        title: '+ Submit Timesheet', size: 'md',
+        body: '<form id="my-ts-form" class="form-grid-sm">' +
+          '<div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" name="week_ending" required></div>' +
+          '<div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" value="40" min="0" max="80" step="0.5" required></div>' +
+          '<div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" name="overtime_hours" value="0" min="0" step="0.5"></div>' +
+          '<div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name"></div>' +
+          '<div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id"><option value="">None</option>' +
+            opts(masters['clients-lookup'] || [], null) + '</select></div>' +
+          '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>' +
+          '</form>',
+        submitLabel: 'Submit for Approval',
+        onSubmit: async function() {
+          try {
+            await post('/my/timesheets', fd('my-ts-form'));
+            toast('Submitted for manager approval', 'success');
+            renderTimesheets();
+          } catch(e) { toast(e.message, 'error'); }
         }
       });
     };
-  } catch (e) { showError(e.message); }
+  } catch(e) { showError(e.message); }
 }
 
-// ── My Leaves ──────────────────────────────────────────────────
 export async function renderLeaves() {
-  setPageTitle('My Leave', 'Leave management');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'Leave' }]);
+  setPageTitle('My Leaves', '');
+  setBreadcrumb([{ label: 'My Portal' }, { label: 'Leaves' }]);
   showLoader();
   try {
-    const [d, leaves] = await Promise.all([
-      get('/portal/dashboard'),
-      get('/my/leaves'),
-    ]);
-    setContent(`
-      <div class="page-body">
-        <div class="list-toolbar">
-          <div></div>
-          <button class="btn btn-primary" onclick="window._applyLeave()">+ Apply for Leave</button>
-        </div>
-        <div class="kpi-grid kpi-4">
-          ${kpi('Balance',  d.leave_balance,  '🏖','green')}
-          ${kpi('Taken',    d.leaves_taken,   '📅','blue')}
-          ${kpi('Pending',  leaves.filter(l=>l.status==='Pending').length, '⏳','amber')}
-          ${kpi('Approved', leaves.filter(l=>l.status==='Approved').length,'✅','purple')}
-        </div>
-        ${leaves.length ? `<div class="card"><div class="tbl-wrap"><table class="data-table">
-          <thead><tr><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th></tr></thead>
-          <tbody>${leaves.sort((a,b)=>new Date(b.from_date)-new Date(a.from_date)).map(l=>`<tr>
-            <td><strong>${l.leave_type||'Annual'}</strong></td>
-            <td class="mono">${fmt.date(l.from_date)}</td>
-            <td class="mono">${fmt.date(l.to_date)}</td>
-            <td class="mono fw-bold">${l.days||1}</td>
-            <td class="text-muted">${l.reason||'—'}</td>
-            <td>${badge(l.status||'Pending')}</td>
-          </tr>`).join('')}</tbody></table></div></div>`
-        : `<div class="empty-state"><div class="empty-icon">🏖</div><div class="empty-title">No leave requests</div></div>`}`);
+    var data = await get('/my/leaves');
+    var rows = Array.isArray(data) ? data : [];
+    var bal  = await get('/my/leave-balance');
 
-    window._applyLeave = () => {
+    setContent(
+      '<div class="page-body">' +
+      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">' +
+        kpi('Total Days',  bal.total || 18, '📅', 'blue') +
+        kpi('Taken',       bal.taken || 0,  '✅', 'green') +
+        kpi('Pending',     bal.pending || 0,'⏳', 'amber') +
+        kpi('Balance',     bal.balance || 18,'💚','purple') +
+      '</div>' +
+      '<div class="list-toolbar"><div></div>' +
+        '<button class="btn btn-primary" onclick="window._applyLeave()">+ Apply Leave</button>' +
+      '</div>' +
+      (rows.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+          '<th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Status</th>' +
+          '</tr></thead><tbody>' +
+          rows.map(function(l) {
+            return '<tr>' +
+              '<td>' + v(l.leave_type, '—') + '</td>' +
+              '<td class="mono">' + fmt.date(l.from_date) + '</td>' +
+              '<td class="mono">' + fmt.date(l.to_date) + '</td>' +
+              '<td>' + (l.days || 1) + '</td>' +
+              '<td class="text-muted">' + v(l.reason, '—') + '</td>' +
+              '<td>' + badge(l.status || 'Pending') + '</td>' +
+            '</tr>';
+          }).join('') +
+          '</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">🌴</div><div class="empty-title">No leave requests</div></div>'
+      ) +
+      '</div>'
+    );
+
+    window._applyLeave = function() {
       openModal({
-        title: 'Apply for Leave',
-        body: `<form id="leave-form" class="form-grid-sm">
-          <div class="fg"><label class="flabel">Leave Type *</label>
-            <select class="fselect" name="leave_type" required>
-              ${['Annual','Sick','Personal','Emergency','Maternity','Paternity','Unpaid'].map(t=>`<option>${t}</option>`).join('')}
-            </select></div>
-          <div class="frow">
-            <div class="fg"><label class="flabel">From Date *</label><input class="finput" type="date" name="from_date" required></div>
-            <div class="fg"><label class="flabel">To Date *</label><input class="finput" type="date" name="to_date" required></div>
-          </div>
-          <div class="fg"><label class="flabel">Reason</label>
-            <textarea class="finput" name="reason" rows="3" placeholder="Reason for leave…"></textarea></div>
-        </form>`,
-        submitLabel: 'Submit Request',
-        onSubmit: async () => {
-          const data = Object.fromEntries(new FormData(document.getElementById('leave-form')));
-          await post('/my/leaves', data);
-          toast('Leave request submitted!', 'success');
-          renderLeaves();
+        title: '+ Apply Leave', size: 'md',
+        body: '<form id="leave-form" class="form-grid-sm">' +
+          '<div class="fg"><label class="flabel">Leave Type *</label>' +
+            '<select class="fselect" name="leave_type" required>' +
+            opts(['Annual Leave','Sick Leave','Casual Leave','Maternity','Paternity','Compensatory','Unpaid'], null) +
+            '</select></div>' +
+          '<div class="fg"><label class="flabel">From Date *</label><input class="finput" type="date" name="from_date" required></div>' +
+          '<div class="fg"><label class="flabel">To Date *</label><input class="finput" type="date" name="to_date" required></div>' +
+          '<div class="fg full"><label class="flabel">Reason</label><textarea class="finput" name="reason" rows="2"></textarea></div>' +
+          '</form>',
+        submitLabel: 'Apply',
+        onSubmit: async function() {
+          try {
+            await post('/my/leaves', fd('leave-form'));
+            toast('Leave application submitted', 'success');
+            renderLeaves();
+          } catch(e) { toast(e.message, 'error'); }
         }
       });
     };
-  } catch (e) { showError(e.message); }
+  } catch(e) { showError(e.message); }
 }
 
-// ── Payslips ──────────────────────────────────────────────────
 export async function renderPayslips() {
-  setPageTitle('My Payslips', 'Salary statements');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'Payslips' }]);
-  showLoader();
-  try {
-    const rows = await get('/portal/payslips');
-    setContent(`
-      <div class="page-body">
-        ${rows.length ? `<div class="card"><div class="tbl-wrap"><table class="data-table">
-          <thead><tr><th>Period</th><th>Gross</th><th>Deductions</th><th>Net Pay</th><th>Status</th></tr></thead>
-          <tbody>${rows.map(p=>`<tr>
-            <td class="mono">${p.month||''}/${p.year||''}</td>
-            <td class="mono">${fmt.money(p.gross_salary)}</td>
-            <td class="mono text-red">${fmt.money(p.total_deductions)}</td>
-            <td class="mono fw-bold text-green">${fmt.money(p.net_salary)}</td>
-            <td>${badge(p.status||'Paid')}</td>
-          </tr>`).join('')}</tbody></table></div></div>`
-        : `<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">No payslips yet</div><div class="empty-sub">Payslips appear here once processed by Finance</div></div>`}
-      </div>`);
-  } catch (e) { showError(e.message); }
+  setPageTitle('My Payslips', '');
+  setBreadcrumb([{ label: 'My Portal' }, { label: 'Payslips' }]);
+  setContent('<div class="page-body"><div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Payslip module coming soon</div></div></div>');
 }
 
-// ── My Team ───────────────────────────────────────────────────
 export async function renderTeam() {
-  setPageTitle('My Team', 'Org chart and colleagues');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'My Team' }]);
+  setPageTitle('My Team', '');
+  setBreadcrumb([{ label: 'My Portal' }, { label: 'Team' }]);
   showLoader();
   try {
-    const t = await get('/portal/team');
-    const card = (emp, role, color) => {
-      const n = `${emp.first_name||''} ${emp.last_name||''}`.trim();
-      return `<div class="team-card">
-        <div class="av av-md ${fmt.avColor(n)}">${fmt.ini(n)}</div>
-        <div class="team-info">
-          <div class="team-name">${n}</div>
-          <div class="team-title">${emp.job_title||'—'}</div>
-        </div>
-        <span class="badge badge-${color}">${role}</span>
-      </div>`;
-    };
-    setContent(`
-      <div class="page-body">
-        ${t.manager ? `<div class="team-section"><div class="section-label">📊 Reporting Manager</div>
-          <div class="team-grid">${card(t.manager,'Manager','purple')}</div></div>` : ''}
-        ${t.(peers && peers.length) ? `<div class="team-section"><div class="section-label">🤝 Peers (${t.peers.length})</div>
-          <div class="team-grid">${t.peers.map(p=>card(p,'Peer','blue')).join('')}</div></div>` : ''}
-        ${t.(reportees && reportees.length) ? `<div class="team-section"><div class="section-label">👤 My Reportees (${t.reportees.length})</div>
-          <div class="team-grid">${t.reportees.map(r=>card(r,'Reportee','green')).join('')}</div></div>` : ''}
-        ${!t.manager&&!t.(peers && peers.length)&&!t.(reportees && reportees.length) ? `<div class="empty-state"><div class="empty-icon">👥</div>
-          <div class="empty-title">No team configured</div>
-          <div class="empty-sub">Ask admin to set your reporting manager</div></div>` : ''}
-      </div>`);
-  } catch (e) { showError(e.message); }
+    var data = await get('/portal/team');
+    var members = Array.isArray(data) ? data : [];
+    setContent(
+      '<div class="page-body">' +
+      (members.length
+        ? '<div class="struct-grid">' +
+          members.map(function(m) {
+            var name = (m.first_name || '') + ' ' + (m.last_name || '');
+            return '<div class="struct-card">' +
+              '<div class="av av-lg av-green" style="margin:0 auto 8px">' + fmt.ini(name) + '</div>' +
+              '<div class="struct-card-title">' + v(name) + '</div>' +
+              '<div class="struct-card-desc">' + v(m.job_title, '—') + '</div>' +
+              badge(m.status || 'Active') +
+            '</div>';
+          }).join('') +
+          '</div>'
+        : '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No team members</div></div>'
+      ) +
+      '</div>'
+    );
+  } catch(e) { showError(e.message); }
 }
 
-// ── Manager Approvals ─────────────────────────────────────────
 export async function renderApprovals() {
-  setPageTitle('Approvals', 'Pending team requests');
-  setBreadcrumb([{ label: 'My Portal', url: '/portal' }, { label: 'Approvals' }]);
-  showLoader();
-  try {
-    const d = await get('/timesheets/pending-approvals');
-    const ts     = d.timesheets || [];
-    const leaves = d.leaves     || [];
-    const total  = ts.length + leaves.length;
-
-    setContent(`
-      <div class="page-body">
-        <div class="page-lead">Pending Approvals (${total})</div>
-        ${ts.length ? `
-          <div class="section-label" style="margin:16px 0 8px">⏱ Timesheets (${ts.length})</div>
-          <div class="card"><div class="tbl-wrap"><table class="data-table">
-            <thead><tr><th>Employee</th><th>Week Ending</th><th>Total Hours</th><th>Notes</th><th>Actions</th></tr></thead>
-            <tbody>${ts.map(t=>`<tr>
-              <td><strong>${t.employee_name}</strong><div class="cell-sub">${t.emp_id}</div></td>
-              <td class="mono">${fmt.date(t.week_ending)}</td>
-              <td class="mono fw-bold">${t.total_hours}h</td>
-              <td class="text-muted">${t.notes||'—'}</td>
-              <td class="tbl-actions">
-                <button class="btn btn-sm btn-primary" onclick="window._approveTs(${t.id})">✓ Approve</button>
-                <button class="btn btn-sm btn-danger"  onclick="window._rejectTs(${t.id})">✗ Reject</button>
-              </td>
-            </tr>`).join('')}</tbody></table></div></div>` : ''}
-        ${leaves.length ? `
-          <div class="section-label" style="margin:16px 0 8px">🏖 Leave Requests (${leaves.length})</div>
-          <div class="card"><div class="tbl-wrap"><table class="data-table">
-            <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Reason</th><th>Actions</th></tr></thead>
-            <tbody>${leaves.map(l=>`<tr>
-              <td><strong>${l.employee_name}</strong><div class="cell-sub">${l.emp_id}</div></td>
-              <td>${l.leave_type}</td>
-              <td class="mono">${fmt.date(l.from_date)}</td>
-              <td class="mono">${fmt.date(l.to_date)}</td>
-              <td class="mono fw-bold">${l.days}</td>
-              <td class="text-muted">${l.reason||'—'}</td>
-              <td class="tbl-actions">
-                <button class="btn btn-sm btn-primary" onclick="window._approveLeave(${l.id})">✓ Approve</button>
-                <button class="btn btn-sm btn-danger"  onclick="window._rejectLeave(${l.id})">✗ Reject</button>
-              </td>
-            </tr>`).join('')}</tbody></table></div></div>` : ''}
-        ${total === 0 ? `<div class="empty-state"><div class="empty-icon">✅</div>
-          <div class="empty-title">All caught up!</div>
-          <div class="empty-sub">No pending approvals from your team</div></div>` : ''}
-      </div>`);
-
-    window._approveTs = async (id) => {
-      await put(`/timesheets/${id}`, { status: 'Approved' });
-      toast('Timesheet approved', 'success');
-      renderApprovals();
-    };
-    window._rejectTs = async (id) => {
-      const reason = prompt('Rejection reason (optional):');
-      if (reason === null) return;
-      await put(`/timesheets/${id}`, { status: 'Rejected', rejection_reason: reason });
-      toast('Timesheet rejected', 'info');
-      renderApprovals();
-    };
-    window._approveLeave = async (id) => {
-      await put(`/my/leaves/${id}`, { action: 'approve' });
-      toast('Leave approved', 'success');
-      renderApprovals();
-    };
-    window._rejectLeave = async (id) => {
-      const reason = prompt('Rejection reason (optional):');
-      if (reason === null) return;
-      await put(`/my/leaves/${id}`, { action: 'reject', reason });
-      toast('Leave rejected', 'info');
-      renderApprovals();
-    };
-  } catch (e) { showError(e.message); }
+  navigate('/timesheets/approvals');
 }
