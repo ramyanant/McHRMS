@@ -251,7 +251,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import(`./pages/${mod}.js`);
+    const m = await import(`./pages/${mod}.js?v=1778939573`);
     await m[fn](params);
     // Update sidebar active
     const path = Router.getCurrentPath();
