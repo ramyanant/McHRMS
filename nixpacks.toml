@@ -8,4 +8,4 @@ cmds = [
 ]
 
 [start]
-cmd = "/app/.venv/bin/python api/app.py $PORT"
+cmd = "/app/.venv/bin/python api/v2/main.py $PORT"

@@ -178,9 +178,12 @@ def create_app(config_override=None):
     from .blueprints.reports.routes      import reports_bp
     from .blueprints.admin.routes        import admin_bp
     from .blueprints.portal.routes       import portal_bp
+    from .blueprints.projects.routes     import projects_bp
+    from .blueprints.bills.routes        import bills_bp
 
     for bp in [auth_bp, org_bp, people_bp, ts_bp, rec_bp,
-               inv_bp, clients_bp, vendors_bp, reports_bp, admin_bp, portal_bp]:
+               inv_bp, clients_bp, vendors_bp, reports_bp, admin_bp,
+               portal_bp, projects_bp, bills_bp]:
         app.register_blueprint(bp)
 
     @app.after_request
