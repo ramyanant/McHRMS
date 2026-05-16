@@ -671,9 +671,5 @@ async function reload() {
   renderPage(org);
 }
 
-// ─── Org Structure sub-pages (delegated to orgstructure.js) ─────
-export { renderProfile };
-export async function renderBUs()          { navigate('/organisation/business-units'); }
-export async function renderDepts()        { navigate('/organisation/departments'); }
-export async function renderCostCentres()  { navigate('/organisation/cost-centres'); }
-export async function renderLocations()    { navigate('/organisation/locations'); }
+// organisation.js only handles /organisation/profile
+// Business Units, Departments, etc. are in orgstructure.js

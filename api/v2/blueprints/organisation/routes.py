@@ -28,7 +28,18 @@ org_bp = Blueprint('organisation', __name__, url_prefix='/api/v1')
 @require_auth
 def get_organisation():
     """Full org profile with completion score."""
-    org = db_row1("""SELECT o.*, s1.name as reg_state_name, c1.name as reg_country_name
+    org = db_row1("""SELECT o.id, o.legal_name, o.trade_name, o.brand_name, o.type_of_entity,
+        o.legal_structure, o.industry, o.sub_domain, o.logo_url,
+        o.timezone, o.base_currency, o.email, o.phone, o.website,
+        o.linkedin_url, o.hours_of_operation, o.employee_count_range,
+        o.financial_year_start, o.pan, o.cin, o.tan, o.msme_number,
+        o.iec_code, o.profession_tax_number, o.pf_number, o.esi_number,
+        o.incorporation_date, o.reg_address_line1, o.reg_address_line2,
+        o.reg_city, o.reg_pincode, o.poc_name, o.poc_email, o.poc_phone,
+        o.created_at, o.updated_at,
+        CASE WHEN o.logo_data IS NOT NULL THEN TRUE ELSE FALSE END as logo_data,
+        o.logo_mime,
+        s1.name as reg_state_name, c1.name as reg_country_name
         FROM organisation o
         LEFT JOIN master_states s1 ON s1.id=o.reg_state_id
         LEFT JOIN master_countries c1 ON c1.id=o.reg_country_id
