@@ -126,7 +126,8 @@ def employee_detail(eid):
                      'salary','bill_rate','bank_name','bank_account_number','bank_ifsc',
                      'location','rating','personal_email','personal_phone','notice_period',
                      'gender','dob','marital_status','nationality','blood_group',
-                     'business_unit_id','salary_structure','project']
+                     'business_unit_id','salary_structure','project','designation',
+                     'is_active','photo_url']
         updates = {k: d[k] for k in updatable if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)

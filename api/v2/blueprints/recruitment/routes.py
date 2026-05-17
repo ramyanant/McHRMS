@@ -152,7 +152,7 @@ def create_candidate():
          current_title, current_company, years_exp, current_ctc, expected_ctc,
          notice_period, source_id, linkedin_url, resume_url, skills,
          gender, nationality, pan, aadhaar, recruiter_id, status, rating, notes, availability)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['first_name'], d.get('middle_name'), d.get('last_name',''),
          d.get('email'), d.get('phone'),
          d.get('current_location') or d.get('location'),

@@ -118,7 +118,7 @@ export async function renderJobs() {
         thSort('status','Status') +
         '<th>Actions</th>' +
       '</tr></thead><tbody>' +
-      d.map(function(j) { return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/recruitment/jobs/&apos; + j.id + &apos;&apos;)">' +
+      d.map(function(j) { return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/recruitment/jobs/' + j.id + '&apos;)">' +
         '<td><div class="fw-bold">' + v(j.title) + '</div>' +
           '<div class="cell-sub">' + v(j.work_mode || '') + (j.job_type ? ' · ' + v(j.job_type) : '') + '</div></td>' +
         '<td>' + v(j.client_name, '—') + '</td>' +
@@ -474,7 +474,7 @@ export async function renderCandidates() {
       '</tr></thead><tbody>' +
       d.map(function(cand) {
         const c = cand; const name = v(c.first_name) + ' ' + v(c.last_name);
-        return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/candidates/&apos; + c.id + &apos;&apos;)">' +
+        return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/candidates/' + c.id + '&apos;)">' +
           '<td><div class="cell-person">' +
             '<div class="av av-sm av-blue">' + fmt.ini(name) + '</div>' +
             '<div><div class="fw-bold">' + name + '</div>' +
@@ -488,7 +488,7 @@ export async function renderCandidates() {
           '<td>' + ratingBadge(c.rating) + '</td>' +
           '<td>' + badge(c.status || 'Active') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
-            '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/candidates/&apos; + c.id + &apos;&apos;)">View</button>' +
+            '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/candidates/' + c.id + '&apos;)">View</button>' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editCandidateRow(' + c.id + ')">✏ Edit</button>' +
             '<button class="btn btn-primary btn-xs" onclick="window._submitToJob(' + c.id + ')">Submit</button>' +
             '<button class="btn btn-danger btn-xs" onclick="window._deleteCandidate(' + c.id + ')">Del</button>' +

@@ -88,6 +88,11 @@ def invoice_detail(iid):
         WHERE i.id=%s""", (iid,))
     if not inv: return not_found("Invoice")
     if request.method == 'GET':
+        import datetime
+        # Convert date objects to ISO strings for JSON serialization
+        for date_field in ['period_start', 'period_end', 'due_date', 'paid_date', 'invoice_date']:
+            if inv.get(date_field) and not isinstance(inv[date_field], str):
+                inv[date_field] = inv[date_field].isoformat()
         inv['line_items'] = db_rows(
             "SELECT *, hours as quantity, hours * rate as amount FROM invoice_line_items WHERE invoice_id=%s ORDER BY id", (iid,))
         return ok(inv)

@@ -23,7 +23,7 @@ export async function renderList() {
         '</tr></thead><tbody>' +
         rows.map(function(r) {
           return '<tr>' +
-            '<td class="mono text-muted">' + fmt.date(r.created_at) + '</td>' +
+            '<td class="mono text-muted">' + (function(d){ if(!d)return '—'; var dt=new Date(d); return ('0'+dt.getDate()).slice(-2)+'-'+('0'+(dt.getMonth()+1)).slice(-2)+'-'+dt.getFullYear()+' '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2); })(r.created_at) + '</td>' +
             '<td>' + v(r.username, '—') + '</td>' +
             '<td><span class="badge badge-gray">' + v(r.module, '—') + '</span></td>' +
             '<td>' + badge(r.action || 'INFO') + '</td>' +

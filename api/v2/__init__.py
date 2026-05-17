@@ -244,6 +244,15 @@ def create_app(config_override=None):
     BASE_DIR   = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     STATIC_DIR = os.path.join(BASE_DIR, 'static')
     app = Flask(__name__, static_folder=STATIC_DIR)
+    # Auto-serialize dates + decimals in ALL JSON responses
+    import datetime, decimal
+    class _DateEncoder(app.json_provider_class):
+        def default(self, o):
+            if isinstance(o, (datetime.date, datetime.datetime)): return o.isoformat()
+            if isinstance(o, decimal.Decimal): return float(o)
+            return super().default(o)
+    app.json_provider_class = _DateEncoder
+    app.json = _DateEncoder(app)
     cfg = config_override or get_config()
     app.config.from_object(cfg)
 

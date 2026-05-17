@@ -112,7 +112,6 @@ const NAV = {
       { label: 'Projects',        icon: '📋', path: '/projects' },
     ]},
     { section: 'Talent Acquisition', icon: '🎯', dashboard: '/recruitment', items: [
-      { label: 'Dashboard',       icon: '📊', path: '/recruitment' },
       { label: 'Job Requisitions',icon: '📝', path: '/recruitment/jobs' },
       { label: 'Candidates',      icon: '🎯', path: '/candidates' },
       { label: 'Pipeline',        icon: '🔄', path: '/recruitment/pipeline' },

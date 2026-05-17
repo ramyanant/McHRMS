@@ -331,10 +331,25 @@ function renderEmployeeForm(emp, masters) {
   // Save collects ALL tab data by switching through them
   window._saveEmp = async () => {
     const allData = {};
-    const savedTab = activeTab;
-    // Collect current tab data first
-    const currentData = fd('emp-full-form');
-    Object.assign(allData, currentData);
+    // Collect data from ALL tabs by rendering each into a temp div
+    const TABS = ['basic','employment','compensation','banking','personal'];
+    for (const tab of TABS) {
+      const tmpDiv = document.createElement('div');
+      tmpDiv.innerHTML = '<form id="tmp-tab-form">' + tabForm(tab) + '</form>';
+      document.body.appendChild(tmpDiv);
+      try {
+        const tabData = Object.fromEntries(new FormData(document.getElementById('tmp-tab-form')));
+        Object.assign(allData, tabData);
+      } catch(tabErr) {}
+      document.body.removeChild(tmpDiv);
+    }
+    // Also collect current visible tab (overrides with user's actual input)
+    try {
+      const currentData = fd('emp-full-form');
+      Object.assign(allData, currentData);
+    } catch(e2) {}
+    // Remove empty strings so they don't overwrite existing values
+    Object.keys(allData).forEach(k => { if (allData[k] === '') delete allData[k]; });
 
     try {
       if (isEdit) {
