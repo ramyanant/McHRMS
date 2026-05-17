@@ -190,6 +190,38 @@ def _run_migrations(app):
             # master_user_roles
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS is_system BOOLEAN DEFAULT FALSE",
+            # Candidates - rating, availability, location
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS availability TEXT DEFAULT 'Looking for Change'",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS location TEXT",
+            # Job requisitions - assigned_recruiters (comma-separated IDs), location stored in existing field
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS assigned_recruiters TEXT",
+            # Invoices - description, manual invoice number (already has invoice_number)
+            "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS description TEXT",
+            "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_data TEXT",
+            "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_name TEXT",
+            # Payroll
+            """CREATE TABLE IF NOT EXISTS payroll_runs (
+                id SERIAL PRIMARY KEY, month INTEGER NOT NULL, year INTEGER NOT NULL,
+                run_date DATE DEFAULT CURRENT_DATE, status TEXT DEFAULT 'New',
+                processed_by INTEGER, total_net_salary NUMERIC(12,2) DEFAULT 0,
+                cbx_file_content TEXT, notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(),
+                is_active INTEGER DEFAULT 1)""",
+            """CREATE TABLE IF NOT EXISTS payroll_entries (
+                id SERIAL PRIMARY KEY, payroll_run_id INTEGER REFERENCES payroll_runs(id),
+                employee_id INTEGER REFERENCES employees(id),
+                loss_of_pay NUMERIC(10,2) DEFAULT 0,
+                basic NUMERIC(10,2) DEFAULT 0, hra NUMERIC(10,2) DEFAULT 0,
+                conveyance NUMERIC(10,2) DEFAULT 0, medical NUMERIC(10,2) DEFAULT 0,
+                special NUMERIC(10,2) DEFAULT 0, incentive NUMERIC(10,2) DEFAULT 0,
+                other_earnings NUMERIC(10,2) DEFAULT 0, gross_salary NUMERIC(10,2) DEFAULT 0,
+                prof_tax NUMERIC(10,2) DEFAULT 0, esi NUMERIC(10,2) DEFAULT 0,
+                tds NUMERIC(10,2) DEFAULT 0, epf NUMERIC(10,2) DEFAULT 0,
+                medical_deduction NUMERIC(10,2) DEFAULT 0, advance NUMERIC(10,2) DEFAULT 0,
+                other_deductions NUMERIC(10,2) DEFAULT 0, total_deductions NUMERIC(10,2) DEFAULT 0,
+                net_salary NUMERIC(10,2) DEFAULT 0, ctc NUMERIC(10,2) DEFAULT 0,
+                is_approved INTEGER DEFAULT 0, approval_notes TEXT,
+                created_at TIMESTAMP DEFAULT NOW())""",
         ]
         for sql in migrations:
             try:
@@ -229,10 +261,11 @@ def create_app(config_override=None):
     from .blueprints.portal.routes       import portal_bp
     from .blueprints.projects.routes     import projects_bp
     from .blueprints.bills.routes        import bills_bp
+    from .blueprints.payroll.routes      import payroll_bp
 
     for bp in [auth_bp, org_bp, people_bp, ts_bp, rec_bp,
                inv_bp, clients_bp, vendors_bp, reports_bp, admin_bp,
-               portal_bp, projects_bp, bills_bp]:
+               portal_bp, projects_bp, bills_bp, payroll_bp]:
         app.register_blueprint(bp)
 
     @app.after_request

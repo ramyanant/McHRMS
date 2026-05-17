@@ -40,10 +40,11 @@ export async function renderList() {
   try {
     var data = await get('/bills');
     var rows = data.items || [];
-    var filterStatus = '', filterType = '';
+    var filterStatus = '', filterType = '', filterQ = '';
 
     function getF() {
       var d = rows.slice();
+      if (filterQ)      d = d.filter(function(r) { return (r.bill_number||'' + r.description||'' + r.vendor_name||'').toLowerCase().includes(filterQ.toLowerCase()); });
       if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
       if (filterType)   d = d.filter(function(r) { return r.expense_type === filterType; });
       return d;
@@ -61,21 +62,21 @@ export async function renderList() {
           '<button class="btn btn-primary" onclick="window._addBill()">+ Add Bill/Expense</button></div>';
       } else {
         tableHTML = '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-          '<th>Type</th><th>Description</th><th>Vendor</th><th>Date</th>' +
-          '<th>Amount</th><th>Tax</th><th>Total</th><th>Status</th><th>Actions</th>' +
+          '<th>Type</th><th>Bill #</th><th>Description</th><th>Vendor</th><th>Date</th>' +
+          '<th>Amount</th><th>Status</th><th>Actions</th>' +
           '</tr></thead><tbody>' +
           d.map(function(b) {
             return '<tr class="tbl-clickable" onclick="navigateTo(\'/bills/' + b.id + '\')">' +
               '<td><span class="badge badge-purple">' + v(b.expense_type) + '</span></td>' +
-              '<td>' + v(b.description || b.bill_number || '—') + '</td>' +
-              '<td>' + v(b.vendor_name || b.cost_centre_name || '—') + '</td>' +
+              '<td class="mono">' + v(b.bill_number || '—') + '</td>' +
+              '<td>' + v(b.description || '—') + '</td>' +
+              '<td>' + v(b.vendor_name || '—') + '</td>' +
               '<td class="mono">' + fmt.date(b.expense_date) + '</td>' +
-              '<td class="mono">' + fmt.money(b.amount) + '</td>' +
-              '<td class="mono">' + fmt.money(b.tax_amount) + '</td>' +
               '<td class="mono fw-bold">' + fmt.money(b.total_amount) + '</td>' +
               '<td>' + badge(b.status || 'Draft') + '</td>' +
               '<td class="tbl-actions" onclick="event.stopPropagation()">' +
-                '<button class="btn btn-ghost btn-xs" onclick="window._editBillRow(' + b.id + ')">✏</button>' +
+                '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/bills/' + b.id + '\')" >View</button>' +
+                '<button class="btn btn-ghost btn-xs" onclick="window._editBillRow(' + b.id + ')">✏ Edit</button>' +
                 '<button class="btn btn-danger btn-xs" onclick="window._deleteBill(' + b.id + ')">Delete</button>' +
               '</td></tr>';
           }).join('') +
@@ -93,7 +94,8 @@ export async function renderList() {
         kpi('Paid', paid, '✅', 'green') +
       '</div>' +
       '<div class="struct-toolbar">' +
-        '<div style="display:flex;gap:8px">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+          '<input class="search-input" placeholder="Search bills…" oninput="window._billQ(this.value)" style="width:180px">' +
           '<select class="fselect" style="width:170px" onchange="window._billType(this.value)">' +
             '<option value="">All Types</option>' + EXPENSE_TYPES.map(function(t) { return '<option>' + t + '</option>'; }).join('') +
           '</select>' +
@@ -107,6 +109,7 @@ export async function renderList() {
     );
 
     render();
+    window._billQ      = function(val) { filterQ = val; render(); };
     window._billType   = function(val) { filterType = val; render(); };
     window._billStatus = function(val) { filterStatus = val; render(); };
     window._addBill    = async function() {

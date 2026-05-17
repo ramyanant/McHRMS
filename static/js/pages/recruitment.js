@@ -82,64 +82,95 @@ export async function renderJobs() {
   try {
     const [data, masters] = await Promise.all([get('/recruitment/jobs'), get('/masters/all')]);
     const rows = data.items || [];
-    let filterStatus = '', q = '';
+    const employees = masters['employees-lookup'] || [];
 
-    function getFiltered() {
-      let d = [...rows];
-      if (q) d = d.filter(r => (r.title+' '+(r.client_name||'')).toLowerCase().includes(q.toLowerCase()));
+    let filterStatus = '', filterClient = '', q = '';
+    let sortCol = 'created_at', sortDir = -1;
+
+    const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))];
+    const clients  = [...new Set(rows.map(r => r.client_name).filter(Boolean))];
+
+    function sorted(arr) {
+      return arr.slice().sort((a, b) => String(a[sortCol]||'').localeCompare(String(b[sortCol]||'')) * sortDir);
+    }
+    function getF() {
+      let d = rows.slice();
+      if (q)            d = d.filter(r => (r.title+' '+(r.client_name||'')+(r.location||'')).toLowerCase().includes(q.toLowerCase()));
       if (filterStatus) d = d.filter(r => r.status === filterStatus);
-      return d;
+      if (filterClient) d = d.filter(r => r.client_name === filterClient);
+      return sorted(d);
+    }
+    function thSort(col, label) {
+      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._jSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
 
-    function render() {
-      const d = getFiltered();
-      document.getElementById('jobs-content').innerHTML = d.length
-        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-            '<th>Job Title</th><th>Client</th><th>Type</th><th>Mode</th><th>Experience</th><th>CTC Range</th><th>Positions</th><th>Priority</th><th>Status</th><th>Actions</th>'+
-            '</tr></thead><tbody>'+
-            d.map(j=>'<tr class="tbl-clickable" onclick="navigateTo(\'/recruitment/jobs/'+j.id+'\')">' +
-              '<td><strong>'+v(j.title)+'</strong><div class="cell-sub">'+v(j.job_type||'Permanent')+'</div></td>'+
-              '<td>'+v(j.client_name,'—')+'</td>'+
-              '<td>'+v(j.engagement_type||'—')+'</td>'+
-              '<td>'+v(j.work_mode||'On-Site')+'</td>'+
-              '<td class="text-muted">'+(j.min_experience||0)+'–'+(j.max_experience||'any')+' yrs</td>'+
-              '<td class="mono">'+(j.comp_min?'₹'+Math.round(j.comp_min/100000)+'L':'—')+(j.comp_max?' – ₹'+Math.round(j.comp_max/100000)+'L':'')+'</td>'+
-              '<td>'+(j.positions||1)+'</td>'+
-              '<td>'+badge(j.priority_name||j.priority||'Medium')+'</td>'+
-              '<td>'+badge(j.status||'Active')+'</td>'+
-              '<td class="tbl-actions" onclick="event.stopPropagation()">'+
-                '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/recruitment/jobs/'+j.id+'\')">View</button>'+
-                '<button class="btn btn-ghost btn-xs" onclick="window._editJob('+j.id+')">✏</button>'+
-                '<button class="btn btn-danger btn-xs" onclick="window._deleteJob('+j.id+',\''+j.title+'\')">Del</button>'+
-              '</td></tr>').join('')+
-            '</tbody></table></div></div>'
-        : '<div class="empty-state"><div class="empty-icon">💼</div><div class="empty-title">No jobs found</div><button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ Post First Job</button></div>';
+    function renderTable() {
+      const d = getF();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No jobs found</div></div>';
+      return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thSort('title','Job Title') +
+        thSort('client_name','Client') +
+        thSort('location','Location') +
+        thSort('notice_period','Notice Period') +
+        thSort('positions','Openings') +
+        thSort('assigned_to_name','Recruiter / Owner') +
+        thSort('status','Status') +
+        '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(j => '<tr class="tbl-clickable" onclick="navigateTo(&apos;/recruitment/jobs/&apos; + j.id + &apos;&apos;)">' +
+        '<td><div class="fw-bold">' + v(j.title) + '</div>' +
+          '<div class="cell-sub">' + v(j.work_mode || '') + (j.job_type ? ' · ' + v(j.job_type) : '') + '</div></td>' +
+        '<td>' + v(j.client_name, '—') + '</td>' +
+        '<td>' + v(j.location, '—') + '</td>' +
+        '<td>' + (j.notice_period ? v(j.notice_period) + ' days' : '—') + '</td>' +
+        '<td class="fw-bold">' + (j.positions || 1) + '</td>' +
+        '<td>' + v(j.assigned_to_name || j.recruiter_name, '—') + '</td>' +
+        '<td>' + badge(j.status || 'Active') + '</td>' +
+        '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+          '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/recruitment/jobs/&apos;+' + j.id + '+&apos;&apos;)">View</button>' +
+          '<button class="btn btn-ghost btn-xs" onclick="window._editJob(' + j.id + ')">✏ Edit</button>' +
+          '<button class="btn btn-primary btn-xs" onclick="navigateTo(&apos;/candidates/new&apos;)">+ Candidate</button>' +
+          '<button class="btn btn-danger btn-xs" onclick="window._deleteJob(' + j.id + ') ">Del</button>' +
+        '</td></tr>'
+      ).join('') +
+      '</tbody></table></div></div>';
     }
 
-    setContent('<div class="page-body">'+
-      '<div class="struct-toolbar">'+
-        '<input class="search-input" placeholder="Search jobs…" oninput="window._jobQ(this.value)">'+
-        '<div style="display:flex;gap:8px">'+
-          '<select class="fselect" style="width:130px" onchange="window._jobFilter(this.value)">'+
-            '<option value="">All Status</option>'+JOB_STATUSES.map(s=>'<option>'+s+'</option>').join('')+
-          '</select>'+
-          '<button class="btn btn-primary" onclick="navigateTo(\'/recruitment/jobs/new\')">+ New Job</button>'+
-        '</div>'+
-      '</div>'+
-      '<div id="jobs-content"></div></div>');
+    setContent(
+      '<div class="page-body">' +
+      '<div class="struct-toolbar">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<input class="search-input" placeholder="Search jobs…" oninput="window._jQ(this.value)" style="width:200px">' +
+          '<select class="fselect" style="width:120px" onchange="window._jStat(this.value)">' +
+            '<option value="">All Status</option>' + statuses.map(s => '<option>' + v(s) + '</option>').join('') +
+          '</select>' +
+          '<select class="fselect" style="width:150px" onchange="window._jClient(this.value)">' +
+            '<option value="">All Clients</option>' + clients.map(c => '<option>' + v(c) + '</option>').join('') +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="navigateTo(&apos;/recruitment/jobs/new&apos;)"">+ New Job</button>' +
+      '</div>' +
+      '<div id="jobs-content">' + renderTable() + '</div>' +
+      '</div>'
+    );
 
-    render();
-    window._jobQ = val=>{q=val;render();};
-    window._jobFilter = val=>{filterStatus=val;render();};
+    window._jQ      = val => { q = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
+    window._jStat   = val => { filterStatus = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
+    window._jClient = val => { filterClient = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
+    window._jSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('jobs-content').innerHTML = renderTable(); };
+
     window._deleteJob = async (id, title) => {
       if (!confirm('Delete job "' + title + '"?')) return;
       await put('/recruitment/jobs/' + id, { is_active: 0, status: 'Cancelled' });
-      toast('Job deleted', 'info'); render();
+      toast('Job deleted', 'info');
+      document.getElementById('jobs-content').innerHTML = renderTable();
     };
-    window._editJob = async id => {
-      const j = await get('/recruitment/jobs/'+id);
-      jobModal(j, masters);
+    window._editJob = id => {
+      const j = rows.find(r => r.id === id);
+      if (j) buildJobForm(j, masters);
     };
+
   } catch(e) { showError(e.message); }
 }
 
@@ -193,6 +224,10 @@ function buildJobForm(j, masters) {
     '<div class="fg"><label class="flabel">Budget (₹)</label><input class="finput" type="number" name="budget" value="'+v((j && j.budget),0)+'"></div>'+
     '<div class="fg"><label class="flabel">Notice Period</label><input class="finput" name="notice_period" value="'+v((j && j.notice_period))+'" placeholder="e.g. Immediate, 30 days"></div>'+
     fsl('Recruiter / Owner','recruiter_id',masters['employees-lookup']||[],(j && j.recruiter_id))+
+    '<div class="fg full"><label class="flabel">Assign Additional Recruiters (Ctrl/Cmd+click for multiple)</label>'+
+    '<select class="fselect" name="assigned_recruiters" multiple style="height:90px">'+
+    (masters['employees-lookup']||[]).map(function(e){return '<option value="'+e.id+'"'+((j&&j.assigned_recruiters&&j.assigned_recruiters.toString().includes(String(e.id)))?' selected':'')+'>'+v(e.name)+'</option>';}).join('')+
+    '</select></div>'+
     '<div class="fg"><label class="flabel">Target Start Date</label><input class="finput" type="date" name="target_start" value="'+v((j && j.target_start)?String(j.target_start).split('T')[0]:'')+'"></div>'+
     '<div class="fg full"><label class="flabel">Job Description</label><textarea class="finput" name="description" rows="4" placeholder="Describe the role, responsibilities…">'+v((j && j.description))+'</textarea></div>'+
     '<div class="fg full"><label class="flabel">Requirements / Skills</label><textarea class="finput" name="requirements" rows="3" placeholder="Required skills and qualifications…">'+v((j && j.requirements))+'</textarea></div>'+
@@ -378,48 +413,193 @@ export async function renderPipeline() {
 // CANDIDATES
 // ═══════════════════════════════════════════════════════════════
 export async function renderCandidates() {
-  setPageTitle('Candidates', 'All candidates');
+  setPageTitle('Candidates', 'Talent pool');
   setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Candidates' }]);
   showLoader();
   try {
-    const data = await get('/candidates');
+    const [data, masters] = await Promise.all([get('/candidates'), get('/masters/all')]);
     const rows = data.items || [];
-    let q = '';
-    function getF() { return q ? rows.filter(r=>(r.first_name+' '+r.last_name+' '+(r.email||'')).toLowerCase().includes(q.toLowerCase())) : rows; }
-    function render() {
-      const d = getF();
-      document.getElementById('cand-content').innerHTML = d.length
-        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-            '<th>Candidate</th><th>Title</th><th>Experience</th><th>CTC</th><th>Notice</th><th>Source</th><th>Stage</th><th>Actions</th>'+
-            '</tr></thead><tbody>'+
-            d.map(c=>'<tr class="tbl-clickable" onclick="navigateTo(\'/candidates/'+c.id+'\')">' +
-              '<td><div class="cell-person"><div class="av av-sm av-blue">'+fmt.ini(c.first_name+' '+c.last_name)+'</div>'+
-              '<div><div class="cell-name">'+v(c.first_name)+' '+v(c.last_name)+'</div><div class="cell-sub">'+v(c.email||c.phone||'')+'</div></div></div></td>'+
-              '<td>'+v(c.current_title,'—')+'</td>'+
-              '<td>'+(c.years_exp||0)+' yrs</td>'+
-              '<td class="mono">'+(c.current_ctc?'₹'+Math.round(c.current_ctc/100000)+'L':'—')+'</td>'+
-              '<td>'+(c.notice_period?c.notice_period+' days':'—')+'</td>'+
-              '<td>'+v(c.source_name||'—')+'</td>'+
-              '<td>'+badge(c.latest_stage||'—')+'</td>'+
-              '<td class="tbl-actions" onclick="event.stopPropagation()">'+
-                '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/candidates/'+c.id+'\')">View</button>'+
-                '<button class="btn btn-danger btn-xs" onclick="window._deleteCandidate('+c.id+',\''+c.first_name+' '+c.last_name+'\')" >Delete</button>'+
-              '</td></tr>').join('')+
-            '</tbody></table></div></div>'
-        : '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No candidates</div><button class="btn btn-primary" onclick="navigateTo(\'/candidates/new\')">+ Add First Candidate</button></div>';
+
+    const RATINGS_LIST = ['Flyer','Excellent','Good','Average','Bad','Blacklisted'];
+    const AVAIL_LIST   = ['Immediate','Notice Period','Looking for Change','Currently Employed','Freelancer'];
+
+    let q = '', filterStatus = '', filterRating = '', filterAvail = '';
+    let sortCol = 'created_at', sortDir = -1;
+
+    const statuses   = [...new Set(rows.map(r => r.status).filter(Boolean))];
+
+    function sorted(arr) {
+      return arr.slice().sort((a, b) => {
+        const av = String(a[sortCol] || ''), bv = String(b[sortCol] || '');
+        return av.localeCompare(bv) * sortDir;
+      });
     }
-    setContent('<div class="page-body">'+
-      '<div class="struct-toolbar">'+
-        '<input class="search-input" placeholder="Search candidates…" oninput="window._candQ(this.value)">'+
-        '<button class="btn btn-primary" onclick="navigateTo(\'/candidates/new\')">+ Add Candidate</button>'+
-      '</div><div id="cand-content"></div></div>');
-    render();
-    window._candQ = val=>{q=val;render();};
-    window._deleteCandidate = async (id, name) => {
-      if (!confirm('Delete candidate "' + name + '"?')) return;
+    function getF() {
+      let d = rows.slice();
+      if (q)            d = d.filter(r => (r.first_name+' '+r.last_name+' '+(r.email||'')+(r.candidate_location||'')+(r.current_title||'')).toLowerCase().includes(q.toLowerCase()));
+      if (filterStatus) d = d.filter(r => r.status === filterStatus);
+      if (filterRating) d = d.filter(r => r.rating === filterRating);
+      if (filterAvail)  d = d.filter(r => r.availability === filterAvail);
+      return sorted(d);
+    }
+
+    function thSort(col, label) {
+      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._cSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
+    }
+
+    function ratingBadge(rating) {
+      const map = { Flyer:'green', Excellent:'blue', Good:'purple', Average:'gray', Bad:'amber', Blacklisted:'red' };
+      const color = map[rating] || 'gray';
+      return '<span class="badge badge-' + color + '">' + v(rating || '—') + '</span>';
+    }
+    function availBadge(avail) {
+      const map = { Immediate:'green', 'Notice Period':'amber', 'Looking for Change':'blue', 'Currently Employed':'purple', Freelancer:'teal' };
+      const color = map[avail] || 'gray';
+      return '<span class="badge badge-' + color + '" style="font-size:10px">' + v(avail || '—') + '</span>';
+    }
+
+    function renderTable() {
+      const d = getF();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">No candidates found</div></div>';
+      return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thSort('first_name','Candidate') +
+        thSort('current_title','Title / Company') +
+        thSort('candidate_location','Location') +
+        thSort('years_exp','Exp') +
+        thSort('availability','Availability') +
+        thSort('rating','Rating') +
+        thSort('status','Status') +
+        '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(c => {
+        const name = v(c.first_name) + ' ' + v(c.last_name);
+        return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/candidates/&apos; + c.id + &apos;&apos;)">' +
+          '<td><div class="cell-person">' +
+            '<div class="av av-sm av-blue">' + fmt.ini(name) + '</div>' +
+            '<div><div class="fw-bold">' + name + '</div>' +
+            '<div class="cell-sub">' + v(c.email) + '</div></div>' +
+          '</div></td>' +
+          '<td><div>' + v(c.current_title, '—') + '</div>' +
+            '<div class="cell-sub">' + v(c.current_company, '') + '</div></td>' +
+          '<td>' + v(c.candidate_location || c.location, '—') + '</td>' +
+          '<td class="mono">' + (c.years_exp || 0) + 'y</td>' +
+          '<td>' + availBadge(c.availability) + '</td>' +
+          '<td>' + ratingBadge(c.rating) + '</td>' +
+          '<td>' + badge(c.status || 'Active') + '</td>' +
+          '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+            '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/candidates/&apos; + c.id + &apos;&apos;)">View</button>' +
+            '<button class="btn btn-ghost btn-xs" onclick="window._editCandidateRow(' + c.id + ')">✏ Edit</button>' +
+            '<button class="btn btn-primary btn-xs" onclick="window._submitToJob(' + c.id + ')">Submit</button>' +
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteCandidate(' + c.id + ')">Del</button>' +
+          '</td></tr>';
+      }).join('') +
+      '</tbody></table></div></div>';
+    }
+
+    setContent(
+      '<div class="page-body">' +
+      '<div class="struct-toolbar">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<input class="search-input" placeholder="Search candidates…" oninput="window._cQ(this.value)" style="width:200px">' +
+          '<select class="fselect" style="width:120px" onchange="window._cStat(this.value)">' +
+            '<option value="">All Status</option>' + statuses.map(s => '<option>' + v(s) + '</option>').join('') +
+          '</select>' +
+          '<select class="fselect" style="width:120px" onchange="window._cRating(this.value)">' +
+            '<option value="">All Ratings</option>' + RATINGS_LIST.map(r => '<option>' + r + '</option>').join('') +
+          '</select>' +
+          '<select class="fselect" style="width:150px" onchange="window._cAvail(this.value)">' +
+            '<option value="">All Availability</option>' + AVAIL_LIST.map(a => '<option>' + a + '</option>').join('') +
+          '</select>' +
+        '</div>' +
+        '<div style="display:flex;gap:6px">' +
+          '<button class="btn btn-ghost" onclick="navigateTo(&apos;/recruitment/jobs&apos;)"">← Jobs</button>' +
+          '<button class="btn btn-primary" onclick="navigateTo(&apos;/candidates/new&apos;)"">+ Add Candidate</button>' +
+        '</div>' +
+      '</div>' +
+      '<div id="cand-content">' + renderTable() + '</div>' +
+      '</div>'
+    );
+
+    window._cQ      = val => { q = val; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._cStat   = val => { filterStatus = val; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._cRating = val => { filterRating = val; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._cAvail  = val => { filterAvail  = val; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._cSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('cand-content').innerHTML = renderTable(); };
+
+    window._deleteCandidate = async (id) => {
+      if (!confirm('Delete this candidate?')) return;
       await put('/candidates/' + id, { is_active: 0, status: 'Inactive' });
-      toast('Candidate deleted', 'info'); render();
+      toast('Candidate deleted', 'info');
+      document.getElementById('cand-content').innerHTML = renderTable();
     };
+
+    window._submitToJob = (candId) => {
+      var candName = 'Candidate';
+      openModal({
+        title: 'Submit to Job — ' + candName,
+        body: '<form id="s2j-form" class="form-grid-sm">' +
+          '<div class="fg full"><label class="flabel">Select Job *</label>' +
+          '<select class="fselect" name="requisition_id" id="s2j-job" required>' +
+          '<option value="">Loading jobs…</option></select></div>' +
+          '<div class="fg full"><label class="flabel">Notes</label>' +
+          '<input class="finput" name="notes" placeholder="Submission notes"></div>' +
+          '</form>',
+        submitLabel: 'Submit',
+        onSubmit: async () => {
+          const jobId = document.getElementById('s2j-job').value;
+          if (!jobId) { toast('Select a job', 'error'); return false; }
+          await post('/candidates', { candidate_id: candId, requisition_id: jobId, _action: 'apply' })
+            .catch(() => {});
+          // Create application directly
+          const stage = (masters['application-stages'] || [{ id: 1 }])[0];
+          await post('/applications', { candidate_id: candId, requisition_id: jobId, stage_id: stage.id })
+            .catch(() => {});
+          toast('Candidate submitted to job!', 'success');
+        }
+      });
+      get('/recruitment/jobs?status=Active').then(res => {
+        const jobs = res.items || [];
+        const sel = document.getElementById('s2j-job');
+        if (sel) sel.innerHTML = '<option value="">Select job…</option>' +
+          jobs.map(j => '<option value="' + j.id + '">' + v(j.title) + ' – ' + v(j.client_name || '') + '</option>').join('');
+      });
+    };
+
+    window._editCandidateRow = (id) => {
+      const c = rows.find(r => r.id === id);
+      if (!c) return;
+      openModal({
+        title: '✏ Edit: ' + v(c.first_name) + ' ' + v(c.last_name), size: 'lg',
+        body: '<form id="edit-cand-form" class="form-grid-sm">' +
+          '<div class="fg"><label class="flabel">Rating</label>' +
+            '<select class="fselect" name="rating">' +
+            RATINGS_LIST.map(r => '<option' + (c.rating === r ? ' selected' : '') + '>' + r + '</option>').join('') +
+            '</select></div>' +
+          '<div class="fg"><label class="flabel">Availability</label>' +
+            '<select class="fselect" name="availability">' +
+            AVAIL_LIST.map(a => '<option' + (c.availability === a ? ' selected' : '') + '>' + a + '</option>').join('') +
+            '</select></div>' +
+          '<div class="fg"><label class="flabel">Location</label>' +
+            '<input class="finput" name="location" value="' + v(c.candidate_location || c.location) + '"></div>' +
+          '<div class="fg"><label class="flabel">Status</label>' +
+            '<select class="fselect" name="status">' +
+            ['Active','Shortlisted','Offered','Placed','Inactive','Blacklisted'].map(s => '<option' + (c.status === s ? ' selected' : '') + '>' + s + '</option>').join('') +
+            '</select></div>' +
+          '</form>',
+        submitLabel: 'Save',
+        onSubmit: async () => {
+          const data = Object.fromEntries(new FormData(document.getElementById('edit-cand-form')));
+          await put('/candidates/' + id, data);
+          toast('Updated', 'success');
+          const updated = await get('/candidates');
+          rows.length = 0;
+          (updated.items || []).forEach(r => rows.push(r));
+          document.getElementById('cand-content').innerHTML = renderTable();
+        }
+      });
+    };
+
   } catch(e) { showError(e.message); }
 }
 
@@ -457,9 +637,11 @@ function renderCandidateForm(existing, masters) {
       '<div class="fg"><label class="flabel">Expected CTC (₹)</label><input class="finput" type="number" name="expected_ctc" value="'+v((existing && existing.expected_ctc))+'"></div>'+
       '<div class="fg full"><label class="flabel">Skills</label><input class="finput" name="skills" value="'+v((existing && existing.skills))+'" placeholder="React, Python, AWS… (comma separated)"></div>'+
       // Recruitment
-      '<div class="form-section-title">Recruitment</div>'+
+      '<div class="form-section-title">Recruitment Details</div>'+
       fsl('Source','source_id',masters['candidate-sources']||[],(existing && existing.source_id))+
-      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],(existing && existing.recruiter_id))+
+      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],((existing && existing.recruiter_id)||(_user && _user.employee_id)))+
+      '<div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating"><option value="">Select…</option>'+opts(['Flyer','Excellent','Good','Average','Bad','Blacklisted'],(existing && existing.rating)||'Good')+'</select></div>'+
+      '<div class="fg"><label class="flabel">Availability</label><select class="fselect" name="availability"><option value="">Select…</option>'+opts(['Immediate','Notice Period','Looking for Change','Currently Employed','Freelancer'],(existing && existing.availability)||'Looking for Change')+'</select></div>'+
       '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option value="">Select…</option>'+opts(['Active','Inactive','Placed','Blacklisted'],(existing && existing.status)||'Active')+'</select></div>'+
       fsl('Submit to Job','requisition_id',masters['clients-lookup']||[], null)+ // Will be loaded
       '<div class="fg full"><label class="flabel">Resume File</label><input type="file" class="finput" id="resume-file" accept=".pdf,.doc,.docx"></div>'+
@@ -702,36 +884,101 @@ export async function renderInterviews() {
   setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Interviews' }]);
   showLoader();
   try {
-    const ivs = await get('/interviews');
-    const rows = Array.isArray(ivs) ? ivs : [];
-    setContent('<div class="page-body">'+
-      '<div class="list-toolbar"><div></div><button class="btn btn-primary" onclick="window._schedGeneral()">+ Schedule Interview</button></div>'+
-      (rows.length
-        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Candidate</th><th>Job</th><th>Round</th><th>Format</th><th>Scheduled</th><th>Interviewer</th><th>Decision</th><th>Actions</th></tr></thead><tbody>'+
-          rows.map(i=>'<tr><td><strong>'+v(i.candidate_name)+'</strong></td><td class="text-muted">'+v(i.job_title||'—')+'</td>'+
-            '<td>Round '+v(i.round)+'</td><td>'+v(i.format_name||'—')+'</td>'+
-            '<td class="mono">'+fmt.date(i.scheduled_at)+'</td>'+
-            '<td>'+v(i.interviewer,'—')+'</td>'+
-            '<td>'+badge(i.decision||'Pending')+'</td>'+
-            '<td class="tbl-actions"><button class="btn btn-ghost btn-xs" onclick="window._updateIV('+i.id+')">Update</button></td>'+
-          '</tr>').join('')+'</tbody></table></div></div>'
-        : '<div class="empty-state"><div class="empty-icon">🗓</div><div class="empty-title">No interviews scheduled</div></div>')+
-      '</div>');
-    window._schedGeneral = () => scheduleInterviewModal(null, 'Candidate', null);
+    const data = await get('/interviews');
+    const rows = data.items || data || [];
+
+    let q = '', filterStatus = '', filterClient = '';
+    let sortCol = 'scheduled_at', sortDir = -1;
+
+    const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))];
+    const clients  = [...new Set(rows.map(r => r.client_name).filter(Boolean))];
+
+    function sorted(arr) {
+      return arr.slice().sort((a,b) => String(a[sortCol]||'').localeCompare(String(b[sortCol]||'')) * sortDir);
+    }
+    function getF() {
+      let d = rows.slice();
+      if (q)            d = d.filter(r => (r.candidate_name+' '+(r.job_title||'')+(r.client_name||'')).toLowerCase().includes(q.toLowerCase()));
+      if (filterStatus) d = d.filter(r => r.status === filterStatus);
+      if (filterClient) d = d.filter(r => r.client_name === filterClient);
+      return sorted(d);
+    }
+    function thSort(col, label) {
+      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._ivSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
+    }
+
+    function renderTable() {
+      const d = getF();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🎙</div><div class="empty-title">No interviews scheduled</div></div>';
+      return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thSort('candidate_name','Candidate') +
+        thSort('job_title','Position') +
+        thSort('client_name','Client') +
+        thSort('round','Round') +
+        thSort('format_name','Format') +
+        thSort('scheduled_at','Date & Time') +
+        thSort('status','Status') +
+        '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(i => '<tr class="tbl-clickable">' +
+        '<td><strong>' + v(i.candidate_name,'—') + '</strong></td>' +
+        '<td>' + v(i.job_title,'—') + '</td>' +
+        '<td>' + v(i.client_name,'—') + '</td>' +
+        '<td><span class="badge badge-blue">Round ' + v(i.round,'—') + '</span></td>' +
+        '<td>' + v(i.format_name || i.format,'—') + '</td>' +
+        '<td class="mono">' + fmt.date(i.scheduled_at) + '</td>' +
+        '<td>' + badge(i.status || 'Scheduled') + '</td>' +
+        '<td class="tbl-actions"><button class="btn btn-ghost btn-xs" onclick="window._updateIV(' + i.id + ')">Update</button></td>' +
+      '</tr>').join('') +
+      '</tbody></table></div></div>';
+    }
+
+    setContent(
+      '<div class="page-body">' +
+      '<div class="struct-toolbar">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<input class="search-input" placeholder="Search…" oninput="window._ivQ(this.value)" style="width:180px">' +
+          '<select class="fselect" style="width:120px" onchange="window._ivStat(this.value)">' +
+            '<option value="">All Status</option>' + statuses.map(s => '<option>' + v(s) + '</option>').join('') +
+          '</select>' +
+          '<select class="fselect" style="width:150px" onchange="window._ivClient(this.value)">' +
+            '<option value="">All Clients</option>' + clients.map(c => '<option>' + v(c) + '</option>').join('') +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="window._schedGeneral()">+ Schedule Interview</button>' +
+      '</div>' +
+      '<div id="iv-content">' + renderTable() + '</div>' +
+      '</div>'
+    );
+
+    window._ivQ      = val => { q = val; document.getElementById('iv-content').innerHTML = renderTable(); };
+    window._ivStat   = val => { filterStatus = val; document.getElementById('iv-content').innerHTML = renderTable(); };
+    window._ivClient = val => { filterClient = val; document.getElementById('iv-content').innerHTML = renderTable(); };
+    window._ivSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('iv-content').innerHTML = renderTable(); };
+
+    window._schedGeneral = () => scheduleInterviewModal(null, '', null);
     window._updateIV = (id) => {
-      const iv = rows.find(r=>r.id===id);
+      const iv = rows.find(r => r.id === id);
       openModal({
-        title: 'Update Interview Feedback',
-        body: '<form id="iv-form" class="form-grid-sm">'+
-          '<div class="fg"><label class="flabel">Decision</label><select class="fselect" name="decision">'+opts(['Pending','Strong Yes','Yes','No','Strong No','No Show'],(iv && iv.decision)||'Pending')+'</select></div>'+
-          '<div class="fg"><label class="flabel">Scorecard Status</label><select class="fselect" name="scorecard_status">'+opts(['Not Started','Pending','Completed','Overdue'],(iv && iv.scorecard_status)||'Not Started')+'</select></div>'+
-          '<div class="fg full"><label class="flabel">Feedback / Notes</label><textarea class="finput" name="notes" rows="3">'+v((iv && iv.notes))+'</textarea></div>'+
-        '</form>',
-        submitLabel: 'Save Feedback',
+        title: 'Update Interview',
+        body: '<form id="iv-upd-form" class="form-grid-sm">' +
+          '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">' +
+          opts(['Scheduled','Completed','Cancelled','No Show','Rescheduled'], iv ? iv.status : 'Scheduled') +
+          '</select></div>' +
+          '<div class="fg"><label class="flabel">Result</label><select class="fselect" name="result">' +
+          opts(['Pending','Passed','Failed','On Hold'], iv && iv.result ? iv.result : 'Pending') +
+          '</select></div>' +
+          '<div class="fg full"><label class="flabel">Feedback</label><textarea class="finput" name="feedback" rows="3">' + v(iv && iv.feedback) + '</textarea></div>' +
+          '</form>',
+        submitLabel: 'Update',
         onSubmit: async () => {
-          await put('/interviews/'+id, fd('iv-form'));
-          toast('Updated', 'success');
-          renderInterviews();
+          const data = Object.fromEntries(new FormData(document.getElementById('iv-upd-form')));
+          await put('/interviews/' + id, data);
+          toast('Interview updated', 'success');
+          const fresh = await get('/interviews');
+          rows.length = 0; (fresh.items || []).forEach(r => rows.push(r));
+          document.getElementById('iv-content').innerHTML = renderTable();
         }
       });
     };
@@ -746,34 +993,125 @@ export async function renderOffers() {
   setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Offers' }]);
   showLoader();
   try {
-    const [offers, masters] = await Promise.all([get('/offers'), get('/masters/all')]);
-    const rows = Array.isArray(offers) ? offers : [];
-    setContent('<div class="page-body">'+
-      '<div class="list-toolbar"><div></div><button class="btn btn-primary" onclick="window._newOffer()">+ New Offer</button></div>'+
-      (rows.length
-        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Candidate</th><th>Job</th><th>Designation</th><th>Offered CTC</th><th>Joining</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+
-          rows.map(o=>'<tr><td><strong>'+v(o.candidate_name)+'</strong><div class="cell-sub">'+v(o.email||'')+'</div></td>'+
-            '<td>'+v(o.job_title,'—')+'</td>'+
-            '<td>'+v(o.designation,'—')+'</td>'+
-            '<td class="mono">'+(o.offered_ctc?'₹'+Math.round(o.offered_ctc/100000)+'L':'—')+'</td>'+
-            '<td>'+fmt.date(o.joining_date)+'</td>'+
-            '<td>'+badge(o.status||'Draft')+'</td>'+
-            '<td class="tbl-actions">'+
-              '<button class="btn btn-ghost btn-xs" onclick="window._editOffer('+o.id+')">✏ Edit</button>'+
-              (o.status==='Sent'?'<button class="btn btn-primary btn-xs" onclick="window._acceptOffer('+o.id+')">Accept</button>':'')+
-            '</td></tr>').join('') +
-          '</tbody></table></div></div>'
-        : '<div class="empty-state"><div class="empty-icon">📜</div><div class="empty-title">No offers yet</div></div>')+
-      '</div>');
-    window._newOffer  = () => offerModal(null, null, masters);
-    window._editOffer = id => {
-      const o = rows.find(r=>r.id===id);
-      offerModal(o, null, masters);
+    const data = await get('/offers');
+    const rows = data.items || data || [];
+
+    let q = '', filterStatus = '', filterClient = '';
+    let sortCol = 'created_at', sortDir = -1;
+
+    const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))];
+    const clients  = [...new Set(rows.map(r => r.client_name).filter(Boolean))];
+
+    function sorted(arr) {
+      return arr.slice().sort((a,b) => String(a[sortCol]||'').localeCompare(String(b[sortCol]||'')) * sortDir);
+    }
+    function getF() {
+      let d = rows.slice();
+      if (q)            d = d.filter(r => (r.candidate_name+' '+(r.job_title||'')+(r.client_name||'')).toLowerCase().includes(q.toLowerCase()));
+      if (filterStatus) d = d.filter(r => r.status === filterStatus);
+      if (filterClient) d = d.filter(r => r.client_name === filterClient);
+      return sorted(d);
+    }
+    function thSort(col, label) {
+      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._ofSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
+    }
+
+    function renderTable() {
+      const d = getF();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">No offers yet</div></div>';
+      return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thSort('candidate_name','Candidate') +
+        thSort('job_title','Position') +
+        thSort('client_name','Client') +
+        thSort('offer_date','Offer Date') +
+        thSort('expected_joining','Joining Date') +
+        thSort('status','Status') +
+        '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(o => '<tr class="tbl-clickable">' +
+        '<td><strong>' + v(o.candidate_name,'—') + '</strong></td>' +
+        '<td>' + v(o.job_title,'—') + '</td>' +
+        '<td>' + v(o.client_name,'—') + '</td>' +
+        '<td class="mono">' + fmt.date(o.offer_date) + '</td>' +
+        '<td class="mono">' + fmt.date(o.expected_joining) + '</td>' +
+        '<td>' + badge(o.status || 'Pending') + '</td>' +
+        '<td class="tbl-actions">' +
+          '<button class="btn btn-ghost btn-xs" onclick="window._updateOffer(' + o.id + ')">Update</button>' +
+        '</td></tr>'
+      ).join('') + '</tbody></table></div></div>';
+    }
+
+    setContent(
+      '<div class="page-body">' +
+      '<div class="struct-toolbar">' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<input class="search-input" placeholder="Search offers…" oninput="window._ofQ(this.value)" style="width:180px">' +
+          '<select class="fselect" style="width:120px" onchange="window._ofStat(this.value)">' +
+            '<option value="">All Status</option>' + statuses.map(s => '<option>' + v(s) + '</option>').join('') +
+          '</select>' +
+          '<select class="fselect" style="width:150px" onchange="window._ofClient(this.value)">' +
+            '<option value="">All Clients</option>' + clients.map(c => '<option>' + v(c) + '</option>').join('') +
+          '</select>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="window._newOffer()">+ New Offer</button>' +
+      '</div>' +
+      '<div id="of-content">' + renderTable() + '</div>' +
+      '</div>'
+    );
+
+    window._ofQ      = val => { q = val; document.getElementById('of-content').innerHTML = renderTable(); };
+    window._ofStat   = val => { filterStatus = val; document.getElementById('of-content').innerHTML = renderTable(); };
+    window._ofClient = val => { filterClient = val; document.getElementById('of-content').innerHTML = renderTable(); };
+    window._ofSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('of-content').innerHTML = renderTable(); };
+
+    window._updateOffer = (id) => {
+      const o = rows.find(r => r.id === id);
+      openModal({
+        title: 'Update Offer',
+        body: '<form id="of-upd-form" class="form-grid-sm">' +
+          '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status">' +
+          opts(['Pending','Sent','Accepted','Declined','Withdrawn','Joined','No Show'], o && o.status) +
+          '</select></div>' +
+          '<div class="fg"><label class="flabel">Joining Date</label><input class="finput" type="date" name="expected_joining" value="' + v(o && o.expected_joining ? String(o.expected_joining).split('T')[0] : '') + '"></div>' +
+          '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2">' + v(o && o.notes) + '</textarea></div>' +
+          '</form>',
+        submitLabel: 'Update',
+        onSubmit: async () => {
+          const data = Object.fromEntries(new FormData(document.getElementById('of-upd-form')));
+          await put('/offers/' + id, data);
+          toast('Offer updated', 'success');
+        }
+      });
     };
-    window._acceptOffer = async id => {
-      await put('/offers/'+id, { status:'Accepted' });
-      toast('Offer accepted', 'success');
-      renderOffers();
+
+    window._newOffer = () => {
+      openModal({
+        title: '+ New Offer', size: 'md',
+        body: '<form id="new-of-form" class="form-grid-sm">' +
+          '<div class="fg full"><label class="flabel">Candidate *</label><select class="fselect" name="candidate_id" id="of-cand-sel" required><option value="">Loading…</option></select></div>' +
+          '<div class="fg full"><label class="flabel">Job *</label><select class="fselect" name="requisition_id" id="of-job-sel" required><option value="">Select…</option></select></div>' +
+          '<div class="fg"><label class="flabel">Offer Date</label><input class="finput" type="date" name="offer_date"></div>' +
+          '<div class="fg"><label class="flabel">Expected Joining</label><input class="finput" type="date" name="expected_joining"></div>' +
+          '</form>',
+        submitLabel: 'Create Offer',
+        onSubmit: async () => {
+          const data = Object.fromEntries(new FormData(document.getElementById('new-of-form')));
+          await post('/offers', data);
+          toast('Offer created', 'success');
+          const fresh = await get('/offers');
+          rows.length = 0; (fresh.items || []).forEach(r => rows.push(r));
+          document.getElementById('of-content').innerHTML = renderTable();
+        }
+      });
+      Promise.all([get('/candidates'), get('/recruitment/jobs')]).then(([cands, jobs]) => {
+        const csel = document.getElementById('of-cand-sel');
+        const jsel = document.getElementById('of-job-sel');
+        if (csel) csel.innerHTML = '<option value="">Select candidate…</option>' +
+          (cands.items||[]).map(c => '<option value="' + c.id + '">' + v(c.first_name+' '+c.last_name) + '</option>').join('');
+        if (jsel) jsel.innerHTML = '<option value="">Select job…</option>' +
+          (jobs.items||[]).map(j => '<option value="' + j.id + '">' + v(j.title) + ' — ' + v(j.client_name||'') + '</option>').join('');
+      });
     };
   } catch(e) { showError(e.message); }
 }

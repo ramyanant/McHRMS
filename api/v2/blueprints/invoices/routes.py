@@ -49,14 +49,13 @@ def create_invoice():
     try: validate(d, {'client_id': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
 
-    inv_no = _next_invoice_number()
-    # Calculate: subtotal + tax = total
-    line_items = d.get('line_items', [])
-    subtotal   = sum(float(li.get('quantity',1)) * float(li.get('rate',0)) for li in line_items)
-    if not subtotal: subtotal = float(d.get('subtotal', d.get('amount', 0)))
-    tax_pct    = float(d.get('tax_pct', 18))  # default 18% GST
-    tax_amount = round(subtotal * tax_pct / 100, 2)
-    amount     = subtotal
+    # Manual invoice number — use provided or auto-generate as fallback
+    inv_no = d.get('invoice_number') or _next_invoice_number()
+
+    subtotal   = float(d.get('amount', 0))
+    tax_pct    = float(d.get('tax_pct', 18))
+    tax_amount = round(float(d.get('tax_amount', subtotal * tax_pct / 100)), 2)
+    total      = round(subtotal + tax_amount, 2)
 
     status_id = db_row1("SELECT id FROM master_invoice_statuses WHERE name='Draft' LIMIT 1")
     status_id = status_id['id'] if status_id else None
@@ -66,25 +65,17 @@ def create_invoice():
     cur = conn.cursor()
     cur.execute("""INSERT INTO invoices
         (invoice_number, client_id, contract_type_id, period_start, period_end,
-         amount, tax_amount, due_date, notes, po_number, status_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+         amount, tax_amount, total_amount, due_date, notes, po_number,
+         cost_centre_id, description, status_id)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (inv_no, d['client_id'], d.get('contract_type_id'),
-         d.get('billing_period_from') or d.get('period_start'),
-         d.get('billing_period_to')   or d.get('period_end'),
-         amount, tax_amount, d.get('due_date'), d.get('notes'), d.get('po_number'), status_id))
+         d.get('period_start'), d.get('period_end'),
+         subtotal, tax_amount, total, d.get('due_date'), d.get('notes'),
+         d.get('po_number'), d.get('cost_centre_id'), d.get('description'), status_id))
     iid = cur.fetchone()['id']
-
-    # Insert line items
-    for i, li in enumerate(line_items):
-        qty  = float(li.get('quantity', 1))
-        rate = float(li.get('rate', 0))
-        cur.execute("""INSERT INTO invoice_line_items
-            (invoice_id, description, hours, rate, employee_id)
-            VALUES (%s,%s,%s,%s,%s)""",
-            (iid, li.get('description',''), qty, rate, li.get('employee_id')))
     conn.close()
 
-    write_audit_log('invoices', 'CREATE', 'invoice', iid, f"Invoice created: {inv_no}")
+    write_audit_log('invoices', 'CREATE', 'invoice', iid, "Invoice created: " + inv_no)
     return created({'id': iid, 'invoice_number': inv_no})
 
 @inv_bp.route('/invoices/<int:iid>', methods=['GET','PUT'])

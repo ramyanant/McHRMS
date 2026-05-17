@@ -139,7 +139,7 @@ def create_candidate():
         (first_name, middle_name, last_name, email, phone, location,
          current_title, current_company, years_exp, current_ctc, expected_ctc,
          notice_period, source_id, linkedin_url, resume_url, skills,
-         gender, nationality, pan, aadhaar, recruiter_id, status, rating, notes)
+         gender, nationality, pan, aadhaar, recruiter_id, status, rating, notes, availability)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['first_name'], d.get('middle_name'), d.get('last_name',''),
          d.get('email'), d.get('phone'),
@@ -153,7 +153,8 @@ def create_candidate():
          d.get('gender'), d.get('nationality','Indian'),
          d.get('pan'), d.get('aadhaar'),
          d.get('recruiter_id') or g.user.get('employee_id'),
-         d.get('status','Active'), d.get('rating',0), d.get('notes')))
+         d.get('status','Active'), d.get('rating','Good'), d.get('notes'),
+         d.get('availability','Looking for Change')))
     cid = cur.fetchone()['id']
     # Auto-create application if requisition_id provided
     req_id = d.get('requisition_id')

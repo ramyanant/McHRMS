@@ -351,6 +351,8 @@ async function registerRoutes() {
   Router.route('/timesheets/approval',                load('timesheets',      'renderApproval'));
   Router.route('/timesheets/:id',                     load('timesheets',      'renderDetail'));
   Router.route('/payroll',                            load('payroll',         'renderList'));
+  Router.route('/payroll/new',                        load('payroll',         'renderNew'));
+  Router.route('/payroll/:id',                        load('payroll',         'renderDetail'));
   Router.route('/payroll/:id',                        load('payroll',         'renderDetail'));
   Router.route('/recruitment',                        load('recruitment',     'renderDashboard'));
   Router.route('/recruitment/jobs',                   load('recruitment',     'renderJobs'));
