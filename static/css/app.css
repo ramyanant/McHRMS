@@ -765,11 +765,12 @@ label.flabel,
 .nav-section-header {
   display: flex; align-items: center; gap: 8px;
   padding: 7px 16px; cursor: pointer; border-radius: 6px;
-  color: var(--txt3); font-size: 11px; font-weight: 700;
+  color: rgba(255,255,255,.55); font-size: 11px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em;
   user-select: none; transition: background .15s;
 }
-.nav-section-header:hover { background: rgba(255,255,255,.12); color: #fff; }
+.nav-section-header:hover { background: rgba(255,255,255,.12); color: rgba(255,255,255,.9); }
+.nav-section.active > .nav-section-header { color: #fff; background: rgba(255,255,255,.08); }
 
 .nav-section-icon { font-size: 14px; }
 .nav-section-label { flex: 1; color: rgba(255,255,255,.6); }

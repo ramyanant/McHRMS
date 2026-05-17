@@ -421,3 +421,16 @@ def employee_documents_admin(eid):
         doc_id = cur.fetchone()['id']; conn.close()
         return created({'id': doc_id})
     except Exception as e: return err(str(e))
+
+
+@people_bp.route('/employees/<int:eid>/documents/<int:did>', methods=['GET','PUT','DELETE'])
+@require_auth
+def employee_doc_admin(eid, did):
+    if request.method == 'GET':
+        doc = db_row1("SELECT * FROM employee_documents WHERE id=%s AND employee_id=%s", (did, eid))
+        return ok(doc) if doc else not_found("Document")
+    d = request.get_json() or {}
+    if 'is_active' in d:
+        db_execute("UPDATE employee_documents SET is_active=%s WHERE id=%s AND employee_id=%s",
+                  (d['is_active'], did, eid))
+    return ok(message="Updated")

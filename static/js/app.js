@@ -103,6 +103,7 @@ const NAV = {
     { section: 'People', icon: '👥', dashboard: '/employees', items: [
       { label: 'Employees',       icon: '👥', path: '/employees' },
       { label: 'Timesheets',      icon: '⏱', path: '/timesheets' },
+      { label: 'Approval Queue',  icon: '✅', path: '/timesheets/approval' },
       { label: 'Payroll',         icon: '💰', path: '/payroll' },
     ]},
     { section: 'Clients & Vendors', icon: '🤝', dashboard: '/clients', items: [
@@ -179,8 +180,9 @@ function buildSidebar() {
         '<span class="nav-label">' + item.label + '</span>' +
         '</a>';
     }).join('');
-    return '<div class="nav-section' + (collapsed ? ' nav-section-collapsed' : '') + '">' +
-      '<div class="nav-section-header" onclick="window._toggleSection(&apos;' + s.section.replace(/[^a-zA-Z]/g,'_') + '&apos;)">' +
+    var secKey = s.section.replace(/[^a-zA-Z]/g,'_');
+    return '<div class="nav-section' + (collapsed ? ' nav-section-collapsed' : '') + '" id="sec-' + secKey + '">' +
+      '<div class="nav-section-header" onclick="window._navSection(&apos;' + secKey + '&apos;,&apos;' + (s.dashboard||'/dashboard') + '&apos;)">' +
         '<span class="nav-section-icon">' + (s.icon || '') + '</span>' +
         '<span class="nav-section-label">' + s.section + '</span>' +
         '<span class="nav-section-arrow">' + (collapsed ? '▶' : '▾') + '</span>' +
@@ -225,16 +227,26 @@ window._toggleSection = function(key) {
   if (!found) return;
   var sec = found.section;
   var isCurrentlyOpen = !_collapsedSections.has(sec);
-  // Accordion: collapse ALL sections first
   allNav.forEach(function(s) { _collapsedSections.add(s.section); });
-  // Then open the clicked one (toggle: if it was open, leave it closed)
   if (!isCurrentlyOpen) { _collapsedSections.delete(sec); }
   buildSidebar();
-  // Re-apply active state
   var cur = Router.getCurrentPath();
   document.querySelectorAll('.nav-item').forEach(function(el) {
     if (el.dataset.path && cur.startsWith(el.dataset.path)) el.classList.add('active');
   });
+};
+
+window._navSection = function(key, dashPath) {
+  // Expand this section (accordion)
+  var allNav = [...NAV['Admin'], ...NAV['Employee']];
+  var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
+  if (!found) return;
+  // Collapse all, open this one
+  allNav.forEach(function(s) { _collapsedSections.add(s.section); });
+  _collapsedSections.delete(found.section);
+  buildSidebar();
+  // Navigate to section dashboard
+  Router.navigate(dashPath);
 };
 
 function buildTopbar() {

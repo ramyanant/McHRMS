@@ -10,7 +10,12 @@ portal_bp = Blueprint('portal', __name__, url_prefix='/api/v1/portal')
 def _get_emp_id():
     emp_id = g.user.get('employee_id')
     if not emp_id:
-        emp = db_row1("SELECT id FROM employees WHERE email=%s", (g.user.get('email',''),))
+        # Try email match
+        emp = db_row1("SELECT id FROM employees WHERE email=%s AND is_active=1", (g.user.get('email',''),))
+        if not emp:
+            # Try username match  
+            emp = db_row1("SELECT id FROM employees WHERE (email=%s OR LOWER(first_name||last_name)=LOWER(REPLACE(%s,' ',''))) AND is_active=1",
+                         (g.user.get('username',''), g.user.get('full_name','')))
         if emp: emp_id = emp['id']
     return emp_id
 
@@ -18,7 +23,19 @@ def _get_emp_id():
 @require_auth
 def dashboard():
     emp_id = _get_emp_id()
-    if not emp_id: return err("No employee profile linked", 400)
+    if not emp_id:
+        # Return basic user info from auth so portal shows something
+        return ok({
+            'first_name': (g.user.get('full_name') or '').split()[0],
+            'last_name': ' '.join((g.user.get('full_name') or '').split()[1:]),
+            'email': g.user.get('email',''),
+            'job_title': g.user.get('role',''),
+            'status': 'Active',
+            'emp_id': 'N/A',
+            'department_name': None,
+            'reporting_manager_name': None,
+            'leave_balance': 0, 'pending_ts': 0, 'approved_ts': 0, 'notifications': 0,
+        })
     emp = db_row1("""SELECT e.*,
         d.name as department_name, b.name as business_unit_name,
         et.name as employment_type, c.name as client_name,

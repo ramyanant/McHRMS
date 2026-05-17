@@ -310,15 +310,31 @@ def list_interviews():
 @require_auth
 def create_interview():
     d = request.get_json() or {}
-    try: validate(d, {'application_id': ['required'], 'round': ['required']})
-    except ValidationError as e: return err("Validation failed", 400, e.errors)
+    # If candidate_id + job_id sent (from Interviews page), auto-create/find application
+    app_id = d.get('application_id')
+    if not app_id and d.get('candidate_id') and d.get('job_id'):
+        existing = db_row1("SELECT id FROM applications WHERE candidate_id=%s AND requisition_id=%s LIMIT 1",
+                           (d['candidate_id'], d['job_id']))
+        if existing:
+            app_id = existing['id']
+        else:
+            # Auto-create application
+            stage = db_row1("SELECT id FROM master_application_stages ORDER BY id LIMIT 1")
+            conn2 = get_pg_conn(); conn2.autocommit = True; cur2 = conn2.cursor()
+            cur2.execute("INSERT INTO applications (candidate_id, requisition_id, stage_id) VALUES (%s,%s,%s) RETURNING id",
+                        (d['candidate_id'], d['job_id'], stage['id'] if stage else 1))
+            app_id = cur2.fetchone()['id']; conn2.close()
+    if not app_id:
+        return err("application_id or (candidate_id + job_id) required", 400)
+    if not d.get('round'):
+        return err("round is required", 400)
     fmt = db_row1("SELECT id FROM master_interview_formats WHERE name=%s LIMIT 1",
                  (d.get('format','Video Call'),))
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
     cur.execute("""INSERT INTO interviews
         (application_id, round, format_id, interviewer, scheduled_at, location_link, notes)
         VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['application_id'], str(d['round']),
+        (app_id, str(d['round']),
          d.get('format_id') or (fmt['id'] if fmt else None),
          d.get('interviewer') or d.get('interviewer_name',''),
          d.get('scheduled_at'), d.get('meeting_link') or d.get('location_link'),

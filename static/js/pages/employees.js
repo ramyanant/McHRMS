@@ -151,7 +151,63 @@ function renderEmployeeDetail(emp, masters) {
         f('IFSC',emp.bank_ifsc,true)+f('Account Name',emp.bank_account_name)+
         f('Salary','₹'+fmt.money(emp.salary))+
         '</div></div></div>';
-      case 'documents': return '<div class="empty-state"><div class="empty-icon">📄</div><div class="empty-title">Document upload coming soon</div></div>';
+      case 'documents':
+        setTimeout(function() {
+          get('/employees/' + emp.id + '/documents').then(function(docs) {
+            var el = document.getElementById('emp-docs-list'); if (!el) return;
+            if (!docs || !docs.length) { el.innerHTML = '<div class="empty-mini">No documents yet</div>'; return; }
+            el.innerHTML = '<div class="doc-grid">' + docs.map(function(d) {
+              return '<div class="doc-card">' +
+                '<div class="doc-icon">📄</div>' +
+                '<div class="doc-info"><div class="doc-name">' + v(d.doc_name) + '</div>' +
+                '<div class="doc-meta"><span class="badge badge-gray">' + v(d.doc_type||'Doc') + '</span>' +
+                (d.file_size ? '<span class="text-muted"> ' + v(d.file_size) + '</span>' : '') +
+                '</div></div>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._delEmpDoc(' + d.id + ')">✕</button>' +
+              '</div>';
+            }).join('') + '</div>';
+          }).catch(function() {});
+          window._uploadEmpDoc = function() {
+            var DOC_TYPES = ['Resume','Offer Letter','ID Proof','Address Proof','Education Certificate','Experience Letter','Other'];
+            openModal({
+              title: 'Upload Document',
+              body: '<form id="edoc-form" class="form-grid-sm">' +
+                '<div class="fg"><label class="flabel">Type *</label>' +
+                '<select class="fselect" name="doc_type" required>' +
+                DOC_TYPES.map(function(t){return '<option>'+t+'</option>';}).join('') +
+                '</select></div>' +
+                '<div class="fg"><label class="flabel">Name *</label>' +
+                '<input class="finput" name="doc_name" required placeholder="e.g. Resume 2024"></div>' +
+                '<div class="fg full"><label class="flabel">File *</label>' +
+                '<input type="file" class="finput" id="edoc-file" accept=".pdf,.doc,.docx,.png,.jpg"></div>' +
+                '</form>',
+              submitLabel: 'Upload',
+              onSubmit: async function() {
+                var data = Object.fromEntries(new FormData(document.getElementById('edoc-form')));
+                var fi = document.getElementById('edoc-file');
+                if (!fi || !fi.files || !fi.files[0]) { toast('Select a file', 'error'); return false; }
+                var file = fi.files[0];
+                if (file.size > 5 * 1024 * 1024) { toast('Max 5MB', 'error'); return false; }
+                var b64 = await new Promise(function(res, rej) {
+                  var r = new FileReader(); r.onload = function() { res(r.result.split(',')[1]); }; r.onerror = rej; r.readAsDataURL(file);
+                });
+                data.file_data = b64; data.file_size = (file.size/1024).toFixed(1)+' KB'; data.mime_type = file.type;
+                await post('/employees/' + emp.id + '/documents', data);
+                toast('Uploaded!', 'success');
+                var el2 = document.getElementById('emp-docs-list');
+                if (el2) el2.innerHTML = '<div class="empty-mini">Reload tab to see documents</div>';
+              }
+            });
+          };
+          window._delEmpDoc = async function(docId) {
+            if (!confirm('Remove document?')) return;
+            await put('/employees/' + emp.id + '/documents/' + docId, { is_active: 0 }).catch(function(){});
+            toast('Removed', 'info');
+          };
+        }, 100);
+        return '<div class="card"><div class="card-header"><h3 class="card-title">Documents</h3>' +
+          '<button class="btn btn-ghost btn-sm" onclick="window._uploadEmpDoc()">+ Upload</button></div>' +
+          '<div id="emp-docs-list"><div class="empty-mini">Loading...</div></div></div>';
       default: return '';
     }
   }
