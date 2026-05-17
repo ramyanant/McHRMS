@@ -1,5 +1,6 @@
 /**
- * Timesheets & Leaves — No template literals, no optional chaining
+ * Timesheets — List, Approval Queue (tabs, filters, sort, row-click), Detail
+ * Zero backticks, zero optional chaining
  */
 import { get, post, put } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
@@ -23,6 +24,7 @@ function opts(arr, sel) {
   }).join('');
 }
 
+// ── Timesheet List ───────────────────────────────────────────
 export async function renderList() {
   setPageTitle('Timesheets', 'Time tracking');
   setBreadcrumb([{ label: 'Timesheets' }]);
@@ -30,20 +32,37 @@ export async function renderList() {
   try {
     var data = await get('/timesheets?per_page=100');
     var rows = data.items || [];
-    var filterStatus = '';
+    var filterStatus = '', sortCol = 'week_ending', sortDir = -1;
 
+    function sorted(arr) {
+      return arr.slice().sort(function(a, b) {
+        var av = a[sortCol] || '', bv = b[sortCol] || '';
+        return String(av).localeCompare(String(bv)) * sortDir;
+      });
+    }
     function getF() {
-      return filterStatus ? rows.filter(function(r) { return r.status === filterStatus; }) : rows;
+      var d = rows;
+      if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
+      return sorted(d);
+    }
+
+    function thSort(col, label) {
+      var arrow = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._tsSort(\'' + col + '\')" style="cursor:pointer">' + label + arrow + '</th>';
     }
 
     function renderRows() {
       var d = getF();
       if (!d.length) return '<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets found</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-        '<th>Employee</th><th>Project/Client</th><th>Week Ending</th><th>Hours</th><th>Status</th>' +
+        thSort('employee_name', 'Employee') +
+        thSort('project', 'Project / Client') +
+        thSort('week_ending', 'Week Ending') +
+        thSort('total_hours', 'Hours') +
+        thSort('status', 'Status') +
         '</tr></thead><tbody>' +
         d.map(function(t) {
-          return '<tr>' +
+          return '<tr class="tbl-clickable" onclick="navigateTo(\'/timesheets/' + t.id + '\')">' +
             '<td><strong>' + v(t.employee_name, '—') + '</strong></td>' +
             '<td>' + v(t.project || t.client_name, '—') + '</td>' +
             '<td class="mono">' + fmt.date(t.week_ending) + '</td>' +
@@ -64,7 +83,7 @@ export async function renderList() {
         '<div class="filter-group">' + statusBtns + '</div>' +
         '<button class="btn btn-primary" onclick="window._submitTS()">+ Submit Timesheet</button>' +
       '</div>' +
-      '<div id="ts-content">' + renderRows() + '</div>' +
+      '<div id="ts-list">' + renderRows() + '</div>' +
       '</div>'
     );
 
@@ -72,7 +91,11 @@ export async function renderList() {
       filterStatus = status === 'All' ? '' : status;
       document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
       el.classList.add('active');
-      document.getElementById('ts-content').innerHTML = renderRows();
+      document.getElementById('ts-list').innerHTML = renderRows();
+    };
+    window._tsSort = function(col) {
+      if (sortCol === col) { sortDir *= -1; } else { sortCol = col; sortDir = 1; }
+      document.getElementById('ts-list').innerHTML = renderRows();
     };
 
     window._submitTS = async function() {
@@ -82,118 +105,301 @@ export async function renderList() {
         body: '<form id="ts-form" class="form-grid-sm">' +
           '<div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" name="week_ending" required></div>' +
           '<div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name"></div>' +
-          '<div class="fg"><label class="flabel">Client</label>' +
-            '<select class="fselect" name="client_id"><option value="">Select client…</option>' +
-            opts(masters['clients-lookup'] || [], null) + '</select></div>' +
-          '<div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" value="0" min="0" max="80" step="0.5" required></div>' +
+          '<div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id"><option value="">None</option>' +
+          opts(masters['clients-lookup'] || [], null) + '</select></div>' +
+          '<div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" value="40" min="0" max="80" step="0.5" required></div>' +
           '<div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" name="overtime_hours" value="0" min="0" step="0.5"></div>' +
           '<div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="0"></div>' +
           '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>' +
           '</form>',
         submitLabel: 'Submit for Approval',
         onSubmit: async function() {
-          var data = fd('ts-form');
-          try {
-            await post('/my/timesheets', data);
-            toast('Timesheet submitted for approval', 'success');
-            navigate('/timesheets');
-          } catch(e) { toast(e.message, 'error'); }
+          var d = fd('ts-form');
+          try { await post('/my/timesheets', d); toast('Submitted for approval', 'success'); renderList(); }
+          catch(e) { toast(e.message, 'error'); }
         }
       });
     };
   } catch(e) { showError(e.message); }
 }
 
+// ── Approval Queue ───────────────────────────────────────────
 export async function renderApproval() {
-  setPageTitle('Approval Queue', 'Pending approvals');
-  setBreadcrumb([{ label: 'Timesheets', url: '/timesheets' }, { label: 'Approvals' }]);
+  setPageTitle('Approval Queue', 'Team timesheets & leave requests');
+  setBreadcrumb([{ label: 'Timesheets', url: '/timesheets' }, { label: 'Approval Queue' }]);
   showLoader();
   try {
-    var data = await get('/timesheets/pending-approvals');
-    var ts    = data.timesheets || [];
-    var leaves= data.leaves     || [];
+    var data   = await get('/timesheets/pending-approvals');
+    var allTS  = data.timesheets || [];
+    var allLV  = data.leaves     || [];
 
-    function tsRows() {
-      if (!ts.length) return '<div class="empty-mini">No timesheets pending</div>';
-      return '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-        '<th>Employee</th><th>Project</th><th>Week Ending</th><th>Hours</th><th>Actions</th>' +
-        '</tr></thead><tbody>' +
-        ts.map(function(t) {
-          return '<tr>' +
-            '<td><strong>' + v(t.employee_name, '—') + '</strong></td>' +
-            '<td>' + v(t.project || t.client_name, '—') + '</td>' +
-            '<td class="mono">' + fmt.date(t.week_ending) + '</td>' +
-            '<td class="mono fw-bold">' + (t.total_hours || 0) + 'h</td>' +
-            '<td class="tbl-actions">' +
-              '<button class="btn btn-primary btn-sm" onclick="window._approve(' + t.id + ')">✓ Approve</button>' +
-              '<button class="btn btn-danger btn-sm" onclick="window._reject(' + t.id + ')">✗ Reject</button>' +
-            '</td></tr>';
-        }).join('') +
-        '</tbody></table></div>';
+    var activeTab  = 'timesheets';
+    var tsFilter   = 'Pending';
+    var lvFilter   = 'Pending';
+    var tsSortCol  = 'week_ending';
+    var tsSortDir  = -1;
+    var lvSortCol  = 'from_date';
+    var lvSortDir  = -1;
+
+    // ── Status badges colour map ──
+    var statusColors = { Pending: 'amber', Approved: 'green', Rejected: 'red', Submitted: 'blue' };
+
+    function filteredTS() {
+      var d = tsFilter === 'All' ? allTS : allTS.filter(function(t) { return (t.status || 'Pending') === tsFilter; });
+      return d.slice().sort(function(a, b) {
+        return String(a[tsSortCol] || '').localeCompare(String(b[tsSortCol] || '')) * tsSortDir;
+      });
+    }
+    function filteredLV() {
+      var d = lvFilter === 'All' ? allLV : allLV.filter(function(l) { return (l.status || 'Pending') === lvFilter; });
+      return d.slice().sort(function(a, b) {
+        return String(a[lvSortCol] || '').localeCompare(String(b[lvSortCol] || '')) * lvSortDir;
+      });
     }
 
-    function leaveRows() {
-      if (!leaves.length) return '<div class="empty-mini">No leave requests pending</div>';
-      return '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-        '<th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Actions</th>' +
-        '</tr></thead><tbody>' +
-        leaves.map(function(l) {
-          return '<tr>' +
-            '<td><strong>' + v(l.employee_name, '—') + '</strong></td>' +
-            '<td>' + v(l.leave_type, '—') + '</td>' +
-            '<td class="mono">' + fmt.date(l.from_date) + '</td>' +
-            '<td class="mono">' + fmt.date(l.to_date) + '</td>' +
-            '<td>' + (l.days || 1) + '</td>' +
-            '<td class="tbl-actions">' +
-              '<button class="btn btn-primary btn-sm" onclick="window._approveLeave(' + l.id + ')">✓ Approve</button>' +
-              '<button class="btn btn-danger btn-sm" onclick="window._rejectLeave(' + l.id + ')">✗ Reject</button>' +
-            '</td></tr>';
-        }).join('') +
-        '</tbody></table></div>';
+    function thTs(col, label) {
+      var arr = tsSortCol === col ? (tsSortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._tqSort(\'' + col + '\')" style="cursor:pointer">' + label + arr + '</th>';
+    }
+    function thLv(col, label) {
+      var arr = lvSortCol === col ? (lvSortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      return '<th class="sortable" onclick="window._lqSort(\'' + col + '\')" style="cursor:pointer">' + label + arr + '</th>';
     }
 
-    setContent(
-      '<div class="page-body">' +
-      '<div class="card" style="margin-bottom:16px">' +
-        '<div class="card-header"><h3 class="card-title">⏱ Timesheets (' + ts.length + ')</h3></div>' +
-        tsRows() +
-      '</div>' +
-      '<div class="card">' +
-        '<div class="card-header"><h3 class="card-title">🌴 Leave Requests (' + leaves.length + ')</h3></div>' +
-        leaveRows() +
-      '</div></div>'
-    );
+    function statusFilterBar(current, setter) {
+      return '<div class="filter-group" style="margin-bottom:12px">' +
+        ['All', 'Pending', 'Approved', 'Rejected'].map(function(s) {
+          return '<button class="filter-btn' + (current === s ? ' active' : '') + '" onclick="' + setter + '(\'' + s + '\',this)">' + s + '</button>';
+        }).join('') +
+      '</div>';
+    }
 
-    window._approve = async function(id) {
-      try {
-        await put('/timesheets/' + id, { status: 'Approved' });
-        toast('Timesheet approved', 'success');
-        await renderApproval();
-      } catch(e) { toast(e.message, 'error'); }
+    function tsTable() {
+      var d = filteredTS();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets match this filter</div></div>';
+      return '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thTs('employee_name','Employee') + thTs('project','Project') +
+        thTs('week_ending','Week Ending') + thTs('total_hours','Hours') +
+        thTs('status','Status') + '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(function(t) {
+        var status = t.status || 'Pending';
+        return '<tr class="tbl-clickable" onclick="window._openTS(' + t.id + ')">' +
+          '<td><div class="cell-person">' +
+            '<div class="av av-sm av-blue">' + fmt.ini(t.employee_name || '?') + '</div>' +
+            '<div><div class="fw-bold">' + v(t.employee_name, '—') + '</div>' +
+            '<div class="cell-sub mono">' + v(t.emp_id, '') + '</div></div>' +
+          '</div></td>' +
+          '<td>' + v(t.project || t.client_name, '—') + '</td>' +
+          '<td class="mono">' + fmt.date(t.week_ending) + '</td>' +
+          '<td class="mono fw-bold">' + (t.total_hours || 0) + 'h</td>' +
+          '<td>' + badge(status) + '</td>' +
+          '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+            (status === 'Pending' || status === 'Submitted'
+              ? '<button class="btn btn-primary btn-xs" onclick="window._approve(' + t.id + ')">✓ Approve</button>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._reject(' + t.id + ')">✗ Reject</button>'
+              : '<button class="btn btn-ghost btn-xs" onclick="window._openTS(' + t.id + ')">View</button>') +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    }
+
+    function lvTable() {
+      var d = filteredLV();
+      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🌴</div><div class="empty-title">No leave requests match this filter</div></div>';
+      return '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        thLv('employee_name','Employee') + thLv('leave_type','Type') +
+        thLv('from_date','From') + thLv('to_date','To') + thLv('days','Days') +
+        thLv('status','Status') + '<th>Actions</th>' +
+      '</tr></thead><tbody>' +
+      d.map(function(l) {
+        var status = l.status || 'Pending';
+        return '<tr class="tbl-clickable" onclick="window._openLV(' + l.id + ')">' +
+          '<td><div class="cell-person">' +
+            '<div class="av av-sm av-green">' + fmt.ini(l.employee_name || '?') + '</div>' +
+            '<div class="fw-bold">' + v(l.employee_name, '—') + '</div>' +
+          '</div></td>' +
+          '<td><span class="badge badge-purple">' + v(l.leave_type, '—') + '</span></td>' +
+          '<td class="mono">' + fmt.date(l.from_date) + '</td>' +
+          '<td class="mono">' + fmt.date(l.to_date) + '</td>' +
+          '<td class="fw-bold">' + (l.days || 1) + ' day' + (l.days > 1 ? 's' : '') + '</td>' +
+          '<td>' + badge(status) + '</td>' +
+          '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+            (status === 'Pending'
+              ? '<button class="btn btn-primary btn-xs" onclick="window._approveLeave(' + l.id + ')">✓ Approve</button>' +
+                '<button class="btn btn-danger btn-xs" onclick="window._rejectLeave(' + l.id + ')">✗ Reject</button>'
+              : '<button class="btn btn-ghost btn-xs" onclick="window._openLV(' + l.id + ')">View</button>') +
+          '</td>' +
+        '</tr>';
+      }).join('') +
+      '</tbody></table></div>';
+    }
+
+    function kpi(l, val, icon, c) {
+      return '<div class="kpi-card kpi-' + c + '"><div class="kpi-icon">' + icon + '</div>' +
+        '<div class="kpi-body"><div class="kpi-value">' + val + '</div><div class="kpi-label">' + l + '</div></div></div>';
+    }
+
+    function renderContent() {
+      var pendTS = allTS.filter(function(t) { return (t.status||'Pending') === 'Pending' || t.status === 'Submitted'; }).length;
+      var pendLV = allLV.filter(function(l) { return l.status === 'Pending'; }).length;
+
+      return '<div class="page-body">' +
+        '<div class="kpi-grid kpi-4" style="margin-bottom:16px">' +
+          kpi('Pending Timesheets', pendTS,       '⏱', 'amber') +
+          kpi('Pending Leaves',     pendLV,       '🌴', 'blue') +
+          kpi('Total Timesheets',   allTS.length, '📋', 'purple') +
+          kpi('Total Leave Req.',   allLV.length, '📊', 'green') +
+        '</div>' +
+        '<div class="tab-bar">' +
+          '<button class="tab' + (activeTab === 'timesheets' ? ' active' : '') + '" onclick="window._aqTab(\'timesheets\',this)">⏱ Timesheets (' + allTS.length + ')</button>' +
+          '<button class="tab' + (activeTab === 'leaves' ? ' active' : '') + '" onclick="window._aqTab(\'leaves\',this)">🌴 Leave Requests (' + allLV.length + ')</button>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div id="aq-filter">' +
+            (activeTab === 'timesheets'
+              ? statusFilterBar(tsFilter, 'window._tsStatusFilter')
+              : statusFilterBar(lvFilter, 'window._lvStatusFilter')) +
+          '</div>' +
+          '<div id="aq-table">' +
+            (activeTab === 'timesheets' ? tsTable() : lvTable()) +
+          '</div>' +
+        '</div>' +
+        '</div>';
+    }
+
+    setContent(renderContent());
+
+    // ── Tab switching ──
+    window._aqTab = function(tab, el) {
+      activeTab = tab;
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      el.classList.add('active');
+      document.getElementById('aq-filter').innerHTML = tab === 'timesheets'
+        ? statusFilterBar(tsFilter, 'window._tsStatusFilter')
+        : statusFilterBar(lvFilter, 'window._lvStatusFilter');
+      document.getElementById('aq-table').innerHTML = tab === 'timesheets' ? tsTable() : lvTable();
     };
-    window._reject = async function(id) {
+
+    // ── Filters ──
+    window._tsStatusFilter = function(status, el) {
+      tsFilter = status;
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      el.classList.add('active');
+      document.getElementById('aq-table').innerHTML = tsTable();
+    };
+    window._lvStatusFilter = function(status, el) {
+      lvFilter = status;
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      el.classList.add('active');
+      document.getElementById('aq-table').innerHTML = lvTable();
+    };
+
+    // ── Sort ──
+    window._tqSort = function(col) {
+      if (tsSortCol === col) { tsSortDir *= -1; } else { tsSortCol = col; tsSortDir = 1; }
+      document.getElementById('aq-table').innerHTML = tsTable();
+    };
+    window._lqSort = function(col) {
+      if (lvSortCol === col) { lvSortDir *= -1; } else { lvSortCol = col; lvSortDir = 1; }
+      document.getElementById('aq-table').innerHTML = lvTable();
+    };
+
+    // ── Row click: open detail modal ──
+    window._openTS = function(id) {
+      var ts = allTS.find(function(t) { return t.id === id; });
+      if (!ts) return;
+      var status = ts.status || 'Pending';
+      var isPending = status === 'Pending' || status === 'Submitted';
+      openModal({
+        title: 'Timesheet — ' + v(ts.employee_name || ''),
+        size: 'md',
+        body: '<div class="field-grid">' +
+          '<div class="field-item"><div class="field-label">Employee</div><div class="field-value fw-bold">' + v(ts.employee_name) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Week Ending</div><div class="field-value mono">' + fmt.date(ts.week_ending) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Project</div><div class="field-value">' + v(ts.project || ts.client_name, '—') + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Regular Hours</div><div class="field-value mono fw-bold">' + (ts.regular_hours || 0) + 'h</div></div>' +
+          '<div class="field-item"><div class="field-label">Overtime Hours</div><div class="field-value mono">' + (ts.overtime_hours || 0) + 'h</div></div>' +
+          '<div class="field-item"><div class="field-label">Total Hours</div><div class="field-value mono fw-bold">' + (ts.total_hours || 0) + 'h</div></div>' +
+          '<div class="field-item"><div class="field-label">Status</div><div class="field-value">' + badge(status) + '</div></div>' +
+          (ts.notes ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-value">' + v(ts.notes) + '</div></div>' : '') +
+          (ts.rejection_reason ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Rejection Reason</div><div class="field-value" style="color:var(--danger)">' + v(ts.rejection_reason) + '</div></div>' : '') +
+        '</div>' +
+        (isPending ? '<div style="display:flex;gap:8px;margin-top:16px">' +
+          '<button class="btn btn-primary" onclick="window._approveFromModal(' + id + ')">✓ Approve</button>' +
+          '<button class="btn btn-danger" onclick="window._rejectFromModal(' + id + ')">✗ Reject</button>' +
+          '</div>' : ''),
+        submitLabel: null
+      });
+    };
+
+    window._openLV = function(id) {
+      var lv = allLV.find(function(l) { return l.id === id; });
+      if (!lv) return;
+      var status = lv.status || 'Pending';
+      var isPending = status === 'Pending';
+      openModal({
+        title: 'Leave Request — ' + v(lv.employee_name || ''),
+        size: 'md',
+        body: '<div class="field-grid">' +
+          '<div class="field-item"><div class="field-label">Employee</div><div class="field-value fw-bold">' + v(lv.employee_name) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Leave Type</div><div class="field-value">' + badge(lv.leave_type || '—') + '</div></div>' +
+          '<div class="field-item"><div class="field-label">From</div><div class="field-value mono">' + fmt.date(lv.from_date) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">To</div><div class="field-value mono">' + fmt.date(lv.to_date) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Days</div><div class="field-value fw-bold">' + (lv.days || 1) + '</div></div>' +
+          '<div class="field-item"><div class="field-label">Status</div><div class="field-value">' + badge(status) + '</div></div>' +
+          (lv.reason ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Reason</div><div class="field-value">' + v(lv.reason) + '</div></div>' : '') +
+        '</div>' +
+        (isPending ? '<div style="display:flex;gap:8px;margin-top:16px">' +
+          '<button class="btn btn-primary" onclick="window._approveLeaveModal(' + id + ')">✓ Approve</button>' +
+          '<button class="btn btn-danger" onclick="window._rejectLeaveModal(' + id + ')">✗ Reject</button>' +
+          '</div>' : ''),
+        submitLabel: null
+      });
+    };
+
+    // ── Actions ──
+    async function doApproveTS(id) {
+      await put('/timesheets/' + id, { status: 'Approved' });
+      allTS = allTS.map(function(t) { return t.id === id ? Object.assign({}, t, { status: 'Approved' }) : t; });
+      toast('Timesheet approved', 'success');
+      document.getElementById('aq-table').innerHTML = tsTable();
+    }
+    async function doRejectTS(id) {
       var reason = prompt('Rejection reason (required):');
       if (!reason || !reason.trim()) return;
-      try {
-        await put('/timesheets/' + id, { status: 'Rejected', rejection_reason: reason });
-        toast('Timesheet rejected', 'info');
-        await renderApproval();
-      } catch(e) { toast(e.message, 'error'); }
-    };
+      await put('/timesheets/' + id, { status: 'Rejected', rejection_reason: reason });
+      allTS = allTS.map(function(t) { return t.id === id ? Object.assign({}, t, { status: 'Rejected' }) : t; });
+      toast('Timesheet rejected', 'info');
+      document.getElementById('aq-table').innerHTML = tsTable();
+    }
+
+    window._approve           = function(id) { doApproveTS(id); };
+    window._reject            = function(id) { doRejectTS(id); };
+    window._approveFromModal  = function(id) { document.querySelector('.modal-close') && document.querySelector('.modal-close').click(); doApproveTS(id); };
+    window._rejectFromModal   = function(id) { document.querySelector('.modal-close') && document.querySelector('.modal-close').click(); doRejectTS(id); };
+
     window._approveLeave = async function(id) {
       await put('/my/leaves/' + id, { action: 'approve' });
+      allLV = allLV.map(function(l) { return l.id === id ? Object.assign({}, l, { status: 'Approved' }) : l; });
       toast('Leave approved', 'success');
-      await renderApproval();
+      document.getElementById('aq-table').innerHTML = lvTable();
     };
     window._rejectLeave = async function(id) {
       var reason = prompt('Rejection reason:');
       await put('/my/leaves/' + id, { action: 'reject', reason: reason });
+      allLV = allLV.map(function(l) { return l.id === id ? Object.assign({}, l, { status: 'Rejected' }) : l; });
       toast('Leave rejected', 'info');
-      await renderApproval();
+      document.getElementById('aq-table').innerHTML = lvTable();
     };
+    window._approveLeaveModal = function(id) { document.querySelector('.modal-close') && document.querySelector('.modal-close').click(); window._approveLeave(id); };
+    window._rejectLeaveModal  = function(id) { document.querySelector('.modal-close') && document.querySelector('.modal-close').click(); window._rejectLeave(id); };
+
   } catch(e) { showError(e.message); }
 }
 
+// ── Timesheet Detail ─────────────────────────────────────────
 export async function renderDetail({ id }) {
   showLoader();
   try {
@@ -201,14 +407,19 @@ export async function renderDetail({ id }) {
     setPageTitle('Timesheet #' + id, ts.employee_name || '');
     setBreadcrumb([{ label: 'Timesheets', url: '/timesheets' }, { label: '#' + id }]);
     setContent(
-      '<div class="page-body"><div class="card" style="max-width:600px;margin:0 auto">' +
+      '<div class="page-body"><div class="card" style="max-width:640px;margin:0 auto">' +
       '<div class="card-header"><h3 class="card-title">Timesheet Details</h3></div>' +
       '<div class="card-body"><div class="field-grid">' +
-        '<div class="field-item"><div class="field-label">Employee</div><div class="field-value">' + v(ts.employee_name,'—') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Employee</div><div class="field-value fw-bold">' + v(ts.employee_name, '—') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Week Ending</div><div class="field-value mono">' + fmt.date(ts.week_ending) + '</div></div>' +
-        '<div class="field-item"><div class="field-label">Project</div><div class="field-value">' + v(ts.project,'—') + '</div></div>' +
-        '<div class="field-item"><div class="field-label">Hours</div><div class="field-value fw-bold">' + (ts.total_hours || 0) + 'h</div></div>' +
+        '<div class="field-item"><div class="field-label">Project / Client</div><div class="field-value">' + v(ts.project || ts.client_name, '—') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Regular Hours</div><div class="field-value mono fw-bold">' + (ts.regular_hours || 0) + 'h</div></div>' +
+        '<div class="field-item"><div class="field-label">Overtime Hours</div><div class="field-value mono">' + (ts.overtime_hours || 0) + 'h</div></div>' +
+        '<div class="field-item"><div class="field-label">Total Hours</div><div class="field-value mono fw-bold">' + (ts.total_hours || 0) + 'h</div></div>' +
+        '<div class="field-item"><div class="field-label">Bill Rate</div><div class="field-value mono">' + (ts.bill_rate ? '₹' + ts.bill_rate + '/hr' : '—') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Status</div><div class="field-value">' + badge(ts.status || 'Pending') + '</div></div>' +
+        (ts.notes ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-value">' + v(ts.notes) + '</div></div>' : '') +
+        (ts.rejection_reason ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Rejection Reason</div><div class="field-value" style="color:var(--danger)">' + v(ts.rejection_reason) + '</div></div>' : '') +
       '</div></div></div></div>'
     );
   } catch(e) { showError(e.message); }

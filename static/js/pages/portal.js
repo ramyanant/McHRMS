@@ -418,24 +418,56 @@ export async function renderTeam() {
   setBreadcrumb([{label:'My Portal',url:'/portal'},{label:'My Team'}]);
   showLoader();
   try {
-    var members = await get('/portal/team');
-    var data = Array.isArray(members)?members:[];
-    setContent(
-      '<div class="page-body">'+
-      (data.length
-        ? '<div class="struct-grid">'+data.map(function(m){
-            var name=(m.first_name||'')+' '+(m.last_name||'');
-            return '<div class="struct-card">'+
-              '<div class="av av-lg av-green" style="margin:0 auto 8px">'+fmt.ini(name)+'</div>'+
-              '<div class="struct-card-title">'+v(name)+'</div>'+
-              '<div class="struct-card-desc">'+v(m.job_title,'—')+'</div>'+
-              '<div class="text-muted" style="font-size:11px">'+v(m.emp_id,'')+'</div>'+
-              badge(m.status||'Active')+
-            '</div>';
-          }).join('')+'</div>'
-        : '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No direct reports</div></div>'
-      )+'</div>'
-    );
+    var res      = await get('/portal/team');
+    var manager  = res.manager  || null;
+    var reportees= res.reportees|| [];
+    var peers    = res.peers    || [];
+
+    function memberCard(m, role_label, color) {
+      var name = (m.first_name||'') + ' ' + (m.last_name||'');
+      return '<div class="struct-card" onclick="navigateTo(&apos;/employees/&apos;+' + m.id + '+&apos;&apos;)" style="cursor:pointer">' +
+        '<div class="av av-lg av-'+color+'" style="margin:0 auto 8px">'+fmt.ini(name)+'</div>' +
+        '<div class="struct-card-title">'+v(name)+'</div>' +
+        '<div class="struct-card-desc">'+v(m.job_title,'—')+'</div>' +
+        '<div style="margin-top:4px"><span class="badge badge-gray">'+role_label+'</span></div>' +
+      '</div>';
+    }
+
+    var html = '<div class="page-body">';
+
+    if (manager) {
+      html += '<div class="card" style="margin-bottom:16px">' +
+        '<div class="card-header"><h3 class="card-title">📊 Reporting To</h3></div>' +
+        '<div class="card-body"><div class="struct-grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr))">' +
+        memberCard(manager, 'Manager', 'purple') +
+        '</div></div></div>';
+    }
+
+    if (reportees.length) {
+      html += '<div class="card" style="margin-bottom:16px">' +
+        '<div class="card-header"><h3 class="card-title">👥 Direct Reports (' + reportees.length + ')</h3></div>' +
+        '<div class="card-body"><div class="struct-grid">' +
+        reportees.map(function(m) { return memberCard(m, 'Direct Report', 'green'); }).join('') +
+        '</div></div></div>';
+    }
+
+    if (peers.length) {
+      html += '<div class="card">' +
+        '<div class="card-header"><h3 class="card-title">🤝 Colleagues (' + peers.length + ')</h3></div>' +
+        '<div class="card-body"><div class="struct-grid">' +
+        peers.map(function(m) { return memberCard(m, 'Colleague', 'blue'); }).join('') +
+        '</div></div></div>';
+    }
+
+    if (!manager && !reportees.length && !peers.length) {
+      html += '<div class="empty-state"><div class="empty-icon">👥</div>' +
+        '<div class="empty-title">No team members found</div>' +
+        '<div class="empty-sub">Your team will appear here once your manager and colleagues are set up in the system</div>' +
+        '</div>';
+    }
+
+    html += '</div>';
+    setContent(html);
   } catch(e){showError(e.message);}
 }
 
