@@ -128,13 +128,21 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
   render();
 
   window._orgDelete = function(entity, id, name) {
-    var deleteFns = {
-      'Business Units': window._deleteBU,
-      'Cost Centres':   window._deleteCC,
-      'Locations':      window._deleteLoc,
+    var entityUrls = {
+      'Business Units': '/business-units/',
+      'Cost Centres':   '/cost-centres/',
+      'Locations':      '/locations/',
     };
-    var fn = deleteFns[entity];
-    if (fn) fn(id, name);
+    var url = entityUrls[entity];
+    if (!url) return;
+    if (!confirm('Delete "' + (name||entity) + '"?')) return;
+    put(url + id, { is_active: 0 }).then(function() {
+      toast('Deleted', 'info');
+      // Refresh page
+      if (entity === 'Business Units') { renderBUs(); }
+      else if (entity === 'Cost Centres') { renderCostCentres(); }
+      else if (entity === 'Locations') { renderLocations(); }
+    }).catch(function(e) { toast(e.message || 'Delete failed', 'error'); });
   };
   window._orgView = function(v2) {
     view = v2;
@@ -357,7 +365,7 @@ export async function renderDepts() {
           '<td>' + badge(d.is_active ? 'Active' : 'Inactive') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editDept(' + d.id + ')">✏ Edit</button>' +
-            '<button class="btn btn-danger btn-xs" onclick="window._deleteDept(' + d.id + ',\'' + v(d.name,'') + '\')" >Delete</button>' +
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteDept(' + d.id + ')">Delete</button>' +
           '</td></tr>'
         ).join('') +
         '</tbody></table></div></div>';
@@ -394,8 +402,8 @@ export async function renderDepts() {
     window._deptFilter = val => { filterStatus = val; render(); };
     window._deptSort   = col => { sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1); render(); };
     window._addDept    = () => deptModal(null, masters);
-    window._deleteDept = async (id, name) => {
-      if (!confirm('Delete Department "' + name + '"?')) return;
+    window._deleteDept = async (id) => {
+      if (!confirm('Delete this department?')) return;
       await put('/departments/' + id, { is_active: 0 });
       toast('Department deleted', 'info');
       renderDepts();
@@ -546,8 +554,8 @@ export async function renderLocations() {
     window._orgRowClick = (entity, id) => navigate('/organisation/locations/' + id);
     window._orgEdit     = (entity, id) => locModal(rows.find(r=>r.id===id), masters);
     window._addLoc      = () => locModal(null, masters);
-    window._deleteLoc   = async (id, name) => {
-      if (!confirm('Delete Location "' + name + '"?')) return;
+    window._deleteLoc   = async (id) => {
+      if (!confirm('Delete this location?')) return;
       await put('/locations/' + id, { is_active: 0 });
       toast('Location deleted', 'info');
       renderLocations();
@@ -561,6 +569,8 @@ export async function renderLocations() {
         { label:'Name',      key:'name',     render: r=>'<strong>' + v(r.name) + '</strong>' + (r.is_hq?' <span class="badge badge-green">HQ</span>':'') },
         { label:'Type',      key:'type',     render: r=>(LOC_ICONS[r.type]||'📍') + ' ' + v(r.type,'—') },
         { label:'City',      key:'city',     render: r=>v(r.city,'—') },
+        { label:'State',     key:'state',    render: r=>v(r.state,'—') },
+        { label:'Country',   key:'country',  render: r=>v(r.country,'India') },
         { label:'Phone',     key:'phone',    render: r=>v(r.phone,'—') },
         { label:'Headcount', key:'headcount',render: r=>r.headcount||0 },
         { label:'Status',    key:'is_active',render: r=>badge(r.is_active?'Active':'Inactive') },
@@ -593,6 +603,8 @@ function locModal(existing, masters) {
       '<div class="fg"><label class="flabel">Business Unit</label><select class="fselect" name="business_unit_id"><option value="">Shared</option>' + opts(masters['business-units']||[],(existing && existing.business_unit_id)) + '</select></div>' +
       '<div class="fg full"><label class="flabel">Address</label><input class="finput" name="address_line1" value="' + v((existing && existing.address_line1)) + '"></div>' +
       '<div class="fg"><label class="flabel">City *</label><input class="finput" name="city" value="' + v((existing && existing.city)) + '" required></div>' +
+      '<div class="fg"><label class="flabel">State</label><input class="finput" name="state" value="' + v((existing && existing.state)) + '" placeholder="e.g. Telangana"></div>' +
+      '<div class="fg"><label class="flabel">Country</label><input class="finput" name="country" value="' + v((existing && existing.country),'India') + '"></div>' +
       '<div class="fg"><label class="flabel">Pincode</label><input class="finput mono" name="pincode" value="' + v((existing && existing.pincode)) + '"></div>' +
       '<div class="fg"><label class="flabel">Phone</label><input class="finput" name="phone" value="' + v((existing && existing.phone)) + '"></div>' +
       '<div class="fg"><label class="flabel">Email</label><input class="finput" type="email" name="email" value="' + v((existing && existing.email)) + '"></div>' +

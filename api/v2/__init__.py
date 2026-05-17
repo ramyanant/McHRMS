@@ -62,7 +62,7 @@ def _seed_masters(app):
             for t in ['Full-Time','Part-Time','Contract','Freelance','Intern']:
                 db_execute("INSERT INTO master_employment_types (name) VALUES (%s) ON CONFLICT DO NOTHING", (t,))
         if not db_row1("SELECT id FROM master_vendor_categories LIMIT 1"):
-            for c in ['IT Services','Staffing','Infrastructure','Legal','Finance','Other']:
+            for c in ['IT Services','Staffing','Infrastructure','Legal','Finance','Office Space','Utilities','Hardware Equipment','Software','Consulting','Logistics','Marketing','Other']:
                 db_execute("INSERT INTO master_vendor_categories (name) VALUES (%s) ON CONFLICT DO NOTHING", (c,))
         # Ensure v2 roles exist
         v2_roles = [('Admin','Full system access',True),
@@ -158,7 +158,10 @@ def _run_migrations(app):
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS aadhaar TEXT",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS recruiter_id INTEGER",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active'",
-            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS rating INTEGER DEFAULT 0",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS rating TEXT DEFAULT 'Good'",
+            "UPDATE candidates SET rating='Good' WHERE rating='0' OR rating IS NULL OR rating=''",
+            # Also change type if still integer
+            "DO $$ BEGIN BEGIN ALTER TABLE candidates ALTER COLUMN rating TYPE TEXT USING CASE WHEN rating::text='0' THEN 'Good' ELSE rating::text END; EXCEPTION WHEN others THEN NULL; END; END $$",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS notes TEXT",
             # employees: v2 fields
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender TEXT",
@@ -191,6 +194,9 @@ def _run_migrations(app):
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS is_system BOOLEAN DEFAULT FALSE",
             # Candidates - rating, availability, location
+            # Locations - state, country
+            "ALTER TABLE office_locations ADD COLUMN IF NOT EXISTS state TEXT",
+            "ALTER TABLE office_locations ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'India'",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS availability TEXT DEFAULT 'Looking for Change'",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS location TEXT",
             # Job requisitions - assigned_recruiters (comma-separated IDs), location stored in existing field

@@ -134,6 +134,18 @@ def create_candidate():
     d = request.get_json() or {}
     try: validate(d, {'first_name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
+    # Dedup: check for existing candidate with same email or same name+phone
+    email = d.get('email','').strip()
+    if email:
+        existing = db_row1("SELECT id FROM candidates WHERE LOWER(email)=LOWER(%s) AND is_active=1 LIMIT 1", (email,))
+        if existing:
+            return err(f"A candidate with email {email} already exists (ID: {existing['id']})", 409)
+    fname = (d.get('first_name','') + ' ' + d.get('last_name','')).strip()
+    if fname and d.get('phone'):
+        existing2 = db_row1("SELECT id FROM candidates WHERE LOWER(first_name||' '||last_name)=LOWER(%s) AND phone=%s AND is_active=1 LIMIT 1",
+                            (fname, d['phone']))
+        if existing2:
+            return err(f"Candidate {fname} with this phone already exists (ID: {existing2['id']})", 409)
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
     cur.execute("""INSERT INTO candidates
         (first_name, middle_name, last_name, email, phone, location,

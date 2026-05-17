@@ -50,7 +50,8 @@ export async function renderList() {
           '<td>'+badge(e.status||'Active')+'</td>'+
           '<td class="tbl-actions" onclick="event.stopPropagation()">'+
             '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/employees/'+e.id+'\')">View</button>'+
-            '<button class="btn btn-danger btn-xs" onclick="window._deleteEmp('+e.id+',\''+e.first_name+' '+e.last_name+'\')" >Delete</button>'+
+            '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/employees/'+e.id+'\')" >✏ Edit</button>'+
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteEmp('+e.id+')" >Delete</button>'+
           '</td>'+
         '</tr>').join('')+
         '</tbody></table></div></div>';

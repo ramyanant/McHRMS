@@ -65,7 +65,8 @@ export async function renderList() {
           '<td>'+badge(ven.status||'Active')+'</td>'+
           '<td class="tbl-actions" onclick="event.stopPropagation()">'+
             '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/vendors/'+ven.id+'\')">View</button>'+
-            '<button class="btn btn-danger btn-xs" onclick="window._deleteVendor('+ven.id+',\''+v(ven.name)+'\')">Delete</button>'+
+            '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/vendors/'+ven.id+'\')" >✏ Edit</button>'+
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteVendor('+ven.id+')">Delete</button>'+
           '</td></tr>'
         ).join('')+'</tbody></table></div></div>';
     }
@@ -91,8 +92,8 @@ export async function renderList() {
     window._vFilter = val=>{filterStatus=val;render();};
     window._vCat    = val=>{filterCat=val;render();};
     window._vSort   = col=>{sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);render();};
-    window._deleteVendor = async (id,name) => {
-      if(!confirm('Delete vendor "'+name+'"?')) return;
+    window._deleteVendor = async (id) => {
+      if(!confirm('Delete this vendor?')) return;
       await put('/vendors/'+id, {is_active:0});
       toast('Vendor deleted','info');
       renderList();

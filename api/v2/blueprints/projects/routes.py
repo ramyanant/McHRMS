@@ -86,7 +86,10 @@ def create_project():
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     # Auto-generate project code
     last = db_row1("SELECT project_code FROM projects WHERE project_code LIKE 'PRJ-%' ORDER BY id DESC LIMIT 1")
-    code = f"PRJ-{(int(last['project_code'].split('-')[1])+1):04d}" if last and last['project_code'] else "PRJ-0001"
+    try:
+        code = f"PRJ-{(int(last['project_code'].split('-')[1])+1):04d}" if last and last['project_code'] else "PRJ-0001"
+    except Exception:
+        code = "PRJ-0001"
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
     cur.execute("""INSERT INTO projects
         (project_code, name, short_name, project_type, category, description, status, priority,
@@ -104,7 +107,8 @@ def create_project():
          d.get('billing_type','T&M'), d.get('billing_cycle','Monthly'),
          d.get('rate_card'), d.get('po_number'), d.get('contract_value',0),
          d.get('sow_reference'), d.get('health_score',80)))
-    pid = cur.fetchone()['id']; conn.close()
+    row = cur.fetchone(); pid = row['id'] if row else None; conn.close()
+    if not pid: raise Exception('Failed to create project')
     write_audit_log('projects', 'CREATE', 'project', pid, f"Project created: {d['name']}")
     return created({'id': pid, 'code': code})
 
@@ -122,7 +126,7 @@ def project_detail(pid):
         LEFT JOIN employees am ON am.id=p.account_manager_id
         LEFT JOIN departments d ON d.id=p.department_id
         LEFT JOIN business_units b ON b.id=p.business_unit_id
-        WHERE p.id=%s AND p.is_active=1""", (pid,))
+        WHERE p.id=%s""", (pid,))
     if not proj: return not_found("Project")
     if request.method == 'GET':
         proj['resources']   = db_rows("""SELECT pr.*, e.first_name||' '||e.last_name as employee_name,

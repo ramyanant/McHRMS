@@ -703,9 +703,10 @@ def create_location():
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     result = db_execute("""INSERT INTO office_locations
-        (name, city, address_line1, pincode, type, headcount)
-        VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['name'], d.get('city'), d.get('address'), d.get('pincode'),
+        (name, city, state, country, address_line1, pincode, type, headcount)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['name'], d.get('city'), d.get('state'), d.get('country','India'),
+         d.get('address'), d.get('pincode'),
          d.get('type','Regional'), d.get('headcount',0)), returning=True)
     return created({'id': result['id']})
 

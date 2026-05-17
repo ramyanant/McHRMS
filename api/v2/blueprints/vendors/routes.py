@@ -38,18 +38,26 @@ def create_vendor():
     conn = get_pg_conn()
     conn.autocommit = True
     cur = conn.cursor()
+    # Lookup or create category
+    cat_name = d.get('category') or d.get('category_name')
+    cat_id   = d.get('category_id')
+    if not cat_id and cat_name:
+        cat = db_row1("SELECT id FROM master_vendor_categories WHERE name ILIKE %s", (cat_name,))
+        if cat: cat_id = cat['id']
     cur.execute("""INSERT INTO vendors
-        (name, category_id, status, rating, primary_contact, primary_contact_designation,
-         contact_email, contact_phone, address_line1, city, state_id, pincode, country_id,
-         gstin, pan, account_manager_id, sla_score)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['name'], d.get('category_id'), d.get('status','Active'), d.get('rating',0),
+        (name, category_id, status, primary_contact, primary_contact_designation,
+         contact_email, contact_phone, address_line1, city, pincode,
+         gstin, pan, account_manager_id, notes)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (d['name'], cat_id, d.get('status','Active'),
          d.get('primary_contact'), d.get('primary_contact_designation'),
          d.get('contact_email') or d.get('email'),
          d.get('contact_phone') or d.get('phone'),
-         d.get('address'), d.get('city'), d.get('state_id'), d.get('pincode'), d.get('country_id'),
-         d.get('gstin'), d.get('pan'), d.get('account_manager_id'), d.get('sla_score', 90)))
-    vid = cur.fetchone()['id']
+         d.get('address') or d.get('address_line1'), d.get('city'), d.get('pincode'),
+         d.get('gstin'), d.get('pan'), d.get('account_manager_id'), d.get('notes')))
+    row = cur.fetchone()
+    vid = row['id'] if row else None
+    if not vid: raise Exception("Failed to create vendor")
     conn.close()
     write_audit_log('vendors', 'CREATE', 'vendor', vid, f"Vendor created: {d['name']}")
     return created({'id': vid})
@@ -62,14 +70,14 @@ def vendor_detail(vid):
         FROM vendors v
         LEFT JOIN master_vendor_categories vc ON vc.id=v.category_id
         LEFT JOIN employees e ON e.id=v.account_manager_id
-        WHERE v.id=%s AND v.is_active=1""", (vid,))
+        WHERE v.id=%s""", (vid,))
     if not vendor: return not_found("Vendor")
     if request.method == 'GET':
         vendor['documents'] = db_rows("SELECT id, doc_type, doc_name, uploaded_at FROM vendor_documents WHERE vendor_id=%s", (vid,))
         return ok(vendor)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        fields = ['name','category_id','status','rating','primary_contact','contact_email',
+        fields = ['name','category_id','is_active','status','rating','primary_contact','contact_email',
                   'contact_phone','address_line1','city','state_id','gstin','pan','sla_score']
         updates = {k: d[k] for k in fields if k in d}
         if updates:

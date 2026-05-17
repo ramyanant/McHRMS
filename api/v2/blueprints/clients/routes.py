@@ -77,7 +77,7 @@ def client_detail(cid):
         LEFT JOIN employees e ON e.id=c.account_manager_id
         LEFT JOIN master_contract_types ct ON ct.id=c.contract_type_id
         LEFT JOIN master_payment_terms pt ON pt.id=c.payment_terms_id
-        WHERE c.id=%s AND c.is_active=1""", (cid,))
+        WHERE c.id=%s""", (cid,))
     if not client: return not_found("Client")
 
     if request.method == 'GET':
@@ -92,7 +92,7 @@ def client_detail(cid):
         fields = ['name','industry','contract_type_id','currency','payment_terms_id','status',
                   'rating','primary_contact','primary_contact_designation','contact_email',
                   'contact_phone','address_line1','city','state_id','pincode','gstin','pan',
-                  'account_manager_id','health_score']
+                  'account_manager_id','health_score','is_active']
         updates = {k: d[k] for k in fields if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)

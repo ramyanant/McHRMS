@@ -118,7 +118,7 @@ export async function renderJobs() {
         thSort('status','Status') +
         '<th>Actions</th>' +
       '</tr></thead><tbody>' +
-      d.map(j => '<tr class="tbl-clickable" onclick="navigateTo(&apos;/recruitment/jobs/&apos; + j.id + &apos;&apos;)">' +
+      d.map(function(j) { return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/recruitment/jobs/&apos; + j.id + &apos;&apos;)">' +
         '<td><div class="fw-bold">' + v(j.title) + '</div>' +
           '<div class="cell-sub">' + v(j.work_mode || '') + (j.job_type ? ' · ' + v(j.job_type) : '') + '</div></td>' +
         '<td>' + v(j.client_name, '—') + '</td>' +
@@ -132,8 +132,8 @@ export async function renderJobs() {
           '<button class="btn btn-ghost btn-xs" onclick="window._editJob(' + j.id + ')">✏ Edit</button>' +
           '<button class="btn btn-primary btn-xs" onclick="navigateTo(&apos;/candidates/new&apos;)">+ Candidate</button>' +
           '<button class="btn btn-danger btn-xs" onclick="window._deleteJob(' + j.id + ') ">Del</button>' +
-        '</td></tr>'
-      ).join('') +
+        '</td></tr>';
+      }).join('') +
       '</tbody></table></div></div>';
     }
 
@@ -472,8 +472,8 @@ export async function renderCandidates() {
         thSort('status','Status') +
         '<th>Actions</th>' +
       '</tr></thead><tbody>' +
-      d.map(c => {
-        const name = v(c.first_name) + ' ' + v(c.last_name);
+      d.map(function(cand) {
+        const c = cand; const name = v(c.first_name) + ' ' + v(c.last_name);
         return '<tr class="tbl-clickable" onclick="navigateTo(&apos;/candidates/&apos; + c.id + &apos;&apos;)">' +
           '<td><div class="cell-person">' +
             '<div class="av av-sm av-blue">' + fmt.ini(name) + '</div>' +
@@ -639,7 +639,7 @@ function renderCandidateForm(existing, masters) {
       // Recruitment
       '<div class="form-section-title">Recruitment Details</div>'+
       fsl('Source','source_id',masters['candidate-sources']||[],(existing && existing.source_id))+
-      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],((existing && existing.recruiter_id)||(_user && _user.employee_id)))+
+      fsl('Recruiter','recruiter_id',masters['employees-lookup']||[],((existing && existing.recruiter_id)||(window._user && window._user.employee_id)))+
       '<div class="fg"><label class="flabel">Rating</label><select class="fselect" name="rating"><option value="">Select…</option>'+opts(['Flyer','Excellent','Good','Average','Bad','Blacklisted'],(existing && existing.rating)||'Good')+'</select></div>'+
       '<div class="fg"><label class="flabel">Availability</label><select class="fselect" name="availability"><option value="">Select…</option>'+opts(['Immediate','Notice Period','Looking for Change','Currently Employed','Freelancer'],(existing && existing.availability)||'Looking for Change')+'</select></div>'+
       '<div class="fg"><label class="flabel">Status</label><select class="fselect" name="status"><option value="">Select…</option>'+opts(['Active','Inactive','Placed','Blacklisted'],(existing && existing.status)||'Active')+'</select></div>'+

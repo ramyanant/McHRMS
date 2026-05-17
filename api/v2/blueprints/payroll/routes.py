@@ -10,7 +10,34 @@ import json, datetime
 payroll_bp = Blueprint('payroll', __name__, url_prefix='/api/v1')
 
 def _ensure_payroll():
-    pass  # Tables created via migrations in __init__.py
+    """Create payroll tables if they don't exist yet."""
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS payroll_runs (
+            id SERIAL PRIMARY KEY, month INTEGER NOT NULL, year INTEGER NOT NULL,
+            run_date DATE DEFAULT CURRENT_DATE, status TEXT DEFAULT 'New',
+            processed_by INTEGER, total_net_salary NUMERIC(12,2) DEFAULT 0,
+            cbx_file_content TEXT, notes TEXT,
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(),
+            is_active INTEGER DEFAULT 1)""")
+        cur.execute("""CREATE TABLE IF NOT EXISTS payroll_entries (
+            id SERIAL PRIMARY KEY, payroll_run_id INTEGER REFERENCES payroll_runs(id),
+            employee_id INTEGER REFERENCES employees(id),
+            loss_of_pay NUMERIC(10,2) DEFAULT 0,
+            basic NUMERIC(10,2) DEFAULT 0, hra NUMERIC(10,2) DEFAULT 0,
+            conveyance NUMERIC(10,2) DEFAULT 0, medical NUMERIC(10,2) DEFAULT 0,
+            special NUMERIC(10,2) DEFAULT 0, incentive NUMERIC(10,2) DEFAULT 0,
+            other_earnings NUMERIC(10,2) DEFAULT 0, gross_salary NUMERIC(10,2) DEFAULT 0,
+            prof_tax NUMERIC(10,2) DEFAULT 0, esi NUMERIC(10,2) DEFAULT 0,
+            tds NUMERIC(10,2) DEFAULT 0, epf NUMERIC(10,2) DEFAULT 0,
+            medical_deduction NUMERIC(10,2) DEFAULT 0, advance NUMERIC(10,2) DEFAULT 0,
+            other_deductions NUMERIC(10,2) DEFAULT 0, total_deductions NUMERIC(10,2) DEFAULT 0,
+            net_salary NUMERIC(10,2) DEFAULT 0, ctc NUMERIC(10,2) DEFAULT 0,
+            is_approved INTEGER DEFAULT 0, approval_notes TEXT,
+            created_at TIMESTAMP DEFAULT NOW())""")
+        conn.close()
+    except Exception as ex:
+        print(f"[payroll] ensure tables: {ex}", flush=True)
 
 @payroll_bp.route('/payroll/runs', methods=['GET'])
 @require_auth
