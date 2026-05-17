@@ -219,3 +219,27 @@ export function renderPagination(data, onPage) {
     <span class="pg-info">Page ${page} of ${pages}</span>
     ${next}</div>`;
 }
+
+
+// ── Pagination helper ────────────────────────────────────────
+export function paginate(rows, page, perPage) {
+  const total = rows.length;
+  const pages = Math.max(1, Math.ceil(total / perPage));
+  const safePage = Math.min(Math.max(1, page), pages);
+  const start = (safePage - 1) * perPage;
+  const items = rows.slice(start, start + perPage);
+  return { items, page: safePage, pages, total, perPage };
+}
+
+export function paginationBar(page, pages, total, onClickFn) {
+  if (pages <= 1) return '';
+  const btns = [];
+  if (page > 1) btns.push('<button class="pg-btn" onclick="' + onClickFn + '(' + (page-1) + ')">‹</button>');
+  // Show window of page numbers
+  let start = Math.max(1, page - 2), end = Math.min(pages, page + 2);
+  if (start > 1) { btns.push('<button class="pg-btn" onclick="' + onClickFn + '(1)">1</button>'); if (start > 2) btns.push('<span class="pg-ellipsis">…</span>'); }
+  for (let p = start; p <= end; p++) btns.push('<button class="pg-btn' + (p === page ? ' active' : '') + '" onclick="' + onClickFn + '(' + p + ')">' + p + '</button>');
+  if (end < pages) { if (end < pages-1) btns.push('<span class="pg-ellipsis">…</span>'); btns.push('<button class="pg-btn" onclick="' + onClickFn + '(' + pages + ')">' + pages + '</button>'); }
+  if (page < pages) btns.push('<button class="pg-btn" onclick="' + onClickFn + '(' + (page+1) + ')">›</button>');
+  return '<div class="pg-bar">' + btns.join('') + '<span class="pg-info"> ' + total + ' total</span></div>';
+}

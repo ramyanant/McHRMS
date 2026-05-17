@@ -31,9 +31,15 @@ export async function renderList() {
       return d;
     }
 
+    let _empPage = 1;
+    const EMP_PER = 25;
     function renderTbl() {
-      const d=getFiltered();
-      if(!d.length) return '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>';
+      const all=getFiltered(), total=all.length;
+      const pages=Math.max(1,Math.ceil(total/EMP_PER));
+      _empPage=Math.min(Math.max(1,_empPage),pages);
+      const d=all.slice((_empPage-1)*EMP_PER, _empPage*EMP_PER);
+      if(!total) return '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No employees found</div></div>';
+      var pgBar=''; if(pages>1){ var bts=[]; if(_empPage>1)bts.push('<button class="pg-btn" onclick="window._empPg('+(_empPage-1)+')">‹</button>'); for(var pp=Math.max(1,_empPage-2);pp<=Math.min(pages,_empPage+2);pp++)bts.push('<button class="pg-btn'+(pp===_empPage?' active':'')+'" onclick="window._empPg('+pp+')">'+pp+'</button>'); if(_empPage<pages)bts.push('<button class="pg-btn" onclick="window._empPg('+(_empPage+1)+')">›</button>'); pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' employees</span></div>'; }
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
         ['Name','Emp ID','Job Title','Department','Type','Status','Actions'].map((l,i)=>{
           const keys=['first_name','emp_id','job_title','department_name','employment_type','status'];
@@ -54,10 +60,11 @@ export async function renderList() {
             '<button class="btn btn-danger btn-xs" onclick="window._deleteEmp('+e.id+')" >Delete</button>'+
           '</td>'+
         '</tr>').join('')+
-        '</tbody></table></div></div>';
+        '</tbody></table></div>'+pgBar+'</div>';
     }
 
     function render() { document.getElementById('emp-content').innerHTML=renderTbl(); }
+    window._empPg=p=>{_empPage=p;render();};
 
     setContent('<div class="page-body">'+
       '<div class="struct-toolbar">'+

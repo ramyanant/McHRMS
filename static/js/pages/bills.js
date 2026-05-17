@@ -40,14 +40,14 @@ export async function renderList() {
   try {
     var data = await get('/bills');
     var rows = data.items || [];
-    var filterStatus = '', filterType = '', filterQ = '';
+    var filterStatus = '', filterType = '', filterQ = '', billSort = 'expense_date', billDir = -1;
 
     function getF() {
       var d = rows.slice();
-      if (filterQ)      d = d.filter(function(r) { return (r.bill_number||'' + r.description||'' + r.vendor_name||'').toLowerCase().includes(filterQ.toLowerCase()); });
+      if (filterQ)      d = d.filter(function(r) { return ((r.bill_number||'') + ' ' + (r.description||'') + ' ' + (r.vendor_name||'')).toLowerCase().includes(filterQ.toLowerCase()); });
       if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
       if (filterType)   d = d.filter(function(r) { return r.expense_type === filterType; });
-      return d;
+      return d.slice().sort(function(a,b){ return String(a[billSort]||'').localeCompare(String(b[billSort]||''))*billDir; });
     }
 
     var totalAmt = rows.reduce(function(s, r) { return s + parseFloat(r.total_amount || 0); }, 0);
@@ -62,8 +62,10 @@ export async function renderList() {
           '<button class="btn btn-primary" onclick="window._addBill()">+ Add Bill/Expense</button></div>';
       } else {
         tableHTML = '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-          '<th>Type</th><th>Bill #</th><th>Description</th><th>Vendor</th><th>Date</th>' +
-          '<th>Amount</th><th>Status</th><th>Actions</th>' +
+          (function(){
+            function th(col,label){var arr=billSort===col?(billDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._billSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+            return th('expense_type','Type')+th('bill_number','Bill #')+th('description','Description')+th('vendor_name','Vendor')+th('expense_date','Date')+th('total_amount','Amount')+th('status','Status')+'<th>Actions</th>';
+          })() +
           '</tr></thead><tbody>' +
           d.map(function(b) {
             return '<tr class="tbl-clickable" onclick="navigateTo(\'/bills/' + b.id + '\')">' +
@@ -111,6 +113,7 @@ export async function renderList() {
     render();
     window._billQ      = function(val) { filterQ = val; render(); };
     window._billType   = function(val) { filterType = val; render(); };
+    window._billSort   = function(col) { billSort === col ? billDir *= -1 : (billSort = col, billDir = 1); render(); };
     window._billStatus = function(val) { filterStatus = val; render(); };
     window._addBill    = async function() {
       var masters = await get('/masters/all');

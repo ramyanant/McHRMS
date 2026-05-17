@@ -73,7 +73,7 @@ def job_detail(rid):
         LEFT JOIN departments d ON d.id=j.department_id
         LEFT JOIN employees e ON e.id=j.recruiter_id
         LEFT JOIN master_priority_levels p ON p.id=j.priority_id
-        WHERE j.id=%s AND j.is_active=1""", (rid,))
+        WHERE j.id=%s""", (rid,))
     if not job: return not_found("Job Requisition")
     if request.method == 'GET':
         job['applications'] = db_rows("""SELECT a.*, c.first_name||' '||c.last_name as candidate_name,
@@ -88,7 +88,7 @@ def job_detail(rid):
         fields = ['title','status','positions','target_start','description','requirements',
                   'recruiter_id','priority_id','comp_min','comp_max','location',
                   'work_mode','min_experience','max_experience','budget','job_type',
-                  'notice_period','department_id','client_id','assigned_to']
+                  'notice_period','department_id','client_id','assigned_to','is_active']
         updates = {k: d[k] for k in fields if k in d}
         if 'target_date' in d: updates['target_start'] = d['target_date']
         if updates:
@@ -188,7 +188,7 @@ def candidate_detail(cid):
         FROM candidates c
         LEFT JOIN master_candidate_sources s ON s.id=c.source_id
         LEFT JOIN employees e ON e.id=c.recruiter_id
-        WHERE c.id=%s AND c.is_active=1""", (cid,))
+        WHERE c.id=%s""", (cid,))
     if not cand: return not_found("Candidate")
     if request.method == 'GET':
         cand['applications'] = db_rows("""SELECT a.*, j.title as job_title, j.location,
@@ -211,7 +211,8 @@ def candidate_detail(cid):
     fields = ['first_name','middle_name','last_name','email','phone','location',
               'current_title','current_company','years_exp','current_ctc','expected_ctc',
               'notice_period','source_id','linkedin_url','resume_url','skills',
-              'gender','nationality','pan','aadhaar','recruiter_id','status','rating','notes']
+              'gender','nationality','pan','aadhaar','recruiter_id','status','rating','notes',
+              'availability','is_active']
     updates = {}
     for k in fields:
         if k in d: updates[k] = d[k]

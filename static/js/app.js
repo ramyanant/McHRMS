@@ -347,6 +347,7 @@ async function registerRoutes() {
   Router.route('/projects/new',                        load('projects',        'renderNew'));
   Router.route('/projects/:id',                       load('projects',        'renderDetail'));
   Router.route('/timesheets',                         load('timesheets',      'renderList'));
+  Router.route('/timesheets/new',                      load('timesheets',      'renderNew'));
   Router.route('/timesheets/approval',                load('timesheets',      'renderApproval'));
   Router.route('/timesheets/:id',                     load('timesheets',      'renderDetail'));
   Router.route('/payroll',                            load('payroll',         'renderList'));

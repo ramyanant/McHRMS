@@ -83,3 +83,40 @@ def update_settings():
             ON CONFLICT(key) DO UPDATE SET value=%s, updated_by=%s, updated_at=NOW()""",
             (key, str(value), g.user['id'], str(value), g.user['id']))
     return ok(message="Settings saved")
+
+
+@admin_bp.route('/admin/flush-data', methods=['POST'])
+@require_auth
+def flush_data():
+    """Flush all transactional data — ADMIN ONLY, requires confirmation code."""
+    if g.user.get('role') not in ['Admin', 'System Administrator', 'Super Admin']:
+        return err("Admin access required", 403)
+    d = request.get_json() or {}
+    if d.get('confirm') != 'FLUSH-ALL-DATA':
+        return err("Invalid confirmation code. Send {confirm: 'FLUSH-ALL-DATA'}", 400)
+    try:
+        from ...extensions import get_pg_conn
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        # Delete all transactional data, preserve master/config tables
+        tables = [
+            'payroll_entries', 'payroll_runs',
+            'onboarding_tasks', 'onboarding',
+            'offers', 'interviews', 'applications',
+            'employee_leaves', 'timesheets',
+            'invoice_line_items', 'invoices',
+            'bills',
+            'project_documents', 'project_milestones', 'project_resources', 'projects',
+            'vendor_documents', 'vendors',
+            'client_documents', 'clients',
+            'employee_documents', 'employees',
+            'users',
+            'candidates', 'job_requisitions',
+            'audit_logs',
+        ]
+        for t in tables:
+            try: cur.execute(f"DELETE FROM {t}")
+            except Exception as ex: print(f"[flush] skip {t}: {ex}")
+        conn.close()
+        return ok(message="All data flushed. System ready for fresh start.")
+    except Exception as ex:
+        return err(str(ex))

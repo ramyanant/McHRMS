@@ -98,28 +98,7 @@ export async function renderList() {
       document.getElementById('ts-list').innerHTML = renderRows();
     };
 
-    window._submitTS = async function() {
-      var masters = await get('/masters/all');
-      openModal({
-        title: '+ Submit Timesheet', size: 'md',
-        body: '<form id="ts-form" class="form-grid-sm">' +
-          '<div class="fg"><label class="flabel">Week Ending *</label><input class="finput" type="date" name="week_ending" required></div>' +
-          '<div class="fg"><label class="flabel">Project</label><input class="finput" name="project" placeholder="Project name"></div>' +
-          '<div class="fg"><label class="flabel">Client</label><select class="fselect" name="client_id"><option value="">None</option>' +
-          opts(masters['clients-lookup'] || [], null) + '</select></div>' +
-          '<div class="fg"><label class="flabel">Regular Hours *</label><input class="finput" type="number" name="regular_hours" value="40" min="0" max="80" step="0.5" required></div>' +
-          '<div class="fg"><label class="flabel">Overtime Hours</label><input class="finput" type="number" name="overtime_hours" value="0" min="0" step="0.5"></div>' +
-          '<div class="fg"><label class="flabel">Bill Rate (₹/hr)</label><input class="finput" type="number" name="bill_rate" value="0"></div>' +
-          '<div class="fg full"><label class="flabel">Notes</label><textarea class="finput" name="notes" rows="2"></textarea></div>' +
-          '</form>',
-        submitLabel: 'Submit for Approval',
-        onSubmit: async function() {
-          var d = fd('ts-form');
-          try { await post('/my/timesheets', d); toast('Submitted for approval', 'success'); renderList(); }
-          catch(e) { toast(e.message, 'error'); }
-        }
-      });
-    };
+    window._submitTS = function() { navigate('/timesheets/new'); };
   } catch(e) { showError(e.message); }
 }
 
@@ -422,5 +401,63 @@ export async function renderDetail({ id }) {
         (ts.rejection_reason ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Rejection Reason</div><div class="field-value" style="color:var(--danger)">' + v(ts.rejection_reason) + '</div></div>' : '') +
       '</div></div></div></div>'
     );
+  } catch(e) { showError(e.message); }
+}
+
+
+export async function renderNew() {
+  setPageTitle('New Timesheet', 'Log your hours');
+  setBreadcrumb([{ label:'Timesheets', url:'/timesheets' }, { label:'New' }]);
+  showLoader();
+  try {
+    var masters = await get('/masters/all');
+    var today = new Date().toISOString().split('T')[0];
+
+    setContent(
+      '<div class="page-body"><div class="card" style="max-width:760px;margin:0 auto">' +
+      '<div class="card-header"><h3 class="card-title">Log Timesheet</h3></div>' +
+      '<form id="ts-full-form"><div class="form-grid">' +
+        '<div class="fg"><label class="flabel">Week Ending *</label>' +
+          '<input class="finput" type="date" id="ts-week" name="week_ending" value="' + today + '" required></div>' +
+        '<div class="fg"><label class="flabel">Client</label>' +
+          '<select class="fselect" name="client_id"><option value="">None</option>' +
+          (masters['clients-lookup'] || []).map(function(c){ return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('') +
+          '</select></div>' +
+        '<div class="fg"><label class="flabel">Project</label>' +
+          '<input class="finput" name="project" placeholder="Project name"></div>' +
+        '<div class="fg"><label class="flabel">Regular Hours *</label>' +
+          '<input class="finput" type="number" id="ts-reg" name="regular_hours" value="40" min="0" max="80" step="0.5" required oninput="window._calcTS()"></div>' +
+        '<div class="fg"><label class="flabel">Overtime Hours</label>' +
+          '<input class="finput" type="number" id="ts-ot" name="overtime_hours" value="0" min="0" step="0.5" oninput="window._calcTS()"></div>' +
+        '<div class="fg"><label class="flabel">Total Hours</label>' +
+          '<input class="finput mono fw-bold" id="ts-total" value="40" readonly style="background:var(--bg)"></div>' +
+        '<div class="fg"><label class="flabel">Bill Rate (₹/hr)</label>' +
+          '<input class="finput" type="number" name="bill_rate" value="0" min="0"></div>' +
+        '<div class="fg full"><label class="flabel">Notes</label>' +
+          '<textarea class="finput" name="notes" rows="3" placeholder="Work done this week…"></textarea></div>' +
+      '</div></form>' +
+      '<div class="form-actions">' +
+        '<button class="btn btn-ghost" onclick="navigateTo(&apos;/timesheets&apos;)">Cancel</button>' +
+        '<button class="btn btn-secondary" onclick="window._saveTS(&apos;In Progress&apos;)">💾 Save Draft</button>' +
+        '<button class="btn btn-primary" onclick="window._saveTS(&apos;Submitted&apos;)">📤 Submit for Approval</button>' +
+      '</div></div></div>'
+    );
+
+    window._calcTS = function() {
+      var reg = parseFloat(document.getElementById('ts-reg').value) || 0;
+      var ot  = parseFloat(document.getElementById('ts-ot').value) || 0;
+      document.getElementById('ts-total').value = (reg + ot).toFixed(1);
+    };
+
+    window._saveTS = async function(status) {
+      var data = Object.fromEntries(new FormData(document.getElementById('ts-full-form')));
+      data.status = status;
+      data.total_hours = parseFloat(document.getElementById('ts-total').value) || 0;
+      try {
+        await post('/my/timesheets', data);
+        toast(status === 'In Progress' ? 'Draft saved!' : 'Submitted for approval!', 'success');
+        navigate('/timesheets');
+      } catch(e) { toast(e.message || 'Error saving timesheet', 'error'); }
+    };
   } catch(e) { showError(e.message); }
 }

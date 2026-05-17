@@ -23,20 +23,27 @@ export async function renderList() {
   try {
     const [data, masters] = await Promise.all([get('/projects'), get('/masters/all')]);
     const rows = data.items || [];
-    let q='', filterStatus='';
+    let q='', filterStatus='', projSort='name', projDir=1, projPage=1;
+    const PROJ_PER = 25;
 
     function getF() {
       let d=[...rows];
       if(q) d=d.filter(r=>(r.name+' '+(r.client_name||'')+(r.project_code||'')).toLowerCase().includes(q.toLowerCase()));
       if(filterStatus) d=d.filter(r=>r.status===filterStatus);
-      return d;
+      return d.slice().sort((a,b)=>String(a[projSort]||'').localeCompare(String(b[projSort]||''))*projDir);
     }
 
+    function thP(col,label){const arr=projSort===col?(projDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._projSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+
     function render() {
-      const d=getF();
-      document.getElementById('proj-content').innerHTML = d.length
+      const all=getF(), total=all.length;
+      const pages=Math.max(1,Math.ceil(total/PROJ_PER));
+      projPage=Math.min(Math.max(1,projPage),pages);
+      const d=all.slice((projPage-1)*PROJ_PER, projPage*PROJ_PER);
+      let pgBar=''; if(pages>1){let bts=[];if(projPage>1)bts.push('<button class="pg-btn" onclick="window._projPg('+(projPage-1)+')">‹</button>');for(let p2=Math.max(1,projPage-2);p2<=Math.min(pages,projPage+2);p2++)bts.push('<button class="pg-btn'+(p2===projPage?' active':'')+'" onclick="window._projPg('+p2+')">'+p2+'</button>');if(projPage<pages)bts.push('<button class="pg-btn" onclick="window._projPg('+(projPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' projects</span></div>';}
+      document.getElementById('proj-content').innerHTML = total
         ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-            '<th>Code</th><th>Project</th><th>Client</th><th>Type</th><th>PM</th><th>Start</th><th>Budget</th><th>Health</th><th>Status</th><th>Actions</th>'+
+            thP('project_code','Code')+thP('name','Project')+thP('client_name','Client')+thP('project_type','Type')+thP('pm_name','PM')+thP('start_date','Start')+thP('budget','Budget')+thP('health_score','Health')+thP('status','Status')+'<th>Actions</th>'+
             '</tr></thead><tbody>'+
             d.map(p=>'<tr class="tbl-clickable" onclick="navigateTo(\'/projects/'+p.id+'\')">' +
               '<td class="mono">'+v(p.project_code||'—')+'</td>'+
@@ -53,9 +60,10 @@ export async function renderList() {
               '<td>'+badge(p.status||'Active')+'</td>'+
               '<td class="tbl-actions" onclick="event.stopPropagation()">'+
                 '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/projects/'+p.id+'\')">View</button>'+
-                '<button class="btn btn-danger btn-xs" onclick="window._deleteProject('+p.id+',\''+v(p.name,'')+'\')" >Delete</button>'+
+                '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/projects/'+p.id+'\')">✏ Edit</button>'+
+                '<button class="btn btn-danger btn-xs" onclick="window._deleteProject('+p.id+')">Delete</button>'+
               '</td></tr>').join('')+
-            '</tbody></table></div></div>'
+            '</tbody></table></div>'+pgBar+'</div>'
         : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No projects yet</div>'+
           '<button class="btn btn-primary" onclick="navigateTo(\'/projects/new\')">+ Create First Project</button></div>';
     }
@@ -73,8 +81,10 @@ export async function renderList() {
       '<div id="proj-content"></div></div>');
 
     render();
-    window._projQ = val=>{q=val;render();};
-    window._projFilter = val=>{filterStatus=val;render();};
+    window._projQ = val=>{q=val;projPage=1;render();};
+    window._projFilter = val=>{filterStatus=val;projPage=1;render();};
+    window._projSort = col=>{projSort===col?projDir*=-1:(projSort=col,projDir=1);render();};
+    window._projPg = p=>{projPage=p;render();};
   } catch(e) { showError(e.message); }
 }
 
