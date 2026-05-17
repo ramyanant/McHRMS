@@ -93,20 +93,20 @@ function showApp() {
 // ── Sidebar ────────────────────────────────────────────────────
 const NAV = {
   Admin: [
-    { section: 'Organisation', icon: '🏛', dashboard: '/organisation/profile', items: [
+    { section: 'Organisation', icon: '🏛', dashboard: '/org-dashboard', items: [
       { label: 'Org Profile',     icon: '🏛', path: '/organisation/profile' },
       { label: 'Business Units',  icon: '🏢', path: '/organisation/business-units' },
       { label: 'Departments',     icon: '🗂', path: '/organisation/departments' },
       { label: 'Cost Centres',    icon: '💹', path: '/organisation/cost-centres' },
       { label: 'Locations',       icon: '📍', path: '/organisation/locations' },
     ]},
-    { section: 'People', icon: '👥', dashboard: '/employees', items: [
+    { section: 'People', icon: '👥', dashboard: '/people-dashboard', items: [
       { label: 'Employees',       icon: '👥', path: '/employees' },
       { label: 'Timesheets',      icon: '⏱', path: '/timesheets' },
       { label: 'Approval Queue',  icon: '✅', path: '/timesheets/approval' },
       { label: 'Payroll',         icon: '💰', path: '/payroll' },
     ]},
-    { section: 'Clients & Vendors', icon: '🤝', dashboard: '/clients', items: [
+    { section: 'Clients & Vendors', icon: '🤝', dashboard: '/clients-dashboard', items: [
       { label: 'Clients',         icon: '🤝', path: '/clients' },
       { label: 'Vendors',         icon: '🏪', path: '/vendors' },
       { label: 'Projects',        icon: '📋', path: '/projects' },
@@ -120,15 +120,15 @@ const NAV = {
       { label: 'Offers',          icon: '📨', path: '/recruitment/offers' },
       { label: 'Onboarding',      icon: '🚀', path: '/recruitment/onboarding' },
     ]},
-    { section: 'Finance', icon: '💰', dashboard: '/invoices', items: [
+    { section: 'Finance', icon: '💰', dashboard: '/finance-dashboard', items: [
       { label: 'Invoices',        icon: '🧾', path: '/invoices' },
       { label: 'Bills & Expenses',icon: '💸', path: '/bills' },
     ]},
-    { section: 'Insights', icon: '📈', dashboard: '/reports', items: [
+    { section: 'Insights', icon: '📈', dashboard: '/insights-dashboard', items: [
       { label: 'Reports',         icon: '📈', path: '/reports' },
       { label: 'Audit Logs',      icon: '🔍', path: '/audit-logs' },
     ]},
-    { section: 'Settings', icon: '⚙️', dashboard: '/settings', items: [
+    { section: 'Settings', icon: '⚙️', dashboard: '/settings-dashboard', items: [
       { label: 'Users',           icon: '👤', path: '/admin/users' },
       { label: 'Roles',           icon: '🔐', path: '/admin/roles' },
       { label: 'Settings',        icon: '⚙️', path: '/settings' },
@@ -142,6 +142,7 @@ const NAV = {
       { label: 'Leave',           icon: '🏖', path: '/portal/leaves' },
       { label: 'Payslips',        icon: '💰', path: '/portal/payslips' },
       { label: 'My Team',         icon: '👥', path: '/portal/team' },
+      { label: 'Approval Queue',  icon: '✅', path: '/timesheets/approval' },
     ]},
   ],
 };
@@ -320,6 +321,12 @@ async function registerRoutes() {
   };
 
   Router.route('/dashboard',                          load('dashboard',       'render'));
+  Router.route('/org-dashboard',                      load('sectiondash',     'renderOrgDash'));
+  Router.route('/people-dashboard',                   load('sectiondash',     'renderPeopleDash'));
+  Router.route('/clients-dashboard',                  load('sectiondash',     'renderClientsDash'));
+  Router.route('/finance-dashboard',                  load('sectiondash',     'renderFinanceDash'));
+  Router.route('/insights-dashboard',                 load('sectiondash',     'renderInsightsDash'));
+  Router.route('/settings-dashboard',                 load('sectiondash',     'renderSettingsDash'));
   Router.route('/organisation/profile',               load('organisation',    'renderProfile'));
   Router.route('/organisation/business-units',        load('orgstructure',    'renderBUs'));
   Router.route('/organisation/business-units/:id',    load('orgstructure',    'renderBUDetail'));

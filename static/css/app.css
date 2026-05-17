@@ -802,3 +802,27 @@ label.flabel,
   max-height: 400px; opacity: 1;
 }
 .nav-section-collapsed .nav-section-items { max-height: 0; opacity: 0; }
+/* ── Section Dashboards ── */
+.dash-hero {
+  display: flex; align-items: center; gap: 20px;
+  padding: 24px; background: linear-gradient(135deg, var(--brand), #1e40af);
+  border-radius: 12px; color: #fff; margin-bottom: 16px;
+}
+.dash-hero-name { font-size: 22px; font-weight: 700; }
+.dash-hero-sub  { font-size: 13px; opacity: .75; margin-top: 2px; }
+
+.quick-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+.quick-link-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 20px 12px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; cursor: pointer; text-align: center;
+  transition: box-shadow .15s, transform .15s;
+}
+.quick-link-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); border-color: var(--brand); }
+.quick-link-icon  { font-size: 28px; margin-bottom: 8px; }
+.quick-link-label { font-size: 13px; font-weight: 600; color: var(--txt); }
+.quick-link-arrow { font-size: 11px; color: var(--txt3); margin-top: 4px; }

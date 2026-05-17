@@ -191,6 +191,14 @@ def timesheet_detail(tid):
 def pending_approvals():
     """All pending items for the current user's approval queue."""
     emp_id = g.user.get('employee_id')
+    if not emp_id:
+        # Fall back to email lookup - handles Employee role users who are also managers
+        emp = db_row1("SELECT id FROM employees WHERE email=%s AND is_active=1",
+                      (g.user.get('email',''),))
+        if not emp:
+            uname = g.user.get('username','')
+            emp = db_row1("SELECT id FROM employees WHERE email=%s AND is_active=1", (uname,))
+        if emp: emp_id = emp['id']
     if not emp_id: return ok({'timesheets': [], 'leaves': [], 'total': 0})
 
     # Get direct reports
