@@ -345,7 +345,30 @@ export async function renderPipeline() {
       '</div></div>'
     );
 
-    window._moveApp = async (appId, currentStage) => moveStageModal(appId, await get('/masters/all'));
+    window._moveApp = async (appId, currentStage) => {
+    const masters = await get('/masters/all');
+    const stages = masters['application-stages'] || [];
+    openModal({
+      title: 'Move to Stage',
+      body: '<form id="stage-form" class="form-grid-sm">'+
+        '<div class="fg full"><label class="flabel">New Stage *</label>'+
+          '<select class="fselect" name="stage_id" required>'+
+          '<option value="">Select stage…</option>'+
+          stages.map(s => '<option value="'+s.id+'">'+v(s.name)+'</option>').join('')+
+          '</select></div>'+
+        '<div class="fg full"><label class="flabel">Notes</label>'+
+          '<textarea class="finput" name="notes" rows="2"></textarea></div>'+
+      '</form>',
+      submitLabel: 'Move',
+      onSubmit: async () => {
+        const data = fd('stage-form');
+        if (!data.stage_id) { toast('Select a stage', 'error'); return false; }
+        await put('/applications/'+appId, data);
+        toast('Candidate moved!', 'success');
+        renderPipeline(); // ← reload without page refresh
+      }
+    });
+  };
     window._schedInt = (appId, name) => scheduleInterviewModal(appId, name, null);
     window._quickAdd = sid => navigate('/candidates/new');
   } catch(e) { showError(e.message); }
@@ -380,6 +403,7 @@ export async function renderCandidates() {
               '<td>'+badge(c.latest_stage||'—')+'</td>'+
               '<td class="tbl-actions" onclick="event.stopPropagation()">'+
                 '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/candidates/'+c.id+'\')">View</button>'+
+                '<button class="btn btn-danger btn-xs" onclick="window._deleteCandidate('+c.id+',\''+c.first_name+' '+c.last_name+'\')" >Delete</button>'+
               '</td></tr>').join('')+
             '</tbody></table></div></div>'
         : '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No candidates</div><button class="btn btn-primary" onclick="navigateTo(\'/candidates/new\')">+ Add First Candidate</button></div>';
@@ -569,8 +593,13 @@ function submitToJobModal(cand, masters) {
 // ─── Schedule Interview ─────────────────────────────────────────
 function scheduleInterviewModal(appId, candidateName, masters) {
   openModal({
-    title: '🗓 Schedule Interview — '+v(candidateName), size: 'md',
+    title: '🗓 Schedule Interview', size: 'lg',
     body: '<form id="int-form" class="form-grid-sm">'+
+      (!appId
+        ? '<div class="fg"><label class="flabel">Candidate *</label><select class="fselect" name="_candidate_id" id="int-cand-sel" required><option value="">Loading…</option></select></div>'+
+          '<div class="fg"><label class="flabel">Job *</label><select class="fselect" name="_job_id" id="int-job-sel" required><option value="">Select candidate first…</option></select></div>'
+        : '<div class="fg full"><label class="flabel">Candidate</label><div class="field-value fw-bold">'+v(candidateName)+'</div></div>'
+      )+
       '<div class="fg"><label class="flabel">Round *</label><select class="fselect" name="round" required>'+opts(['1','2','3','4','HR','Final'],null)+'</select></div>'+
       '<div class="fg"><label class="flabel">Format</label><select class="fselect" name="format">'+opts(INTERVIEW_FORMATS,null)+'</select></div>'+
       '<div class="fg"><label class="flabel">Date & Time *</label><input class="finput" type="datetime-local" name="scheduled_at" required></div>'+
@@ -581,11 +610,40 @@ function scheduleInterviewModal(appId, candidateName, masters) {
     submitLabel: 'Schedule Interview',
     onSubmit: async () => {
       const data = fd('int-form');
-      data.application_id = appId;
+      if (!appId) {
+        const candId = document.getElementById('int-cand-sel')?.value;
+        const jobId  = document.getElementById('int-job-sel')?.value;
+        if (!candId || !jobId) { toast('Select a candidate and job', 'error'); return false; }
+        // Find or create application for this candidate+job
+        data.candidate_id = candId;
+        data.job_id       = jobId;
+      } else {
+        data.application_id = appId;
+      }
       await post('/interviews', data);
       toast('Interview scheduled!', 'success');
     }
   });
+  // If no appId, load candidates and wire up job loading
+  if (!appId) {
+    get('/candidates').then(res => {
+      const sel = document.getElementById('int-cand-sel');
+      if (!sel) return;
+      const items = res.items || [];
+      sel.innerHTML = '<option value="">Select candidate…</option>' +
+        items.map(c => '<option value="'+c.id+'">'+v(c.first_name+' '+c.last_name)+'</option>').join('');
+      sel.onchange = () => {
+        const jobSel = document.getElementById('int-job-sel');
+        if (!jobSel || !sel.value) return;
+        jobSel.innerHTML = '<option value="">Loading jobs…</option>';
+        get('/recruitment/jobs?status=Active').then(r => {
+          const jobs = r.items || [];
+          jobSel.innerHTML = '<option value="">Select job…</option>' +
+            jobs.map(j => '<option value="'+j.id+'">'+v(j.title)+'</option>').join('');
+        });
+      };
+    });
+  }
 }
 
 function scheduleInterviewForCandModal(cand, masters) {

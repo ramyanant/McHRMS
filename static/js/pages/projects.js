@@ -53,6 +53,7 @@ export async function renderList() {
               '<td>'+badge(p.status||'Active')+'</td>'+
               '<td class="tbl-actions" onclick="event.stopPropagation()">'+
                 '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/projects/'+p.id+'\')">View</button>'+
+                '<button class="btn btn-danger btn-xs" onclick="window._deleteProject('+p.id+',\''+v(p.name,'')+'\')" >Delete</button>'+
               '</td></tr>').join('')+
             '</tbody></table></div></div>'
         : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No projects yet</div>'+

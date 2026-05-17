@@ -220,14 +220,15 @@ function buildSidebar() {
 }
 
 window._toggleSection = function(key) {
-  var orig = [..._collapsedSections];
-  // Find the section by key (spaces replaced with _)
   var allNav = [...NAV['Admin'], ...NAV['Employee']];
   var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
   if (!found) return;
   var sec = found.section;
-  if (_collapsedSections.has(sec)) { _collapsedSections.delete(sec); }
-  else { _collapsedSections.add(sec); }
+  var isCurrentlyOpen = !_collapsedSections.has(sec);
+  // Accordion: collapse ALL sections first
+  allNav.forEach(function(s) { _collapsedSections.add(s.section); });
+  // Then open the clicked one (toggle: if it was open, leave it closed)
+  if (!isCurrentlyOpen) { _collapsedSections.delete(sec); }
   buildSidebar();
   // Re-apply active state
   var cur = Router.getCurrentPath();

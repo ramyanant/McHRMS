@@ -357,6 +357,7 @@ export async function renderDepts() {
           '<td>' + badge(d.is_active ? 'Active' : 'Inactive') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editDept(' + d.id + ')">✏ Edit</button>' +
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteDept(' + d.id + ',\'' + v(d.name,'') + '\')" >Delete</button>' +
           '</td></tr>'
         ).join('') +
         '</tbody></table></div></div>';

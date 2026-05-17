@@ -465,12 +465,16 @@ def create_onboarding():
         ]:
             try: cur.execute(sql)
             except: pass
+        # Make employee_id nullable so candidates can be onboarded
+        try: cur.execute("ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL")
+        except Exception: pass
         tpl = db_row1("SELECT id FROM master_onboarding_templates WHERE name=%s",
                      (d.get('template','Standard'),))
         cur.execute("""INSERT INTO onboarding
             (employee_id,candidate_id,person_type,template_id,buddy_name,start_date,notes)
             VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (emp_id, cand_id, 'candidate' if cand_id else 'employee',
+            (emp_id or None, cand_id or None,
+             'candidate' if cand_id else 'employee',
              tpl['id'] if tpl else None, d.get('buddy_name'), d.get('start_date'), d.get('notes')))
         oid = cur.fetchone()['id']
         # Create default tasks
