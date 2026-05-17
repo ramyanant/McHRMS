@@ -82,6 +82,7 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
         columns.map(c => '<td>' + (c.render ? c.render(r) : v(r[c.key], '—')) + '</td>').join('') +
         '<td class="tbl-actions" onclick="event.stopPropagation()">' +
           '<button class="btn btn-ghost btn-xs" onclick="window._orgEdit(\'' + entityName + '\',' + r.id + ')">✏ Edit</button>' +
+          '<button class="btn btn-danger btn-xs" onclick="window._orgDelete(\'' + entityName + '\',' + r.id + ',\'' + v(r.name,'') + '\')">Delete</button>' +
         '</td></tr>'
       ).join('') +
       '</tbody></table></div>';

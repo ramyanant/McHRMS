@@ -1,6 +1,6 @@
 """McHR&TA v2 Application Factory"""
 import os
-from flask import Flask, jsonify, send_from_directory, make_response
+from flask import Flask, jsonify, send_from_directory, make_response, request
 from .config import get_config
 from .extensions import get_pg_conn, db_rows, db_row1, db_execute
 
@@ -240,6 +240,12 @@ def create_app(config_override=None):
         response.headers['Access-Control-Allow-Origin']  = '*'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type,X-Auth-Token,Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,PATCH,DELETE,OPTIONS'
+        # Force no-cache on JS and CSS so browser always gets latest version
+        path = request.path
+        if path.startswith('/static/') and (path.endswith('.js') or path.endswith('.css')):
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            response.headers['Pragma']  = 'no-cache'
+            response.headers['Expires'] = '0'
         return response
 
     @app.route('/api/v1/options', methods=['OPTIONS'])
