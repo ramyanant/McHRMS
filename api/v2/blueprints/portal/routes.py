@@ -60,14 +60,16 @@ def dashboard():
         JOIN master_timesheet_statuses s ON s.id=t.status_id
         WHERE t.employee_id=%s AND s.name='Approved'
         AND EXTRACT(MONTH FROM t.week_ending)=EXTRACT(MONTH FROM CURRENT_DATE)""", (emp_id,))['n']
-    return ok({
-        "employee":           emp,
-        "leaves_taken":       float(leaves_taken),
-        "leave_balance":      18 - float(leaves_taken),
-        "pending_leaves":     pending_leaves,
-        "pending_timesheets": pending_ts,
-        "approved_hours_mtd": float(approved_hours),
-    })
+    # Flatten emp dict + stats so JS can use e.first_name, e.email etc. directly
+    result = dict(emp) if emp else {}
+    result['leaves_taken']       = float(leaves_taken)
+    result['leave_balance']      = max(0, 18 - float(leaves_taken))
+    result['pending_leaves']     = pending_leaves
+    result['pending_ts']         = pending_ts
+    result['pending_timesheets'] = pending_ts
+    result['approved_hours_mtd'] = float(approved_hours)
+    result['notifications']      = 0
+    return ok(result)
 
 @portal_bp.route('/team')
 @require_auth

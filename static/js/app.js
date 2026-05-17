@@ -237,17 +237,51 @@ window._toggleSection = function(key) {
 };
 
 window._navSection = function(key, dashPath) {
-  // Expand this section (accordion)
   var allNav = [...NAV['Admin'], ...NAV['Employee']];
   var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
   if (!found) return;
-  // Collapse all, open this one
+  var sec = found.section;
+  var isOpen = !_collapsedSections.has(sec);
+  // Accordion: collapse all sections first
   allNav.forEach(function(s) { _collapsedSections.add(s.section); });
-  _collapsedSections.delete(found.section);
-  buildSidebar();
-  // Navigate to section dashboard
-  Router.navigate(dashPath);
+  // If it was closed, open it and navigate to its dashboard
+  if (!isOpen) {
+    _collapsedSections.delete(sec);
+    buildSidebar();
+    Router.navigate(dashPath);
+  } else {
+    // If already open, just collapse it
+    buildSidebar();
+  }
 };
+
+// Returns which section owns the given path
+function _sectionForPath(path) {
+  var allSections = (NAV['Admin'] || []).concat(NAV['Employee'] || []);
+  for (var i = 0; i < allSections.length; i++) {
+    var s = allSections[i];
+    if (s.items) {
+      for (var j = 0; j < s.items.length; j++) {
+        if (path === s.items[j].path || path.startsWith(s.items[j].path + '/')) {
+          return s.section;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+// Called after every route change to sync sidebar highlight
+function updateSidebarActive() {
+  var cur = (Router.getCurrentPath ? Router.getCurrentPath() : '') || '/';
+  var activeSection = _sectionForPath(cur);
+  if (activeSection) {
+    // Auto-expand the active section
+    _collapsedSections.delete(activeSection);
+  }
+  buildSidebar();
+}
+
 
 function buildTopbar() {
   document.getElementById('topbar').innerHTML =
@@ -277,6 +311,7 @@ async function registerRoutes() {
   const load = (mod, fn) => async (params) => {
     const m = await import('./pages/' + mod + '.js?v=1778963292');
     await m[fn](params);
+    if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active
     const path = Router.getCurrentPath();
     document.querySelectorAll('.nav-item').forEach(el => {
