@@ -264,6 +264,17 @@ function renderEmployeeForm(emp, masters) {
         fi('Personal Phone','personal_phone',(emp && emp.personal_phone))+
         '<div class="fg"><label class="flabel">Job Title</label><input class="finput" name="job_title" value="'+v((emp && emp.job_title))+'"></div>'+
         fs('Department','department_id',masters['departments']||[],(emp && emp.department_id))+
+        '<div class="fg full"><label class="flabel">Profile Photo</label>'+
+          '<div style="display:flex;align-items:center;gap:12px">'+
+            ((emp && emp.photo_url) ? '<img src="'+emp.photo_url+'" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--border)" alt="Photo">' : '<div style="width:56px;height:56px;border-radius:50%;background:var(--bg);border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:20px">👤</div>')+
+            '<div>'+
+              '<input type="file" id="emp-photo-input" accept="image/*" style="display:none" onchange="window._empPhotoPreview(this)">'+
+              '<button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById(\'emp-photo-input\').click()">📷 Upload Photo</button>'+
+              '<div id="emp-photo-preview" style="font-size:11px;color:var(--txt3);margin-top:4px"></div>'+
+              '<input type="hidden" name="photo_url" id="emp-photo-data" value="'+v((emp && emp.photo_url))+'">'+
+            '</div>'+
+          '</div>'+
+        '</div>'+
         fs('Reporting Manager','reporting_manager_id',masters['employees-lookup']||[],(emp && emp.reporting_manager_id))+
         fs('Employment Type','employment_type_id',masters['employment-types']||[],(emp && emp.employment_type_id))+
         fs('Client','client_id',masters['clients-lookup']||[],(emp && emp.client_id))+
@@ -327,6 +338,18 @@ function renderEmployeeForm(emp, masters) {
     '</form>'+
     '</div></div>'
   );
+
+  window._empPhotoPreview = function(input) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    if (file.size > 2 * 1024 * 1024) { alert('Photo must be under 2MB'); return; }
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      document.getElementById('emp-photo-data').value = ev.target.result;
+      document.getElementById('emp-photo-preview').textContent = file.name + ' (' + (file.size/1024).toFixed(0) + ' KB) — ready to save';
+    };
+    reader.readAsDataURL(file);
+  };
 
   window._empFormTab = (tab, el) => {
     activeTab = tab;
