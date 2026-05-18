@@ -76,7 +76,14 @@ def submit_my_timesheet():
     if any(k in d for k in ['mon','tue','wed','thu','fri']):
         regular_hours = sum(float(d.get(k,0) or 0) for k in ['mon','tue','wed','thu','fri','sat','sun'])
 
-    pending_id = _get_status_id('Pending')
+    # Use requested status or default to 'Pending'
+    requested_status = d.get('status', 'Pending')
+    # Map common names to canonical status names
+    status_map = {'In Progress': 'In Progress', 'Draft': 'In Progress', 
+                  'Submitted': 'Pending', 'Pending': 'Pending'}
+    canonical = status_map.get(requested_status, 'Pending')
+    status_id = _get_status_id(canonical) or _get_status_id('Pending')
+    pending_id = status_id
     emp = db_row1("SELECT reporting_manager_id, first_name, last_name FROM employees WHERE id=%s", (emp_id,))
 
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
@@ -96,7 +103,7 @@ def submit_my_timesheet():
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,NOW()) RETURNING id""",
             (emp_id, d.get('client_id'), d.get('project',''),
              d['week_ending'], regular_hours,
-             d.get('bill_rate', 0), pending_id, d.get('notes','')))
+             d.get('bill_rate', 0), status_id, d.get('notes','')))
     tid = cur.fetchone()['id']; conn.close()
 
     # Notify reporting manager

@@ -350,6 +350,7 @@ async function registerRoutes() {
   Router.route('/timesheets/new',                      load('timesheets',      'renderNew'));
   Router.route('/timesheets/approval',                load('timesheets',      'renderApproval'));
   Router.route('/timesheets/:id',                     load('timesheets',      'renderDetail'));
+  Router.route('/timesheets/:id/edit',                 load('timesheets',      'renderNew'));
   Router.route('/payroll',                            load('payroll',         'renderList'));
   Router.route('/payroll/new',                        load('payroll',         'renderNew'));
   Router.route('/payroll/:id',                        load('payroll',         'renderDetail'));
@@ -378,7 +379,7 @@ async function registerRoutes() {
   Router.route('/reports/:type',                      load('reports',         'renderReport'));
   Router.route('/bills',                              load('bills',           'renderList'));
   Router.route('/bills/:id',                           load('bills',           'renderDetail'));
-  Router.route('/audit-logs',                         load('auditlogs',       'renderList'));
+  Router.route('/audit-logs',                         load('auditlogs',       'renderHome'));
   Router.route('/admin/users',                        load('admin',           'renderUsers'));
   Router.route('/admin/users/:id',                    load('admin',           'renderUserDetail'));
   Router.route('/admin/roles',                        load('admin',           'renderRoles'));

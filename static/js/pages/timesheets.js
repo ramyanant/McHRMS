@@ -394,11 +394,17 @@ export async function renderDetail({ id }) {
   showLoader();
   try {
     var ts = await get('/timesheets/' + id);
+    var status = ts.status || 'Pending';
+    var isDraft = status === 'In Progress' || status === 'Draft';
     setPageTitle('Timesheet #' + id, ts.employee_name || '');
     setBreadcrumb([{ label: 'Timesheets', url: '/timesheets' }, { label: '#' + id }]);
     setContent(
       '<div class="page-body"><div class="card" style="max-width:640px;margin:0 auto">' +
-      '<div class="card-header"><h3 class="card-title">Timesheet Details</h3></div>' +
+      '<div class="card-header"><h3 class="card-title">Timesheet Details</h3>' +
+        (isDraft ? '<div style="display:flex;gap:8px">' +
+          '<button class="btn btn-primary btn-sm" onclick="window._submitDraft(' + id + ')">📤 Submit for Approval</button>' +
+          '</div>' : '') +
+      '</div>' +
       '<div class="card-body"><div class="field-grid">' +
         '<div class="field-item"><div class="field-label">Employee</div><div class="field-value fw-bold">' + v(ts.employee_name, '—') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Week Ending</div><div class="field-value mono">' + fmt.date(ts.week_ending) + '</div></div>' +
@@ -407,11 +413,19 @@ export async function renderDetail({ id }) {
         '<div class="field-item"><div class="field-label">Overtime Hours</div><div class="field-value mono">' + (ts.overtime_hours || 0) + 'h</div></div>' +
         '<div class="field-item"><div class="field-label">Total Hours</div><div class="field-value mono fw-bold">' + (ts.total_hours || 0) + 'h</div></div>' +
         '<div class="field-item"><div class="field-label">Bill Rate</div><div class="field-value mono">' + (ts.bill_rate ? '₹' + ts.bill_rate + '/hr' : '—') + '</div></div>' +
-        '<div class="field-item"><div class="field-label">Status</div><div class="field-value">' + badge(ts.status || 'Pending') + '</div></div>' +
+        '<div class="field-item"><div class="field-label">Status</div><div class="field-value">' + badge(status) + '</div></div>' +
         (ts.notes ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Notes</div><div class="field-value">' + v(ts.notes) + '</div></div>' : '') +
         (ts.rejection_reason ? '<div class="field-item" style="grid-column:1/-1"><div class="field-label">Rejection Reason</div><div class="field-value" style="color:var(--danger)">' + v(ts.rejection_reason) + '</div></div>' : '') +
       '</div></div></div></div>'
     );
+    if (isDraft) {
+      window._submitDraft = async function(tsId) {
+        if (!confirm('Submit this timesheet for approval?')) return;
+        await put('/timesheets/' + tsId, { status: 'Submitted' });
+        toast('Submitted for approval!', 'success');
+        navigate('/timesheets/' + tsId);
+      };
+    }
   } catch(e) { showError(e.message); }
 }
 
