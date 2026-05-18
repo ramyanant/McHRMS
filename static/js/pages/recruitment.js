@@ -166,7 +166,7 @@ export async function renderJobs() {
     window._jClient = val => { filterClient = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
     window._jSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('jobs-content').innerHTML = renderTable(); };
 
-    window._deleteJob = async (id, title) => {
+    window._deleteJob = async (id) => {
       if (!confirm('Delete job "' + title + '"?')) return;
       await put('/recruitment/jobs/' + id, { is_active: 0, status: 'Cancelled' });
       toast('Job deleted', 'info');

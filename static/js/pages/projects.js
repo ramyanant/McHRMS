@@ -83,6 +83,15 @@ export async function renderList() {
 
     render();
     window._projQ = val=>{q=val;projPage=1;render();};
+    window._deleteProject = async function(id) {
+      if(!confirm('Delete this project?')) return;
+      try {
+        await put('/projects/'+id, {is_active:0});
+        toast('Project deleted','info');
+        rows = rows.filter(function(r){ return r.id !== id; });
+        render();
+      } catch(ex){ toast(ex.message||'Failed','error'); }
+    };
     window._projFilter = val=>{filterStatus=val;projPage=1;render();};
     window._projSort = col=>{projSort===col?projDir*=-1:(projSort=col,projDir=1);render();};
     window._projPg = p=>{projPage=p;render();};

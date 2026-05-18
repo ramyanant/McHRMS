@@ -118,6 +118,15 @@ export async function renderList() {
     render();
     window._billQ      = function(val) { filterQ = val; billPage=1; render(); };
     window._billPg     = function(p) { billPage=p; render(); };
+    window._deleteBill = async function(id) {
+      if(!confirm('Delete this bill/expense?')) return;
+      try {
+        await put('/bills/'+id, {is_active:0});
+        toast('Bill deleted','info');
+        rows = rows.filter(function(r){ return r.id !== id; });
+        render();
+      } catch(ex){ toast(ex.message||'Failed','error'); }
+    };
     window._billType   = function(val) { filterType = val; render(); };
     window._billSort   = function(col) { billSort === col ? billDir *= -1 : (billSort = col, billDir = 1); render(); };
     window._billStatus = function(val) { filterStatus = val; render(); };

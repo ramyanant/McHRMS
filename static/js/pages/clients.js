@@ -101,8 +101,8 @@ export async function renderList() {
     window._cliPg   = p=>{cliPage=p;render();};
     window._cFilter = val=>{filterStatus=val;render();};
     window._cSort   = col=>{sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);render();};
-    window._deleteClient = async (id,name) => {
-      if(!confirm('Delete client "'+name+'"? This cannot be undone.')) return;
+    window._deleteClient = async (id) => {
+      if(!confirm('Delete this client? This cannot be undone.')) return;
       await put('/clients/'+id, {is_active:0});
       toast('Client deleted','info');
       renderList();

@@ -131,8 +131,8 @@ export async function renderList() {
 
     window._deleteInv = async function(id) {
       if (!confirm('Delete this invoice?')) return;
-      await put('/invoices/' + id, { status: 'Cancelled' });
-      toast('Invoice cancelled', 'info');
+      await put('/invoices/' + id, { is_active: 0 });
+      toast('Invoice deleted', 'info');
       rows.splice(rows.findIndex(function(r) { return r.id === id; }), 1);
       document.getElementById('inv-content').innerHTML = render();
     };

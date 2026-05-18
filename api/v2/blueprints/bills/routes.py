@@ -60,12 +60,16 @@ def create_bill():
 def bill_detail(bid):
     bill = db_row1("""SELECT b.*, v.name as vendor_name
         FROM bills_expenses b LEFT JOIN vendors v ON v.id=b.vendor_id
-        WHERE b.id=%s AND b.is_active=1""", (bid,))
+        WHERE b.id=%s""", (bid,))
     if not bill: return not_found("Bill/Expense")
     if request.method=='GET': return ok(bill)
     if request.method=='DELETE':
         db_execute("UPDATE bills_expenses SET is_active=0 WHERE id=%s",(bid,)); return ok(message="Deleted")
     d = request.get_json() or {}
+    # Handle is_active (delete via PUT)
+    if 'is_active' in d:
+        db_execute("UPDATE bills_expenses SET is_active=%s WHERE id=%s", (d['is_active'], bid))
+        return ok(message="Updated")
     fields=['expense_type','vendor_id','project_id','client_id','cost_centre_id',
             'amount','tax_amount','expense_date','due_date','payment_date',
             'payment_ref','payment_mode','status','description','bill_number','po_number']

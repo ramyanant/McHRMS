@@ -65,6 +65,15 @@ export async function renderList() {
 
     function render() { document.getElementById('emp-content').innerHTML=renderTbl(); }
     window._empPg=p=>{_empPage=p;render();};
+    window._deleteEmp = async function(id, _name) {
+      if(!confirm('Deactivate this employee? They will lose system access.')) return;
+      try {
+        await put('/employees/'+id, {is_active:0});
+        toast('Employee deactivated','info');
+        rows = rows.filter(function(r){ return r.id !== id; });
+        render();
+      } catch(ex){ toast(ex.message||'Failed','error'); }
+    };
 
     setContent('<div class="page-body">'+
       '<div class="struct-toolbar">'+

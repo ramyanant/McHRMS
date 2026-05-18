@@ -97,6 +97,13 @@ def invoice_detail(iid):
             "SELECT *, hours as quantity, hours * rate as amount FROM invoice_line_items WHERE invoice_id=%s ORDER BY id", (iid,))
         return ok(inv)
     d = request.get_json() or {}
+    # Handle is_active (delete/restore)
+    if 'is_active' in d:
+        db_execute("UPDATE invoices SET is_active=%s, updated_at=NOW() WHERE id=%s",
+                   (d['is_active'], iid))
+        write_audit_log('invoices', 'DELETE' if not d['is_active'] else 'UPDATE', 'invoice', iid, "Invoice deleted")
+        return ok(message="Updated")
+    # Handle status update
     new_status = d.get('status_name')
     if new_status:
         s = db_row1("SELECT id FROM master_invoice_statuses WHERE name=%s", (new_status,))
@@ -108,6 +115,14 @@ def invoice_detail(iid):
             set_clause = ', '.join(f"{k}=%s" for k in updates)
             db_execute(f"UPDATE invoices SET {set_clause}, updated_at=NOW() WHERE id=%s",
                       list(updates.values()) + [iid])
+    # Handle general field updates
+    allowed = ['invoice_number','description','period_start','period_end',
+               'due_date','po_number','notes','invoice_file_data','invoice_file_name']
+    gen_updates = {k: d[k] for k in allowed if k in d}
+    if gen_updates:
+        sc = ', '.join(f"{k}=%s" for k in gen_updates)
+        db_execute(f"UPDATE invoices SET {sc}, updated_at=NOW() WHERE id=%s",
+                  list(gen_updates.values()) + [iid])
     write_audit_log('invoices', 'UPDATE', 'invoice', iid,
                     f"Invoice updated: status={new_status}")
     return ok(message="Updated")
