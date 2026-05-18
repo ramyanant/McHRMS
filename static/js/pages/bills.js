@@ -40,7 +40,8 @@ export async function renderList() {
   try {
     var data = await get('/bills');
     var rows = data.items || [];
-    var filterStatus = '', filterType = '', filterQ = '', billSort = 'expense_date', billDir = -1;
+    var filterStatus = '', filterType = '', filterQ = '', billSort = 'expense_date', billDir = -1, billPage = 1;
+    var BILL_PER = 25;
 
     function getF() {
       var d = rows.slice();
@@ -55,7 +56,10 @@ export async function renderList() {
     var paid     = rows.filter(function(r) { return r.status === 'Paid'; }).length;
 
     function render() {
-      var d = getF();
+      var all = getF(), total = all.length, pages = Math.max(1, Math.ceil(total/BILL_PER));
+      billPage = Math.min(Math.max(1,billPage), pages);
+      var d = all.slice((billPage-1)*BILL_PER, billPage*BILL_PER);
+      var pgBar=''; if(pages>1){var bts=[];if(billPage>1)bts.push('<button class="pg-btn" onclick="window._billPg('+(billPage-1)+')">‹</button>');for(var p=Math.max(1,billPage-2);p<=Math.min(pages,billPage+2);p++)bts.push('<button class="pg-btn'+(p===billPage?' active':'')+'" onclick="window._billPg('+p+')">'+p+'</button>');if(billPage<pages)bts.push('<button class="pg-btn" onclick="window._billPg('+(billPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' bills</span></div>';}
       var tableHTML = '';
       if (!d.length) {
         tableHTML = '<div class="empty-state"><div class="empty-icon">💸</div><div class="empty-title">No bills or expenses</div>' +
@@ -84,7 +88,7 @@ export async function renderList() {
           }).join('') +
           '</tbody></table></div></div>';
       }
-      document.getElementById('bills-content').innerHTML = tableHTML;
+      document.getElementById('bills-content').innerHTML = tableHTML + pgBar;
     }
 
     setContent(
@@ -111,7 +115,8 @@ export async function renderList() {
     );
 
     render();
-    window._billQ      = function(val) { filterQ = val; render(); };
+    window._billQ      = function(val) { filterQ = val; billPage=1; render(); };
+    window._billPg     = function(p) { billPage=p; render(); };
     window._billType   = function(val) { filterType = val; render(); };
     window._billSort   = function(col) { billSort === col ? billDir *= -1 : (billSort = col, billDir = 1); render(); };
     window._billStatus = function(val) { filterStatus = val; render(); };

@@ -34,7 +34,8 @@ export async function renderList() {
     var data = await get('/invoices');
     var rows = data.items || [];
     var q = '', filterStatus = '', filterClient = '';
-    var sortCol = 'created_at', sortDir = -1;
+    var sortCol = 'created_at', sortDir = -1, invPage = 1;
+    var INV_PER = 25;
 
     var clientNames = [...new Set(rows.map(function(r) { return r.client_name; }).filter(Boolean))];
 
@@ -66,8 +67,11 @@ export async function renderList() {
     }
 
     function render() {
-      var d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices found</div></div>';
+      var all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/INV_PER));
+      invPage=Math.min(Math.max(1,invPage),pages);
+      var d=all.slice((invPage-1)*INV_PER, invPage*INV_PER);
+      if(!total) return '<div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices found</div></div>';
+      var pgBar=''; if(pages>1){var bts=[];if(invPage>1)bts.push('<button class="pg-btn" onclick="window._invPg('+(invPage-1)+')">‹</button>');for(var p=Math.max(1,invPage-2);p<=Math.min(pages,invPage+2);p++)bts.push('<button class="pg-btn'+(p===invPage?' active':'')+'" onclick="window._invPg('+p+')">'+p+'</button>');if(invPage<pages)bts.push('<button class="pg-btn" onclick="window._invPg('+(invPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' invoices</span></div>';}
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('invoice_number','Invoice #') +
         thSort('client_name','Client') +
@@ -92,7 +96,7 @@ export async function renderList() {
             '<button class="btn btn-ghost btn-xs" onclick="window._editInvRow(' + inv.id + ')">✏ Edit</button>' +
             '<button class="btn btn-danger btn-xs" onclick="window._deleteInv(' + inv.id + ')">Del</button>' +
           '</td></tr>';
-      }).join('') + '</tbody></table></div></div>';
+      }).join('') + '</tbody></table></div>'+pgBar+'</div>';
     }
 
     setContent(
@@ -118,7 +122,8 @@ export async function renderList() {
       '<div id="inv-content">' + render() + '</div></div>'
     );
 
-    window._invQ      = function(val) { q = val; document.getElementById('inv-content').innerHTML = render(); };
+    window._invQ      = function(val) { q = val; invPage=1; document.getElementById('inv-content').innerHTML = render(); };
+    window._invPg     = function(p) { invPage=p; document.getElementById('inv-content').innerHTML = render(); };
     window._invStatus = function(val) { filterStatus = val; document.getElementById('inv-content').innerHTML = render(); };
     window._invClient = function(val) { filterClient = val; document.getElementById('inv-content').innerHTML = render(); };
     window._invSort   = function(col) { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('inv-content').innerHTML = render(); };

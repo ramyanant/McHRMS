@@ -32,7 +32,8 @@ export async function renderList() {
   try {
     var data = await get('/timesheets?per_page=100');
     var rows = data.items || [];
-    var filterStatus = '', sortCol = 'week_ending', sortDir = -1;
+    var filterStatus = '', sortCol = 'week_ending', sortDir = -1, tsPage = 1;
+    var TS_PER = 25;
 
     function sorted(arr) {
       return arr.slice().sort(function(a, b) {
@@ -52,8 +53,11 @@ export async function renderList() {
     }
 
     function renderRows() {
-      var d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets found</div></div>';
+      var all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/TS_PER));
+      tsPage=Math.min(Math.max(1,tsPage),pages);
+      var d=all.slice((tsPage-1)*TS_PER,tsPage*TS_PER);
+      var pgBar=''; if(pages>1){var bts=[];if(tsPage>1)bts.push('<button class="pg-btn" onclick="window._tsPg('+(tsPage-1)+')">‹</button>');for(var p=Math.max(1,tsPage-2);p<=Math.min(pages,tsPage+2);p++)bts.push('<button class="pg-btn'+(p===tsPage?' active':'')+'" onclick="window._tsPg('+p+')">'+p+'</button>');if(tsPage<pages)bts.push('<button class="pg-btn" onclick="window._tsPg('+(tsPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' timesheets</span></div>';}
+      if (!total) return '<div class="empty-state"><div class="empty-icon">⏱</div><div class="empty-title">No timesheets found</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('employee_name', 'Employee') +
         thSort('project', 'Project / Client') +
@@ -62,15 +66,21 @@ export async function renderList() {
         thSort('status', 'Status') +
         '</tr></thead><tbody>' +
         d.map(function(t) {
+          var status = t.status || 'Pending';
+          var canEdit = status === 'In Progress' || status === 'Draft';
           return '<tr class="tbl-clickable" onclick="navigateTo(\'/timesheets/' + t.id + '\')">' +
             '<td><strong>' + v(t.employee_name, '—') + '</strong></td>' +
             '<td>' + v(t.project || t.client_name, '—') + '</td>' +
             '<td class="mono">' + fmt.date(t.week_ending) + '</td>' +
             '<td class="mono fw-bold">' + (t.total_hours || 0) + 'h</td>' +
-            '<td>' + badge(t.status || 'Pending') + '</td>' +
+            '<td>' + badge(status) + '</td>' +
+            '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+              (canEdit ? '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/timesheets/' + t.id + '/edit\')" >✏ Edit</button>' : '') +
+              '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/timesheets/' + t.id + '\')" >View</button>' +
+            '</td>' +
           '</tr>';
         }).join('') +
-        '</tbody></table></div></div>';
+        '</tbody></table></div>'+pgBar+'</div>';
     }
 
     var statusBtns = ['All', 'Pending', 'Approved', 'Rejected'].map(function(s) {
@@ -87,6 +97,7 @@ export async function renderList() {
       '</div>'
     );
 
+    window._tsPg = function(p) { tsPage=p; document.getElementById('ts-list').innerHTML = renderRows(); };
     window._tsFilter = function(status, el) {
       filterStatus = status === 'All' ? '' : status;
       document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });

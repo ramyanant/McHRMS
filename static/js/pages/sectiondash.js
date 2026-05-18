@@ -266,8 +266,33 @@ export async function renderSettingsDash() {
       quickLink('🏛', 'Organisation Profile', '/organisation/profile') +
       quickLink('🏢', 'Business Units',       '/organisation/business-units') +
       quickLink('🗂', 'Departments',          '/organisation/departments') +
-      quickLink('⚙️', 'System Settings',     '/settings') +
+    '</div>' +
+    '<div class="card" style="margin-top:24px;border:2px solid var(--danger-light,#fecaca)">' +
+      '<div class="card-header" style="background:var(--danger-light,#fff5f5)">' +
+        '<h3 class="card-title" style="color:var(--danger,#dc2626)">⚠️ Danger Zone</h3>' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">' +
+          '<div>' +
+            '<div class="fw-bold">Reset All Data</div>' +
+            '<div class="text-muted" style="font-size:12px">Permanently delete all transactional data. Master data and configuration are preserved. This cannot be undone.</div>' +
+          '</div>' +
+          '<button class="btn btn-danger" onclick="window._resetData()" style="white-space:nowrap;margin-left:16px">🗑 Reset Data</button>' +
+        '</div>' +
+      '</div>' +
     '</div>' +
     '</div>'
   );
+
+  window._resetData = async function() {
+    if (!confirm('⚠️ WARNING: This will delete ALL employees, candidates, clients, vendors, projects, invoices, timesheets and payroll data.\n\nThis action CANNOT be undone.\n\nAre you absolutely sure?')) return;
+    var confirm2 = prompt('Type RESET to confirm:');
+    if (confirm2 !== 'RESET') { alert('Reset cancelled.'); return; }
+    try {
+      var { post } = await import('../api.js');
+      await post('/admin/flush-data', { confirm: 'FLUSH-ALL-DATA' });
+      alert('✅ All data has been reset. The system is ready for a fresh start.');
+      window.location.reload();
+    } catch(e) { alert('Error: ' + e.message); }
+  };
 }

@@ -22,23 +22,26 @@ export async function renderUsers() {
     const [users, masters] = await Promise.all([get('/users'), get('/masters/all')]);
     const rows = Array.isArray(users) ? users : [];
 
-    setContent(
-      '<div class="page-body">'+
-      // Summary KPIs
-      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">'+
-        kpi('Total Users',   rows.length,                          '👤','blue')+
-        kpi('Active',        rows.filter(r=>r.is_active==1).length,'✅','green')+
-        kpi('Admins',        rows.filter(r=>r.role==='Admin').length,'🔐','purple')+
-        kpi('Locked',        rows.filter(r=>r.is_active==0).length, '🔒','amber')+
-      '</div>'+
-      '<div class="list-toolbar">'+
-        '<div></div>'+
-        '<button class="btn btn-primary" onclick="window._addUser()">+ Create User</button>'+
-      '</div>'+
-      '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-        '<th>User</th><th>Email</th><th>Role</th><th>Linked Employee</th><th>Last Login</th><th>Status</th><th>Actions</th>'+
-      '</tr></thead><tbody>'+
-      rows.map(u=>'<tr class="tbl-clickable" onclick="navigateTo(\'/admin/users/'+u.id+'\')">' +
+    let uQ='', uSortCol='full_name', uSortDir=1, uPage=1;
+    const U_PER=25;
+
+    function getU() {
+      let d=[...rows];
+      if(uQ) d=d.filter(r=>(r.full_name+' '+r.username+' '+r.email+' '+(r.role||'')).toLowerCase().includes(uQ.toLowerCase()));
+      return d.slice().sort((a,b)=>String(a[uSortCol]||'').localeCompare(String(b[uSortCol]||''))*uSortDir);
+    }
+    function thU(col,label){const arr=uSortCol===col?(uSortDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._uSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+    function renderU() {
+      const all=getU(), total=all.length, pages=Math.max(1,Math.ceil(total/U_PER));
+      uPage=Math.min(Math.max(1,uPage),pages);
+      const d=all.slice((uPage-1)*U_PER,uPage*U_PER);
+      let pgBar=''; if(pages>1){let bts=[];if(uPage>1)bts.push('<button class="pg-btn" onclick="window._uPg('+(uPage-1)+')">‹</button>');for(let p=Math.max(1,uPage-2);p<=Math.min(pages,uPage+2);p++)bts.push('<button class="pg-btn'+(p===uPage?' active':'')+'" onclick="window._uPg('+p+')">'+p+'</button>');if(uPage<pages)bts.push('<button class="pg-btn" onclick="window._uPg('+(uPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' users</span></div>';}
+      document.getElementById('users-table').innerHTML =
+        '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+          thU('full_name','User')+thU('email','Email')+thU('role','Role')+
+          '<th>Linked Employee</th>'+thU('last_login','Last Login')+thU('is_active','Status')+'<th>Actions</th>'+
+        '</tr></thead><tbody>'+
+        d.map(u=>'<tr class="tbl-clickable" onclick="navigateTo(\'/admin/users/'+u.id+'\')">' +
         '<td><div class="cell-person">'+
           '<div class="av av-sm av-blue">'+fmt.ini(u.full_name||u.username)+'</div>'+
           '<div><div class="cell-name">'+v(u.full_name||u.username)+'</div>'+
@@ -56,10 +59,28 @@ export async function renderUsers() {
             ? '<button class="btn btn-danger btn-xs" onclick="window._deactivate('+u.id+')">Deactivate</button>'
             : '<button class="btn btn-ghost btn-xs" onclick="window._activate('+u.id+')">Activate</button>')+
         '</td></tr>'
-      ).join('')+'</tbody></table></div></div>'+
+      ).join('')+'</tbody></table></div>'+pgBar+'</div>';
+    }
+
+    setContent(
+      '<div class="page-body">'+
+      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">'+
+        kpi('Total Users',   rows.length,                          '👤','blue')+
+        kpi('Active',        rows.filter(r=>r.is_active==1).length,'✅','green')+
+        kpi('Admins',        rows.filter(r=>r.role==='Admin').length,'🔐','purple')+
+        kpi('Locked',        rows.filter(r=>r.is_active==0).length, '🔒','amber')+
+      '</div>'+
+      '<div class="struct-toolbar">'+
+        '<input class="search-input" placeholder="Search users…" oninput="window._uQ(this.value)" style="width:220px">'+
+        '<button class="btn btn-primary" onclick="window._addUser()">+ Create User</button>'+
+      '</div>'+
+      '<div id="users-table"></div>'+
       '</div>'
     );
-
+    renderU();
+    window._uQ     = val=>{uQ=val;uPage=1;renderU();};
+    window._uSort  = col=>{uSortCol===col?uSortDir*=-1:(uSortCol=col,uSortDir=1);renderU();};
+    window._uPg    = p=>{uPage=p;renderU();};
     window._addUser    = () => userModal(null, masters);
     window._editUser   = id => userModal(rows.find(r=>r.id===id), masters);
     window._resetPwd   = id => resetPwdModal(id, masters);

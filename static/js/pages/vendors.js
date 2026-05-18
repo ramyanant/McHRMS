@@ -20,7 +20,8 @@ export async function renderList() {
   try {
     const [data, masters] = await Promise.all([get('/vendors'), get('/masters/all')]);
     const rows = data.items || [];
-    let q='', filterStatus='', filterCat='', sortCol='name', sortDir=1;
+    let q='', filterStatus='', filterCat='', sortCol='name', sortDir=1, venPage=1;
+    const VEN_PER=25;
 
     const categories = [...new Set(rows.map(r=>r.category_name).filter(Boolean))];
 
@@ -34,8 +35,11 @@ export async function renderList() {
     }
 
     function render() {
-      const d=getF();
-      if(!d.length){document.getElementById('vendors-content').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">No vendors found</div></div>';return;}
+      const all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/VEN_PER));
+      venPage=Math.min(Math.max(1,venPage),pages);
+      const d=all.slice((venPage-1)*VEN_PER,venPage*VEN_PER);
+      let pgBar=''; if(pages>1){let bts=[];if(venPage>1)bts.push('<button class="pg-btn" onclick="window._venPg('+(venPage-1)+')">‹</button>');for(let p=Math.max(1,venPage-2);p<=Math.min(pages,venPage+2);p++)bts.push('<button class="pg-btn'+(p===venPage?' active':'')+'" onclick="window._venPg('+p+')">'+p+'</button>');if(venPage<pages)bts.push('<button class="pg-btn" onclick="window._venPg('+(venPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' vendors</span></div>';}
+      if(!total){document.getElementById('vendors-content').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">No vendors found</div></div>';return;}
       document.getElementById('vendors-content').innerHTML =
         '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
           '<th class="sortable" onclick="window._vSort(\'name\')">Vendor ⇅</th>'+
@@ -68,7 +72,7 @@ export async function renderList() {
             '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/vendors/'+ven.id+'\')" >✏ Edit</button>'+
             '<button class="btn btn-danger btn-xs" onclick="window._deleteVendor('+ven.id+')">Delete</button>'+
           '</td></tr>'
-        ).join('')+'</tbody></table></div></div>';
+        ).join('')+'</tbody></table></div>'+pgBar+'</div>';
     }
 
     setContent(
@@ -92,6 +96,7 @@ export async function renderList() {
     window._vFilter = val=>{filterStatus=val;render();};
     window._vCat    = val=>{filterCat=val;render();};
     window._vSort   = col=>{sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);render();};
+    window._venPg    = p=>{venPage=p;render();};
     window._deleteVendor = async (id) => {
       if(!confirm('Delete this vendor?')) return;
       await put('/vendors/'+id, {is_active:0});

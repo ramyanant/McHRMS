@@ -23,7 +23,8 @@ export async function renderList() {
   try {
     const data = await get('/clients');
     const rows = data.items || [];
-    let q='', filterStatus='', sortCol='name', sortDir=1;
+    let q='', filterStatus='', sortCol='name', sortDir=1, cliPage=1;
+    const CLI_PER=25;
 
     function getF() {
       let d=[...rows];
@@ -34,8 +35,11 @@ export async function renderList() {
     }
 
     function render() {
-      const d=getF();
-      if(!d.length){document.getElementById('clients-content').innerHTML='<div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">No clients found</div></div>';return;}
+      const all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/CLI_PER));
+      cliPage=Math.min(Math.max(1,cliPage),pages);
+      const d=all.slice((cliPage-1)*CLI_PER,cliPage*CLI_PER);
+      if(!total){document.getElementById('clients-content').innerHTML='<div class="empty-state"><div class="empty-icon">🤝</div><div class="empty-title">No clients found</div></div>';return;}
+      let pgBar=''; if(pages>1){let bts=[];if(cliPage>1)bts.push('<button class="pg-btn" onclick="window._cliPg('+(cliPage-1)+')">‹</button>');for(let p=Math.max(1,cliPage-2);p<=Math.min(pages,cliPage+2);p++)bts.push('<button class="pg-btn'+(p===cliPage?' active':'')+'" onclick="window._cliPg('+p+')">'+p+'</button>');if(cliPage<pages)bts.push('<button class="pg-btn" onclick="window._cliPg('+(cliPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' clients</span></div>';}
       document.getElementById('clients-content').innerHTML =
         '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
           '<th class="sortable" onclick="window._cSort(\'name\')">Client ⇅</th>'+
@@ -70,7 +74,7 @@ export async function renderList() {
             '<button class="btn btn-primary btn-xs" onclick="navigateTo(\'/clients/'+c.id+'\')" >✏ Edit</button>'+
             '<button class="btn btn-danger btn-xs" onclick="window._deleteClient('+c.id+')">Delete</button>'+
           '</td></tr>'
-        ).join('')+'</tbody></table></div></div>';
+        ).join('')+'</tbody></table></div>'+pgBar+'</div>';
     }
 
     setContent(
@@ -93,7 +97,8 @@ export async function renderList() {
       '<div id="clients-content"></div></div>'
     );
     render();
-    window._cQ      = val=>{q=val;render();};
+    window._cQ      = val=>{q=val;cliPage=1;render()};
+    window._cliPg   = p=>{cliPage=p;render();};
     window._cFilter = val=>{filterStatus=val;render();};
     window._cSort   = col=>{sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);render();};
     window._deleteClient = async (id,name) => {

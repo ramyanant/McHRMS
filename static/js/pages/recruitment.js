@@ -85,7 +85,8 @@ export async function renderJobs() {
     const employees = masters['employees-lookup'] || [];
 
     let filterStatus = '', filterClient = '', q = '';
-    let sortCol = 'created_at', sortDir = -1;
+    let sortCol = 'created_at', sortDir = -1, jobPage = 1;
+    const JOB_PER = 25;
 
     const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))];
     const clients  = [...new Set(rows.map(r => r.client_name).filter(Boolean))];
@@ -106,8 +107,11 @@ export async function renderJobs() {
     }
 
     function renderTable() {
-      const d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No jobs found</div></div>';
+      const all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/JOB_PER));
+      jobPage=Math.min(Math.max(1,jobPage),pages);
+      const d=all.slice((jobPage-1)*JOB_PER,jobPage*JOB_PER);
+      let pgBar=''; if(pages>1){let bts=[];if(jobPage>1)bts.push('<button class="pg-btn" onclick="window._jobPg('+(jobPage-1)+')">‹</button>');for(let p=Math.max(1,jobPage-2);p<=Math.min(pages,jobPage+2);p++)bts.push('<button class="pg-btn'+(p===jobPage?' active':'')+'" onclick="window._jobPg('+p+')">'+p+'</button>');if(jobPage<pages)bts.push('<button class="pg-btn" onclick="window._jobPg('+(jobPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' jobs</span></div>';}
+      if (!total) return '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-title">No jobs found</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('title','Job Title') +
         thSort('client_name','Client') +
@@ -134,7 +138,7 @@ export async function renderJobs() {
           '<button class="btn btn-danger btn-xs" onclick="window._deleteJob(' + j.id + ') ">Del</button>' +
         '</td></tr>';
       }).join('') +
-      '</tbody></table></div></div>';
+      '</tbody></table></div>'+pgBar+'</div>';
     }
 
     setContent(
@@ -155,7 +159,8 @@ export async function renderJobs() {
       '</div>'
     );
 
-    window._jQ      = val => { q = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
+    window._jQ      = val => { q = val; jobPage=1; document.getElementById('jobs-content').innerHTML = renderTable(); };
+    window._jobPg   = p => { jobPage=p; document.getElementById('jobs-content').innerHTML = renderTable(); };
     window._jStat   = val => { filterStatus = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
     window._jClient = val => { filterClient = val; document.getElementById('jobs-content').innerHTML = renderTable(); };
     window._jSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('jobs-content').innerHTML = renderTable(); };
@@ -460,8 +465,11 @@ export async function renderCandidates() {
     }
 
     function renderTable() {
-      const d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">No candidates found</div></div>';
+      const all=getF(), total=all.length, pages=Math.max(1,Math.ceil(total/CAND_PER));
+      candPage=Math.min(Math.max(1,candPage),pages);
+      const d=all.slice((candPage-1)*CAND_PER,candPage*CAND_PER);
+      let pgBar=''; if(pages>1){let bts=[];if(candPage>1)bts.push('<button class="pg-btn" onclick="window._candPg('+(candPage-1)+')">‹</button>');for(let p=Math.max(1,candPage-2);p<=Math.min(pages,candPage+2);p++)bts.push('<button class="pg-btn'+(p===candPage?' active':'')+'" onclick="window._candPg('+p+')">'+p+'</button>');if(candPage<pages)bts.push('<button class="pg-btn" onclick="window._candPg('+(candPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' candidates</span></div>';}
+      if (!total) return '<div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">No candidates found</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('first_name','Candidate') +
         thSort('current_title','Title / Company') +
@@ -494,7 +502,7 @@ export async function renderCandidates() {
             '<button class="btn btn-danger btn-xs" onclick="window._deleteCandidate(' + c.id + ')">Del</button>' +
           '</td></tr>';
       }).join('') +
-      '</tbody></table></div></div>';
+      '</tbody></table></div>'+pgBar+'</div>';
     }
 
     setContent(
@@ -521,7 +529,8 @@ export async function renderCandidates() {
       '</div>'
     );
 
-    window._cQ      = val => { q = val; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._cQ      = val => { q = val; candPage=1; document.getElementById('cand-content').innerHTML = renderTable(); };
+    window._candPg  = p => { candPage=p; document.getElementById('cand-content').innerHTML = renderTable(); };
     window._cStat   = val => { filterStatus = val; document.getElementById('cand-content').innerHTML = renderTable(); };
     window._cRating = val => { filterRating = val; document.getElementById('cand-content').innerHTML = renderTable(); };
     window._cAvail  = val => { filterAvail  = val; document.getElementById('cand-content').innerHTML = renderTable(); };
@@ -1164,24 +1173,61 @@ export async function renderOnboarding() {
   setBreadcrumb([{ label:'Talent Acquisition', url:'/recruitment' }, { label:'Onboarding' }]);
   showLoader();
   try {
-    const rows = await get('/onboarding');
-    const data = Array.isArray(rows) ? rows : [];
-    setContent('<div class="page-body">'+
-      '<div class="list-toolbar"><div class="struct-stat">'+data.length+' <span>Active</span></div>'+
-        '<button class="btn btn-primary" onclick="window._startOnboarding()">+ Start Onboarding</button></div>'+
-      (data.length
-        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr><th>Person</th><th>Type</th><th>Start Date</th><th>Progress</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+
-          data.map(o=>'<tr class="tbl-clickable" onclick="navigateTo(\'/onboarding/'+o.id+'\')">' +
-            '<td><strong>'+(o.employee_name||o.candidate_name||'—')+'</strong><div class="cell-sub">'+v(o.emp_id||'')+'</div></td>'+
-            '<td>'+badge(o.person_type||'employee')+'</td>'+
-            '<td>'+fmt.date(o.start_date)+'</td>'+
-            '<td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden"><div style="width:'+(o.progress_pct||0)+'%;height:100%;background:var(--green);border-radius:3px"></div></div><span style="font-size:12px">'+(o.progress_pct||0)+'%</span></div></td>'+
+    const res  = await get('/onboarding');
+    const rows = Array.isArray(res) ? res : (res.items || []);
+    let q='', filterStatus='', obSort='start_date', obDir=-1;
+
+    function getOb() {
+      let d=[...rows];
+      if(q) d=d.filter(r=>(r.employee_name+' '+r.candidate_name+' '+(r.status||'')).toLowerCase().includes(q.toLowerCase()));
+      if(filterStatus) d=d.filter(r=>r.status===filterStatus);
+      return d.slice().sort((a,b)=>String(a[obSort]||'').localeCompare(String(b[obSort]||''))*obDir);
+    }
+    function thOb(col,label){const arr=obSort===col?(obDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._obSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+
+    function renderOb() {
+      const d=getOb();
+      const statuses=[...new Set(rows.map(r=>r.status).filter(Boolean))];
+      document.getElementById('ob-content').innerHTML = d.length
+        ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
+            thOb('employee_name','Person')+thOb('person_type','Type')+thOb('start_date','Start Date')+
+            thOb('status','Status')+'<th>IT</th><th>HR</th><th>Mgr</th><th>Actions</th>'+
+          '</tr></thead><tbody>'+
+          d.map(o=>'<tr class="tbl-clickable" onclick="navigateTo(\'/onboarding/'+o.id+'\')">'+
+            '<td><strong>'+v(o.employee_name||o.candidate_name||'—')+'</strong></td>'+
+            '<td><span class="badge badge-'+(o.person_type==='employee'?'blue':'purple')+'">'+v(o.person_type||'employee')+'</span></td>'+
+            '<td class="mono">'+fmt.date(o.start_date)+'</td>'+
             '<td>'+badge(o.status||'In Progress')+'</td>'+
-            '<td class="tbl-actions" onclick="event.stopPropagation()"><button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/onboarding/'+o.id+'\')">View</button></td>'+
-          '</tr>').join('')+'</tbody></table></div></div>'
-        : '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">No active onboarding</div></div>')+
-      '</div>');
-    window._startOnboarding = () => {
+            '<td>'+badge(o.it_setup_status||'Pending')+'</td>'+
+            '<td>'+badge(o.hr_induction_status||'Pending')+'</td>'+
+            '<td>'+badge(o.manager_intro_status||'Pending')+'</td>'+
+            '<td class="tbl-actions" onclick="event.stopPropagation()">'+
+              '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/onboarding/'+o.id+'\')">View</button>'+
+              '<button class="btn btn-danger btn-xs" onclick="window._delOb('+o.id+')">Delete</button>'+
+            '</td></tr>'
+          ).join('')+'</tbody></table></div></div>'
+        : '<div class="empty-state"><div class="empty-icon">🚀</div><div class="empty-title">No onboarding in progress</div></div>';
+    }
+
+    setContent('<div class="page-body">'+
+      '<div class="struct-toolbar">'+
+        '<div style="display:flex;gap:8px">'+
+          '<input class="search-input" placeholder="Search…" oninput="window._obQ(this.value)" style="width:200px">'+
+          '<select class="fselect" style="width:130px" onchange="window._obStatus(this.value)">'+
+            '<option value="">All Status</option>'+
+            ['In Progress','Completed','On Hold','Cancelled'].map(s=>'<option>'+s+'</option>').join('')+
+          '</select>'+
+        '</div>'+
+        '<button class="btn btn-primary" onclick="window._startOnboarding()">+ Start Onboarding</button>'+
+      '</div>'+
+      '<div id="ob-content"></div></div>');
+
+    renderOb();
+    window._obQ      = val=>{q=val;renderOb();};
+    window._obStatus = val=>{filterStatus=val;renderOb();};
+    window._obSort   = col=>{obSort===col?obDir*=-1:(obSort=col,obDir=1);renderOb();};
+    window._delOb    = async id=>{if(!confirm('Remove this onboarding record?'))return;await put('/onboarding/'+id,{status:'Cancelled'});toast('Removed','info');rows.splice(rows.findIndex(r=>r.id===id),1);renderOb();};
+    window._startOnboarding = () => { try {
       openModal({
         title: '+ Start Onboarding', size: 'md',
         body: '<form id="onb-form" class="form-grid-sm">'+
@@ -1215,6 +1261,7 @@ export async function renderOnboarding() {
           get('/candidates').then(res=>{const s=container.querySelector('select');if(s)s.innerHTML='<option value="">Select candidate…</option>'+(res.items||[]).map(c=>'<option value="'+c.id+'">'+v(c.first_name+' '+c.last_name)+'</option>').join('');});
         }
       };
+  } catch(startErr) { toast(startErr.message,'error'); }
     };
   } catch(e) { showError(e.message); }
 }
