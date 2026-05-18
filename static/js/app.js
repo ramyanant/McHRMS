@@ -285,15 +285,54 @@ function updateSidebarActive() {
 
 function buildTopbar() {
   document.getElementById('topbar').innerHTML =
-    '<div class="topbar-left"><div id="breadcrumb" class="breadcrumb"></div></div>' +
+    '<div class="topbar-left">' +
+      '<button class="hamburger-btn" id="hamburger-btn" onclick="window._toggleSidebar()" aria-label="Toggle menu">'+
+        '<span></span><span></span><span></span>'+
+      '</button>' +
+      '<div id="breadcrumb" class="breadcrumb"></div>' +
+    '</div>' +
     '<div class="topbar-right">' +
       '<div class="search-wrap"><input class="topbar-search" id="global-search" placeholder="Search…" type="search"></div>' +
       '<button class="btn-icon notif-btn" id="notif-btn" title="Notifications">&#128276;<span class="notif-badge" id="notif-badge" style="display:none">0</span></button>' +
     '</div>';
+  // Overlay for mobile drawer
+  if (!document.getElementById('sidebar-overlay')) {
+    var ov = document.createElement('div');
+    ov.id = 'sidebar-overlay';
+    ov.className = 'sidebar-overlay';
+    ov.onclick = function() { window._closeSidebar(); };
+    document.body.appendChild(ov);
+  }
 }
 
 // ── Global navigation helper ──────────────────────────────────
 window.navigateTo = (path) => Router.navigate(path);
+
+// ── Mobile sidebar toggle ──────────────────────────────────────
+window._toggleSidebar = function() {
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sidebar-overlay');
+  var isOpen = sb && sb.classList.contains('sidebar-open');
+  if (isOpen) { window._closeSidebar(); }
+  else {
+    if (sb) sb.classList.add('sidebar-open');
+    if (ov) ov.classList.add('active');
+    document.body.classList.add('sidebar-is-open');
+  }
+};
+window._closeSidebar = function() {
+  var sb = document.getElementById('sidebar');
+  var ov = document.getElementById('sidebar-overlay');
+  if (sb) sb.classList.remove('sidebar-open');
+  if (ov) ov.classList.remove('active');
+  document.body.classList.remove('sidebar-is-open');
+};
+// Close sidebar on navigation (mobile)
+var _origNavigate = window.navigateTo;
+window.navigateTo = function(path) {
+  window._closeSidebar();
+  _origNavigate(path);
+};
 
 function fmtIni(name) {
   return (name || '').split(' ').map(function(w) { return w[0]; }).join('').slice(0,2).toUpperCase();

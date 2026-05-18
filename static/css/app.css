@@ -457,18 +457,8 @@ input, select, textarea { font: inherit; }
 .prose { line-height: 1.7; white-space: pre-wrap; }
 
 /* ── Responsive ──────────────────────────────────── */
-@media (max-width: 1024px) {
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .detail-layout { grid-template-columns: 1fr; }
-  .field-grid { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 768px) {
-  :root { --sidebar-w: 0px; }
-  #sidebar { display: none; }
-  .kpi-grid { grid-template-columns: 1fr 1fr; }
-  .form-grid { grid-template-columns: 1fr; }
-}
+
+
 
 /* ═══════════════════════════════════════════════════════════
    ORGANISATION PROFILE — LinkedIn-style enterprise layout
@@ -579,15 +569,8 @@ input, select, textarea { font: inherit; }
 .field-grid-3 { grid-template-columns: repeat(3, 1fr); }
 
 /* Responsive */
-@media (max-width: 1024px) {
-  .org-profile-layout { grid-template-columns: 1fr; }
-  .org-sidebar { position: static; }
-  .field-grid-3 { grid-template-columns: 1fr 1fr; }
-}
-@media (max-width: 640px) {
-  .field-grid-3 { grid-template-columns: 1fr; }
-  .multi-grid   { grid-template-columns: 1fr; }
-}
+
+
 
 /* ═══════════════════════════════════════════════════════════
    ORG STRUCTURE — Business Units, Departments, CCs, Locations
@@ -679,11 +662,7 @@ input, select, textarea { font: inherit; }
 .field-hint-inline { font-size: 10px; color: var(--txt3); font-weight: 400; }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .struct-grid { grid-template-columns: 1fr; }
-  .struct-toolbar { flex-direction: column; align-items: flex-start; }
-  .struct-summary { flex-wrap: wrap; }
-}
+
 
 /* ═══════════════════════════════════════════════════════════
    FIXES: Darker labels, org structure improvements
