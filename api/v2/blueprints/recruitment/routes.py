@@ -574,3 +574,54 @@ def recruitment_stats():
         'offers_pending':    0,
         'onboarding_pending':db_row1("SELECT COUNT(*) as n FROM onboarding WHERE status='In Progress'")['n'],
     })
+
+# ═══════════════════════════════════════════════════════════════
+# DOCUMENT ENDPOINTS
+# ═══════════════════════════════════════════════════════════════
+@rec_bp.route('/candidates/<int:cid>/documents', methods=['GET','POST'])
+@require_auth
+def candidate_docs(cid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM candidate_documents
+                WHERE candidate_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (cid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        db_execute("""INSERT INTO candidate_documents
+            (candidate_id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, d.get('doc_type','Resume'), d.get('doc_name','Document'),
+             d.get('file_size'), d.get('mime_type'), d.get('file_data'),
+             d.get('notes'), g.user.get('id')))
+        return created(message="Document uploaded")
+    except Exception as ex: return err(str(ex))
+
+@rec_bp.route('/candidates/<int:cid>/documents/<int:did>', methods=['DELETE'])
+@require_auth
+def candidate_doc_detail(cid, did):
+    db_execute("UPDATE candidate_documents SET is_active=0 WHERE id=%s AND candidate_id=%s", (did, cid))
+    return ok(message="Deleted")
+
+@rec_bp.route('/recruitment/jobs/<int:jid>/documents', methods=['GET','POST'])
+@require_auth
+def job_docs(jid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM job_documents
+                WHERE job_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (jid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        db_execute("""INSERT INTO job_documents
+            (job_id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (jid, d.get('doc_type','JD'), d.get('doc_name','Document'),
+             d.get('file_size'), d.get('mime_type'), d.get('file_data'),
+             d.get('notes'), g.user.get('id')))
+        return created(message="Document uploaded")
+    except Exception as ex: return err(str(ex))

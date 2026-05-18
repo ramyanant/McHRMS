@@ -128,3 +128,30 @@ def invoice_summary():
             LEFT JOIN invoices i ON i.status_id=s.id
             GROUP BY s.name ORDER BY s.name"""),
     })
+
+@inv_bp.route('/invoices/<int:iid>/documents', methods=['GET','POST'])
+@require_auth
+def invoice_docs(iid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM invoice_documents
+                WHERE invoice_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (iid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        db_execute("""INSERT INTO invoice_documents
+            (invoice_id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (iid, d.get('doc_type','Invoice'), d.get('doc_name','Document'),
+             d.get('file_size'), d.get('mime_type'), d.get('file_data'),
+             d.get('notes'), g.user.get('id')))
+        return created(message="Document uploaded")
+    except Exception as ex: return err(str(ex))
+
+@inv_bp.route('/invoices/<int:iid>/documents/<int:did>', methods=['DELETE'])
+@require_auth
+def invoice_doc_detail(iid, did):
+    db_execute("UPDATE invoice_documents SET is_active=0 WHERE id=%s AND invoice_id=%s", (did, iid))
+    return ok(message="Deleted")

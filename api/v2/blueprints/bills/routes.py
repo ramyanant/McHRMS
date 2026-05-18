@@ -86,3 +86,30 @@ def bills_summary():
         'pending':   db_row1("SELECT COUNT(*) as n FROM bills_expenses WHERE status='Draft' AND is_active=1")['n'],
         'by_type':   db_rows("SELECT expense_type, COUNT(*) as count, COALESCE(SUM(total_amount),0) as amount FROM bills_expenses WHERE is_active=1 GROUP BY expense_type ORDER BY amount DESC"),
     })
+
+@bills_bp.route('/bills/<int:bid>/documents', methods=['GET','POST'])
+@require_auth
+def bill_docs(bid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, notes FROM bill_documents
+                WHERE bill_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (bid,))
+            return ok(docs)
+        except Exception: return ok([])
+    d = request.get_json() or {}
+    try:
+        db_execute("""INSERT INTO bill_documents
+            (bill_id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (bid, d.get('doc_type','Bill'), d.get('doc_name','Document'),
+             d.get('file_size'), d.get('mime_type'), d.get('file_data'),
+             d.get('notes'), g.user.get('id')))
+        return created(message="Document uploaded")
+    except Exception as ex: return err(str(ex))
+
+@bills_bp.route('/bills/<int:bid>/documents/<int:did>', methods=['DELETE'])
+@require_auth
+def bill_doc_detail(bid, did):
+    db_execute("UPDATE bill_documents SET is_active=0 WHERE id=%s AND bill_id=%s", (did, bid))
+    return ok(message="Deleted")

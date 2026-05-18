@@ -2,6 +2,7 @@
  * Invoices — Manual invoice number, description, file upload, Edit button, filters
  */
 import { get, post, put } from '../api.js';
+import { renderDocsTab, docsTabHtml } from '../docs.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -191,8 +192,14 @@ export async function renderDetail({ id }) {
         '<div class="field-item"><div class="field-label">Period</div><div class="field-value">' + fmt.date(inv.period_start) + ' – ' + fmt.date(inv.period_end) + '</div></div>' +
         '<div class="field-item"><div class="field-label">Currency</div><div class="field-value">' + v(inv.currency, 'INR') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Notes</div><div class="field-value">' + v(inv.notes, '—') + '</div></div>' +
-      '</div></div></div></div></div>'
+      '</div></div></div>' +
+      '<div class="card" style="margin-top:16px">' +
+        '<div class="card-header"><h3 class="card-title">📄 Documents</h3></div>' +
+        '<div class="card-body">' + docsTabHtml('inv-docs-' + id) + '</div>' +
+      '</div>' +
+      '</div></div>'
     );
+    setTimeout(function() { renderDocsTab('inv-docs-' + id, '/invoices/' + id + '/documents', ['Invoice','PO','Delivery Note','Agreement','Other']); }, 100);
 
     window._editInv = async function() {
       var masters = await get('/masters/all');

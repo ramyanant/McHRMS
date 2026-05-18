@@ -4,6 +4,7 @@
  *         #14 Submit to job, #15 Schedule interview, #16 Offers, #17 Onboarding
  */
 import { get, post, put } from '../api.js';
+import { renderDocsTab, docsTabHtml } from '../docs.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';

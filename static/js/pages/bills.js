@@ -2,6 +2,7 @@
  * Bills & Expenses — Zero backticks, zero optional chaining
  */
 import { get, post, put } from '../api.js';
+import { renderDocsTab, docsTabHtml } from '../docs.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -186,6 +187,7 @@ export async function renderDetail({ id }) {
     window._editBill = async function() {
       billModal(bill, masters);
     };
+    setTimeout(function() { renderDocsTab('bill-docs-' + id, '/bills/' + id + '/documents', ['Bill','Receipt','Invoice','Contract','Other']); }, 100);
     window._updateStatus = async function(status) {
       await put('/bills/' + id, { status: status });
       toast(bill.expense_type + ' ' + status.toLowerCase(), 'success');

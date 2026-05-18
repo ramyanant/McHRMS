@@ -205,6 +205,34 @@ def _run_migrations(app):
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS description TEXT",
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_data TEXT",
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_name TEXT",
+            # Document tables for candidates, jobs, invoices, bills
+            """CREATE TABLE IF NOT EXISTS candidate_documents (
+                id SERIAL PRIMARY KEY, candidate_id INTEGER REFERENCES candidates(id),
+                doc_type TEXT DEFAULT 'Resume', doc_name TEXT NOT NULL,
+                file_size TEXT, mime_type TEXT, file_data TEXT,
+                notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
+                is_active INTEGER DEFAULT 1)""",
+            """CREATE TABLE IF NOT EXISTS job_documents (
+                id SERIAL PRIMARY KEY, job_id INTEGER REFERENCES job_requisitions(id),
+                doc_type TEXT DEFAULT 'JD', doc_name TEXT NOT NULL,
+                file_size TEXT, mime_type TEXT, file_data TEXT,
+                notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
+                is_active INTEGER DEFAULT 1)""",
+            """CREATE TABLE IF NOT EXISTS invoice_documents (
+                id SERIAL PRIMARY KEY, invoice_id INTEGER REFERENCES invoices(id),
+                doc_type TEXT DEFAULT 'Invoice', doc_name TEXT NOT NULL,
+                file_size TEXT, mime_type TEXT, file_data TEXT,
+                notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
+                is_active INTEGER DEFAULT 1)""",
+            """CREATE TABLE IF NOT EXISTS bill_documents (
+                id SERIAL PRIMARY KEY, bill_id INTEGER REFERENCES bills(id),
+                doc_type TEXT DEFAULT 'Bill', doc_name TEXT NOT NULL,
+                file_size TEXT, mime_type TEXT, file_data TEXT,
+                notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
+                is_active INTEGER DEFAULT 1)""",
+            # Ensure file_data column on client_documents
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
             # Payroll
             """CREATE TABLE IF NOT EXISTS payroll_runs (
                 id SERIAL PRIMARY KEY, month INTEGER NOT NULL, year INTEGER NOT NULL,

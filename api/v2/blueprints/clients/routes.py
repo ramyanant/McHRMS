@@ -110,16 +110,28 @@ def lookup_clients():
     return ok(db_rows("SELECT id, name FROM clients WHERE is_active=1 ORDER BY name"))
 
 
-@clients_bp.route('/clients/<int:cid>/documents', methods=['GET'])
+@clients_bp.route('/clients/<int:cid>/documents', methods=['GET','POST'])
 @require_auth
 def client_documents(cid):
+    if request.method == 'GET':
+        try:
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+                uploaded_at, expiry_date, notes FROM client_documents
+                WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (cid,))
+            return ok(docs)
+        except Exception:
+            return ok([])
+    d = request.get_json() or {}
     try:
-        docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
-            uploaded_at, expiry_date, notes FROM client_documents
-            WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (cid,))
-        return ok(docs)
-    except Exception:
-        return ok([])
+        db_execute("""INSERT INTO client_documents
+            (client_id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (cid, d.get('doc_type','Other'), d.get('doc_name','Document'),
+             d.get('file_size'), d.get('mime_type'), d.get('file_data'),
+             d.get('notes'), g.user.get('id')))
+        return created(message="Document uploaded")
+    except Exception as ex:
+        return err(str(ex))
 
 @clients_bp.route('/clients/<int:cid>/documents', methods=['POST'])
 @require_auth
