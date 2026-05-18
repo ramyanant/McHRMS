@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found, forbidden
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-people_bp = Blueprint('people', __name__, url_prefix='/api/v1')
+people_bp = Blueprint('people', __name__, url_prefix='/api/v2')
 
 # ── Employee List ─────────────────────────────────────────────
 @people_bp.route('/employees', methods=['GET'])

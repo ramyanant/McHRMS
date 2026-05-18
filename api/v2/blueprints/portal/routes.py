@@ -5,7 +5,7 @@ from ...middleware.auth import require_auth
 from ...utils.responses import ok, err, not_found
 from datetime import datetime
 
-portal_bp = Blueprint('portal', __name__, url_prefix='/api/v1/portal')
+portal_bp = Blueprint('portal', __name__, url_prefix='/api/v2/portal')
 
 def _get_emp_id():
     emp_id = g.user.get('employee_id')

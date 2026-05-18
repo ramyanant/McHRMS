@@ -7,7 +7,7 @@ from ...middleware.auth import require_auth
 from ...utils.responses import ok, created, err, not_found
 import json, datetime
 
-payroll_bp = Blueprint('payroll', __name__, url_prefix='/api/v1')
+payroll_bp = Blueprint('payroll', __name__, url_prefix='/api/v2')
 
 def _ensure_payroll():
     """Create payroll tables if they don't exist yet."""

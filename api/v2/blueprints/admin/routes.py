@@ -5,7 +5,7 @@ from ...middleware.auth import require_auth, require_role
 from ...utils.responses import ok, err, not_found
 from ...utils.pagination import get_page_params
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/api/v1/admin')
+admin_bp = Blueprint('admin', __name__, url_prefix='/api/v2/admin')
 
 @admin_bp.route('/audit-logs')
 @require_auth

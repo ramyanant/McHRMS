@@ -7,7 +7,7 @@ from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err
 from ...utils.validators import validate, ValidationError
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/api/v1/auth')
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/v2/auth')
 
 
 def _ensure_user_columns():

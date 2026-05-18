@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-rec_bp = Blueprint('recruitment', __name__, url_prefix='/api/v1')
+rec_bp = Blueprint('recruitment', __name__, url_prefix='/api/v2')
 
 # ═══════════════════════════════════════════════════════════════
 # JOB REQUISITIONS

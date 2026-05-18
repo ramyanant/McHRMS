@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-vendors_bp = Blueprint('vendors', __name__, url_prefix='/api/v1')
+vendors_bp = Blueprint('vendors', __name__, url_prefix='/api/v2')
 
 @vendors_bp.route('/vendors', methods=['GET'])
 @require_auth

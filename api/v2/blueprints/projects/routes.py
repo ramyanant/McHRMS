@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-projects_bp = Blueprint('projects', __name__, url_prefix='/api/v1')
+projects_bp = Blueprint('projects', __name__, url_prefix='/api/v2')
 
 def _ensure_projects():
     """Ensure project tables exist (created dynamically in v1)."""
@@ -146,7 +146,7 @@ def project_detail(pid):
                   'client_id','account_manager_id','project_manager_id','department_id',
                   'business_unit_id','cost_centre_id','start_date','end_date','go_live_date',
                   'budget','estimated_revenue','billing_type','billing_cycle','rate_card',
-                  'po_number','contract_value','sow_reference','health_score','completion_pct']
+                  'po_number','contract_value','sow_reference','health_score','completion_pct','is_active']
         updates = {k: d[k] for k in fields if k in d}
         if updates:
             sc = ', '.join(f"{k}=%s" for k in updates)

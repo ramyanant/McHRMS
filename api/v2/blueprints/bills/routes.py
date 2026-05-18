@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-bills_bp = Blueprint('bills', __name__, url_prefix='/api/v1')
+bills_bp = Blueprint('bills', __name__, url_prefix='/api/v2')
 
 @bills_bp.route('/bills', methods=['GET'])
 @require_auth

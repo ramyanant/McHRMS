@@ -17,7 +17,7 @@ from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 
-org_bp = Blueprint('organisation', __name__, url_prefix='/api/v1')
+org_bp = Blueprint('organisation', __name__, url_prefix='/api/v2')
 
 
 # ═══════════════════════════════════════════════════════════════

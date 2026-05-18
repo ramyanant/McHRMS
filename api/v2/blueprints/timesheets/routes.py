@@ -14,7 +14,7 @@ from ...utils.responses import ok, err, created, not_found, forbidden
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-ts_bp = Blueprint('timesheets', __name__, url_prefix='/api/v1')
+ts_bp = Blueprint('timesheets', __name__, url_prefix='/api/v2')
 
 def _get_status_id(name):
     r = db_row1("SELECT id FROM master_timesheet_statuses WHERE name=%s", (name,))

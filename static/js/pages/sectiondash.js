@@ -50,7 +50,7 @@ export async function renderOrgDash() {
       '<div class="page-body">' +
       '<div class="dash-hero">' +
         '<div class="dash-hero-logo">' +
-          (org.has_logo ? '<img src="/api/v1/organisation/logo" style="height:60px;border-radius:8px">' :
+          (org.has_logo ? '<img src="/api/v2/organisation/logo" style="height:60px;border-radius:8px">' :
            '<div style="font-size:48px">🏛</div>') +
         '</div>' +
         '<div class="dash-hero-info">' +

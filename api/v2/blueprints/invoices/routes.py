@@ -9,7 +9,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-inv_bp = Blueprint('invoices', __name__, url_prefix='/api/v1')
+inv_bp = Blueprint('invoices', __name__, url_prefix='/api/v2')
 
 def _next_invoice_number():
     from datetime import datetime

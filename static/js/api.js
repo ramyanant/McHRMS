@@ -4,7 +4,7 @@
  * error handling, and base URL.
  */
 
-const API_BASE = '/api/v1';
+const API_BASE = '/api/v2';
 
 let _authToken = null;
 let _authUser  = null;

@@ -165,7 +165,7 @@ export function renderDocsTab(containerId, apiPath, docTypes) {
   window._docsDelete = async function(docId, path, cid) {
     if (!confirm('Remove this document? This cannot be undone.')) return;
     try {
-      await fetch('/api/v1' + path.replace('/api/v1','') + '/' + docId, {
+      await fetch('/api/v2' + path.replace(/\/api\/v[12]/g, '') + '/' + docId, {
         method: 'DELETE',
         headers: { 'X-Auth-Token': localStorage.getItem('auth_token') || '' }
       });

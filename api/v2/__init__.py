@@ -192,6 +192,10 @@ def _run_migrations(app):
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS created_by INTEGER",
             # master_user_roles
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
+            # Onboarding: employee_id must be nullable (candidates not yet employees)
+            "ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id)",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS is_system BOOLEAN DEFAULT FALSE",
             # Candidates - rating, availability, location
             # Locations - state, country
@@ -324,10 +328,16 @@ def create_app(config_override=None):
             response.headers['Expires'] = '0'
         return response
 
-    @app.route('/api/v1/options', methods=['OPTIONS'])
+    @app.route('/api/v2/options', methods=['OPTIONS'])
     def options(): return '', 204
 
-    @app.route('/api/v1/health')
+    # ── v1 backward-compat aliases → redirect to v2 ──────────────
+    @app.route('/api/v1/<path:path>', methods=['GET','POST','PUT','PATCH','DELETE','OPTIONS'])
+    def v1_redirect(path):
+        from flask import redirect, request as req
+        return redirect(f'/api/v2/{path}', code=308)  # 308 = permanent redirect, preserves method
+
+    @app.route('/api/v2/health')
     def health():
         try:
             conn = get_pg_conn(); cur = conn.cursor(); cur.execute("SELECT 1"); conn.close()

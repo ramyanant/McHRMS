@@ -4,7 +4,7 @@ from ...extensions import db_rows, db_row1
 from ...middleware.auth import require_auth
 from ...utils.responses import ok
 
-reports_bp = Blueprint('reports', __name__, url_prefix='/api/v1/reports')
+reports_bp = Blueprint('reports', __name__, url_prefix='/api/v2/reports')
 
 @reports_bp.route('/dashboard')
 @require_auth

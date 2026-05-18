@@ -7,7 +7,7 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
-clients_bp = Blueprint('clients', __name__, url_prefix='/api/v1')
+clients_bp = Blueprint('clients', __name__, url_prefix='/api/v2')
 
 @clients_bp.route('/clients', methods=['GET'])
 @require_auth
