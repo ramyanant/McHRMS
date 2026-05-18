@@ -85,7 +85,7 @@ def update_settings():
     return ok(message="Settings saved")
 
 
-@admin_bp.route('/admin/flush-data', methods=['POST'])
+@admin_bp.route('/flush-data', methods=['POST'])
 @require_auth
 def flush_data():
     """Flush all transactional data — ADMIN ONLY, requires confirmation code."""
