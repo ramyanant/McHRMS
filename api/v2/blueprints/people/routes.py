@@ -49,7 +49,7 @@ def list_employees():
 @people_bp.route('/employees', methods=['POST'])
 @require_auth
 @require_role('Admin', 'HR Manager')
-def create_employee():
+def create_employee():  # v1779206157
     d = request.get_json() or {}
     try:
         validate(d, {'first_name': ['required'], 'last_name': ['required']})
