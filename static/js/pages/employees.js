@@ -283,7 +283,8 @@ function renderEmployeeForm(emp, masters) {
   const tabs = ['basic','personal','employment','banking'];
   const tabLabels = { basic:'Basic Info', personal:'Personal', employment:'Employment', banking:'Banking' };
   let activeTab = 'basic';
-  window.window._savedTabData = window.window._savedTabData || {};  // shared across tab scopes
+  window._savedTabData = {};  // reset for each form open
+  window._savedPhoto = null;   // reset photo for each form open
 
   function tabForm(tab) {
     switch(tab) {
