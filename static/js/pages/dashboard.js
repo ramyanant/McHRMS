@@ -36,12 +36,12 @@ export async function render() {
     var hires = d.recent_hires || [];
     var hiresHTML = hires.length
       ? hires.map(function(e) {
-          return '<div class="hire-row">' +
-            '<div class="av av-sm av-green">' + fmt.ini(e.first_name + ' ' + e.last_name) + '</div>' +
-            '<div class="hire-info"><div class="hire-name">' + (e.first_name || '') + ' ' + (e.last_name || '') + '</div>' +
-            '<div class="hire-title">' + (e.job_title || '') + '</div></div>' +
-            '<div class="hire-date">' + fmt.date(e.start_date) + '</div>' +
-          '</div>';
+          return '<div class="hire-row" onclick="navigateTo(\'/employees/'+e.id+'\')" style="cursor:pointer">' +
+            '<div class="av av-sm av-green">' + initials + '</div>' +
+            '<div class="hire-info"><div class="hire-name">' + fullName + '</div>' +
+            '<div class="hire-title">' + (e.job_title || '—') + '</div></div>' +
+            '<div class="hire-date">' + startDate + '</div>' +
+            '</div>'
         }).join('')
       : '<div class="empty-mini">No recent hires</div>';
 

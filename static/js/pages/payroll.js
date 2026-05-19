@@ -79,7 +79,7 @@ export async function renderList() {
         ['New','Approved','Processed','On Hold','Rejected'].map(function(s){
           return '<option value="'+s+'"'+(filterStatus===s?' selected':'')+'>'+s+'</option>';
         }).join('') + '</select>' +
-        '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'payroll/new\')">+ New Payroll Run</button>' +
+        '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'/payroll/new\')">+ New Payroll Run</button>' +
         '</div>' +
         '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         '<th>'+sortBtn('year','Month / Year')+'</th>' +
