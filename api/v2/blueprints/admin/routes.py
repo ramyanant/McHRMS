@@ -142,7 +142,7 @@ def flush_data():
         # Re-create admin user so login still works after reset
         try:
             import hashlib
-            from ...extensions import db_row1, db_execute
+            from ...extensions import db_row1, db_execute, get_pg_conn
             # Clear stale sessions
             try: db_execute("DELETE FROM user_sessions")
             except: pass
@@ -150,18 +150,23 @@ def flush_data():
             role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
             if role:
                 pw = hashlib.sha256("Admin@123".encode()).hexdigest()
-                db_execute("""
-                    INSERT INTO users (username, email, password_hash, role_id, full_name, is_active)
-                    VALUES ('admin','admin@mcraan.com',%s,%s,'System Administrator',TRUE)
-                    ON CONFLICT (username) DO UPDATE SET
-                        password_hash=EXCLUDED.password_hash,
-                        is_active=TRUE,
-                        role_id=EXCLUDED.role_id
-                """, (pw, role['id']))
-                print("[flush] Admin user restored", flush=True)
+                # Use raw conn to avoid any conflict issues
+                conn2 = get_pg_conn()
+                conn2.autocommit = True
+                cur2 = conn2.cursor()
+                # Delete any leftover admin (shouldn't exist, but safety)
+                cur2.execute("DELETE FROM users WHERE username='admin'")
+                # Re-insert fresh
+                cur2.execute(
+                    "INSERT INTO users (username, email, password_hash, role_id, full_name, is_active) "
+                    "VALUES (%s,%s,%s,%s,%s,TRUE)",
+                    ('admin','admin@mcraan.com', pw, role['id'], 'System Administrator')
+                )
+                conn2.close()
+                print("[flush] Admin user restored: admin/Admin@123", flush=True)
         except Exception as reseed_err:
             print(f"[flush] Admin reseed error: {reseed_err}", flush=True)
 
-        return ok(message="All data flushed. Admin restored: username=admin password=Admin@123")
+        return ok(message="All data flushed. Login with admin / Admin@123")
     except Exception as ex:
         return err(str(ex))
