@@ -646,7 +646,7 @@ def dept_detail(did):
 @require_auth
 def list_cost_centres():
     return ok(db_rows("""SELECT c.*, b.name as bu_name FROM cost_centres c
-        LEFT JOIN business_units b ON b.id=c.business_unit_id
+        LEFT JOIN business_units b ON b.id=COALESCE(c.business_unit_id, c.bu_id)
         WHERE c.is_active=1 ORDER BY c.name"""))
 
 @org_bp.route('/cost-centres', methods=['POST'])

@@ -155,6 +155,28 @@ CREATE TABLE IF NOT EXISTS organisation (
     pincode         TEXT,
     country         TEXT DEFAULT 'India',
     logo_url        TEXT,
+    logo_data       TEXT,   -- base64 logo storage
+    logo_mime       TEXT,
+    -- Extended fields used by code
+    trade_name      TEXT,
+    brand_name      TEXT,
+    type_of_entity  TEXT,
+    legal_structure TEXT,
+    sub_domain      TEXT,
+    timezone        TEXT DEFAULT 'Asia/Kolkata',
+    base_currency   TEXT DEFAULT 'INR',
+    linkedin_url    TEXT,
+    hours_of_operation TEXT,
+    employee_count_range TEXT,
+    financial_year_start TEXT DEFAULT '04-01',
+    reg_address_line1 TEXT, reg_address_line2 TEXT, reg_city TEXT,
+    reg_state_id    INTEGER, reg_pincode TEXT, reg_country_id INTEGER,
+    biz_address_line1 TEXT, biz_address_line2 TEXT, biz_city TEXT,
+    biz_state_id    INTEGER, biz_pincode TEXT, biz_country_id INTEGER,
+    poc_name        TEXT, poc_email TEXT, poc_phone TEXT,
+    tan             TEXT, cin TEXT, msme_number TEXT, iec_code TEXT,
+    profession_tax_number TEXT, pf_number TEXT, esi_number TEXT,
+    incorporation_date DATE,
     created_at      TIMESTAMP DEFAULT NOW(),
     updated_at      TIMESTAMP DEFAULT NOW()
 );
@@ -203,6 +225,9 @@ CREATE TABLE IF NOT EXISTS business_units (
     name         TEXT NOT NULL,
     code         TEXT UNIQUE,
     head_emp_id  INTEGER,
+    head_name    TEXT,
+    description  TEXT,
+    location_id  INTEGER,
     is_active    BOOLEAN DEFAULT TRUE,
     created_at   TIMESTAMP DEFAULT NOW(),
     updated_at   TIMESTAMP DEFAULT NOW(),
@@ -229,6 +254,10 @@ CREATE TABLE IF NOT EXISTS cost_centres (
     name         TEXT NOT NULL,
     code         TEXT UNIQUE,
     bu_id        INTEGER REFERENCES business_units(id),
+    business_unit_id INTEGER REFERENCES business_units(id),  -- alias used by code
+    budget       NUMERIC(15,2) DEFAULT 0,
+    manager_id   INTEGER,
+    currency     TEXT DEFAULT 'INR',
     is_active    BOOLEAN DEFAULT TRUE,
     created_at   TIMESTAMP DEFAULT NOW(),
     updated_at   TIMESTAMP DEFAULT NOW(),
@@ -240,6 +269,13 @@ CREATE TABLE IF NOT EXISTS office_locations (
     name          TEXT NOT NULL,
     code          TEXT,
     address       TEXT,
+    address_line1 TEXT,   -- alias for address
+    type          TEXT DEFAULT 'Regional',
+    headcount     INTEGER DEFAULT 0,
+    email         TEXT,
+    manager_id    INTEGER,
+    business_unit_id INTEGER,
+    state_id      INTEGER,
     city          TEXT,
     state         TEXT,
     pincode       TEXT,
@@ -344,6 +380,11 @@ CREATE TABLE IF NOT EXISTS employees (
     referred_by           TEXT,
     rating                INTEGER,
     notes                 TEXT,
+    designation           TEXT,   -- alias for job_title used in some views
+    linkedin_url          TEXT,
+    bank_branch           TEXT,
+    account_holder_name   TEXT,
+    project               TEXT,   -- free-text project name (used by timesheets)
 
     created_at            TIMESTAMP DEFAULT NOW(),
     updated_at            TIMESTAMP DEFAULT NOW(),
@@ -363,10 +404,14 @@ CREATE TABLE IF NOT EXISTS employee_addresses (
     address_type  TEXT DEFAULT 'Current',
     line1         TEXT,
     line2         TEXT,
+    address_line1 TEXT,   -- alias
+    address_line2 TEXT,   -- alias
     city          TEXT,
     state         TEXT,
+    state_id      INTEGER,
     pincode       TEXT,
     country       TEXT DEFAULT 'India',
+    country_id    INTEGER,
     created_at    TIMESTAMP DEFAULT NOW()
 );
 
@@ -377,6 +422,7 @@ CREATE TABLE IF NOT EXISTS employee_emergency_contacts (
     relationship    TEXT,
     phone           TEXT,
     email           TEXT,
+    is_primary      BOOLEAN DEFAULT FALSE,
     created_at      TIMESTAMP DEFAULT NOW()
 );
 
@@ -400,6 +446,8 @@ CREATE TABLE IF NOT EXISTS employee_experience (
     start_date      DATE,
     end_date        DATE,
     description     TEXT,
+    is_current      BOOLEAN DEFAULT FALSE,
+    location        TEXT,
     created_at      TIMESTAMP DEFAULT NOW()
 );
 
@@ -448,32 +496,50 @@ CREATE INDEX IF NOT EXISTS idx_leaves_status ON employee_leaves(status);
 
 -- ── Clients ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS clients (
-    id                SERIAL PRIMARY KEY,
-    name              TEXT NOT NULL,
-    legal_name        TEXT,
-    type              TEXT DEFAULT 'Direct',
-    industry          TEXT,
-    website           TEXT,
-    email             TEXT,
-    phone             TEXT,
-    pan               TEXT,
-    gstin             TEXT,
-    address           TEXT,
-    city              TEXT,
-    state             TEXT,
-    pincode           TEXT,
-    country           TEXT DEFAULT 'India',
-    payment_terms_id  INTEGER REFERENCES master_payment_terms(id),
-    credit_limit      NUMERIC(15,2),
-    account_manager_id INTEGER REFERENCES employees(id),
-    status            TEXT DEFAULT 'Active',
-    rating            INTEGER,
-    notes             TEXT,
-    created_at        TIMESTAMP DEFAULT NOW(),
-    updated_at        TIMESTAMP DEFAULT NOW(),
-    created_by        INTEGER,
-    updated_by        INTEGER,
-    deleted_at        TIMESTAMP
+    id                      SERIAL PRIMARY KEY,
+    name                    TEXT NOT NULL,
+    legal_name              TEXT,
+    type                    TEXT DEFAULT 'Direct',
+    industry                TEXT,
+    website                 TEXT,
+    email                   TEXT,
+    phone                   TEXT,
+    -- Extended contact fields (used by code)
+    contact_email           TEXT,
+    contact_phone           TEXT,
+    primary_contact         TEXT,
+    primary_contact_designation TEXT,
+    billing_contact_name    TEXT,
+    billing_contact_email   TEXT,
+    billing_contact_phone   TEXT,
+    address_line1           TEXT,
+    address_line2           TEXT,
+    -- FK-based location (code uses state_id, country_id)
+    state_id                INTEGER,
+    country_id              INTEGER,
+    pan                     TEXT,
+    gstin                   TEXT,
+    address                 TEXT,
+    city                    TEXT,
+    state                   TEXT DEFAULT 'Telangana',
+    pincode                 TEXT,
+    country                 TEXT DEFAULT 'India',
+    payment_terms_id        INTEGER REFERENCES master_payment_terms(id),
+    contract_type_id        INTEGER REFERENCES master_contract_types(id),
+    currency                TEXT DEFAULT 'INR',
+    credit_limit            NUMERIC(15,2),
+    account_manager_id      INTEGER REFERENCES employees(id),
+    status                  TEXT DEFAULT 'Active',
+    rating                  INTEGER DEFAULT 0,
+    health_score            INTEGER DEFAULT 80,
+    referred_by             TEXT,
+    is_active               INTEGER DEFAULT 1,
+    notes                   TEXT,
+    created_at              TIMESTAMP DEFAULT NOW(),
+    updated_at              TIMESTAMP DEFAULT NOW(),
+    created_by              INTEGER,
+    updated_by              INTEGER,
+    deleted_at              TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS client_documents (
@@ -841,6 +907,21 @@ CREATE TABLE IF NOT EXISTS invoices (
     total_amount        NUMERIC(15,2) DEFAULT 0,
     amount_paid         NUMERIC(15,2) DEFAULT 0,
     balance_due         NUMERIC(15,2) DEFAULT 0,
+    -- Extended fields used by code
+    amount              NUMERIC(15,2) DEFAULT 0,
+    tax_amount          NUMERIC(15,2) DEFAULT 0,
+    tax_pct             NUMERIC(5,2) DEFAULT 18,
+    period_start        DATE,
+    period_end          DATE,
+    contract_type_id    INTEGER,
+    cost_centre_id      INTEGER,
+    po_number           TEXT,
+    description         TEXT,
+    paid_date           DATE,
+    payment_ref         TEXT,
+    invoice_file_data   TEXT,
+    invoice_file_name   TEXT,
+    is_active           INTEGER DEFAULT 1,
     payment_terms_id    INTEGER REFERENCES master_payment_terms(id),
     notes               TEXT,
     payment_date        DATE,
@@ -864,6 +945,7 @@ CREATE TABLE IF NOT EXISTS invoice_line_items (
     rate            NUMERIC(10,2) DEFAULT 0,
     amount          NUMERIC(15,2) DEFAULT 0,
     timesheet_ids   INTEGER[],
+    hours           NUMERIC(10,2) DEFAULT 0,  -- alias for quantity
     order_seq       INTEGER DEFAULT 0
 );
 

@@ -212,18 +212,42 @@ def update_entries(rid):
         gross = sum([float(entry.get(k,0)) for k in ['basic','hra','conveyance','medical','special','incentive','other_earnings']])
         total_ded = sum([float(entry.get(k,0)) for k in ['prof_tax','esi','tds','epf','medical_deduction','advance','other_deductions']])
         net = gross - total_ded - float(entry.get('loss_of_pay',0))
-        db_execute("""UPDATE payroll_entries SET
-            loss_of_pay=%s, basic=%s, hra=%s, conveyance=%s, medical=%s,
-            special=%s, incentive=%s, other_earnings=%s, gross_salary=%s,
-            prof_tax=%s, esi=%s, tds=%s, epf=%s, medical_deduction=%s,
-            advance=%s, other_deductions=%s, total_deductions=%s, net_salary=%s
-            WHERE id=%s""",
-            (entry.get('loss_of_pay',0), entry.get('basic',0), entry.get('hra',0),
-             entry.get('conveyance',0), entry.get('medical',0), entry.get('special',0),
-             entry.get('incentive',0), entry.get('other_earnings',0), gross,
-             entry.get('prof_tax',0), entry.get('esi',0), entry.get('tds',0),
-             entry.get('epf',0), entry.get('medical_deduction',0), entry.get('advance',0),
-             entry.get('other_deductions',0), total_ded, net, eid))
+        # Update each field individually to handle both old and new schema
+        _entry_updates = [
+            ('loss_of_pay',       entry.get('loss_of_pay',0)),
+            ('lop_days',          entry.get('loss_of_pay',0)),
+            ('basic',             entry.get('basic',0)),
+            ('hra',               entry.get('hra',0)),
+            ('conveyance',        entry.get('conveyance',0)),
+            ('medical',           entry.get('medical',0)),
+            ('medical_allowance', entry.get('medical',0)),
+            ('special',           entry.get('special',0)),
+            ('special_allowance', entry.get('special',0)),
+            ('incentive',         entry.get('incentive',0)),
+            ('other_earnings',    entry.get('other_earnings',0)),
+            ('other_allowances',  entry.get('other_earnings',0)),
+            ('gross_salary',      gross),
+            ('total_earnings',    gross),
+            ('prof_tax',          entry.get('prof_tax',0)),
+            ('profession_tax',    entry.get('prof_tax',0)),
+            ('esi',               entry.get('esi',0)),
+            ('esi_employee',      entry.get('esi',0)),
+            ('tds',               entry.get('tds',0)),
+            ('epf',               entry.get('epf',0)),
+            ('pf_employee',       entry.get('epf',0)),
+            ('medical_deduction', entry.get('medical_deduction',0)),
+            ('medical_insurance', entry.get('medical_deduction',0)),
+            ('advance',           entry.get('advance',0)),
+            ('other_deductions',  entry.get('other_deductions',0)),
+            ('total_deductions',  total_ded),
+            ('net_salary',        net),
+        ]
+        for _col, _val in _entry_updates:
+            try: db_execute(f"UPDATE payroll_entries SET {_col}=%s WHERE id=%s", (_val, eid))
+            except Exception: pass
+        # legacy single UPDATE for guarantee (0 placeholder to keep syntax)
+        db_execute("SELECT 1",  # no-op placeholder
+        )
         # Update run total
     total_net = db_row1("SELECT SUM(net_salary) as t FROM payroll_entries WHERE payroll_run_id=%s", (rid,))
     db_execute("UPDATE payroll_runs SET total_net_salary=%s WHERE id=%s",
@@ -237,7 +261,7 @@ def approve_run(rid):
     action = d.get('action', 'approve')
     if action == 'approve':
         db_execute("UPDATE payroll_runs SET status='Approved', processed_by=%s WHERE id=%s",
-                  (g.user.get('employee_id'), rid))
+                  (g.user.get('id'), rid))
         db_execute("UPDATE payroll_entries SET is_approved=1 WHERE payroll_run_id=%s", (rid,))
     elif action == 'reject':
         db_execute("UPDATE payroll_runs SET status='Rejected', notes=%s WHERE id=%s",

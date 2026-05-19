@@ -2,7 +2,7 @@
 from flask import Blueprint, request, g
 from datetime import datetime
 from ...extensions import db_row1, db_execute, get_pg_conn
-from ...middleware.auth import (verify_password, hash_password, create_session, invalidate_session)
+from ...middleware.auth import (verify_password, hash_password, create_session, invalidate_session, require_auth)
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err
 from ...utils.validators import validate, ValidationError
@@ -166,6 +166,7 @@ def me():
 
 
 @auth_bp.route('/change-password', methods=['POST'])
+@require_auth
 def change_password():
     from ...middleware.auth import get_current_user
     user = get_current_user()
