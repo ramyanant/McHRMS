@@ -2,7 +2,7 @@
  * Org Structure — Business Units, Departments, Cost Centres, Locations
  * ALL pages have: Grid view | Table view | Sort by column | Filter by status | Row click → detail
  */
-import { get, post, put } from '../api.js';
+import { get, post, put, del } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
