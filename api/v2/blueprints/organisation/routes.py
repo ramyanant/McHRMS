@@ -162,7 +162,7 @@ def add_contact():
     org = db_row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up yet")
     d = request.get_json() or {}
-    try: validate(d, {'name': ['required'], 'city': ['required']})
+    try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
 
     result = db_execute("""INSERT INTO organisation_contacts
@@ -704,7 +704,7 @@ def list_locations():
 @require_role('Admin')
 def create_location():
     d = request.get_json() or {}
-    try: validate(d, {'name': ['required']})
+    try: validate(d, {'name': ['required'], 'city': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     result = db_execute("""INSERT INTO office_locations
         (name, city, state, country, address_line1, pincode, type, headcount, phone, email, business_unit_id, manager_id, is_hq)
