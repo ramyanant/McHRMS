@@ -14,27 +14,41 @@ def _ensure_payroll():
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS payroll_runs (
-            id SERIAL PRIMARY KEY, month INTEGER NOT NULL, year INTEGER NOT NULL,
-            run_date DATE DEFAULT CURRENT_DATE, status TEXT DEFAULT 'New',
-            processed_by INTEGER, total_net_salary NUMERIC(12,2) DEFAULT 0,
-            cbx_file_content TEXT, notes TEXT,
-            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(),
-            is_active INTEGER DEFAULT 1)""")
+            id SERIAL PRIMARY KEY, run_type_id INTEGER, month INTEGER NOT NULL,
+            year INTEGER NOT NULL, status TEXT DEFAULT 'New',
+            run_date DATE DEFAULT CURRENT_DATE,
+            total_gross NUMERIC(15,2) DEFAULT 0, total_net NUMERIC(15,2) DEFAULT 0,
+            total_deductions NUMERIC(15,2) DEFAULT 0,
+            total_net_salary NUMERIC(12,2) DEFAULT 0,
+            processed_by INTEGER, created_by INTEGER, approved_by INTEGER,
+            cbx_file_content TEXT, ca_filename TEXT, ca_file_data TEXT,
+            notes TEXT, is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
         cur.execute("""CREATE TABLE IF NOT EXISTS payroll_entries (
             id SERIAL PRIMARY KEY, payroll_run_id INTEGER REFERENCES payroll_runs(id),
             employee_id INTEGER REFERENCES employees(id),
-            loss_of_pay NUMERIC(10,2) DEFAULT 0,
+            month INTEGER, year INTEGER,
+            loss_of_pay NUMERIC(10,2) DEFAULT 0, lop_days NUMERIC(4,1) DEFAULT 0,
             basic NUMERIC(10,2) DEFAULT 0, hra NUMERIC(10,2) DEFAULT 0,
+            allowances NUMERIC(10,2) DEFAULT 0,
             conveyance NUMERIC(10,2) DEFAULT 0, medical NUMERIC(10,2) DEFAULT 0,
             special NUMERIC(10,2) DEFAULT 0, incentive NUMERIC(10,2) DEFAULT 0,
             other_earnings NUMERIC(10,2) DEFAULT 0, gross_salary NUMERIC(10,2) DEFAULT 0,
-            prof_tax NUMERIC(10,2) DEFAULT 0, esi NUMERIC(10,2) DEFAULT 0,
-            tds NUMERIC(10,2) DEFAULT 0, epf NUMERIC(10,2) DEFAULT 0,
+            prof_tax NUMERIC(10,2) DEFAULT 0,
+            esi NUMERIC(10,2) DEFAULT 0, esi_employee NUMERIC(10,2) DEFAULT 0,
+            esi_employer NUMERIC(10,2) DEFAULT 0,
+            tds NUMERIC(10,2) DEFAULT 0,
+            epf NUMERIC(10,2) DEFAULT 0, pf_employee NUMERIC(10,2) DEFAULT 0,
+            pf_employer NUMERIC(10,2) DEFAULT 0,
             medical_deduction NUMERIC(10,2) DEFAULT 0, advance NUMERIC(10,2) DEFAULT 0,
             other_deductions NUMERIC(10,2) DEFAULT 0, total_deductions NUMERIC(10,2) DEFAULT 0,
             net_salary NUMERIC(10,2) DEFAULT 0, ctc NUMERIC(10,2) DEFAULT 0,
             is_approved INTEGER DEFAULT 0, approval_notes TEXT,
-            created_at TIMESTAMP DEFAULT NOW())""")
+            designation TEXT, department_name TEXT, location_name TEXT,
+            employee_name TEXT, emp_id_ref TEXT,
+            working_days NUMERIC(4,1), paid_days NUMERIC(4,1),
+            status TEXT DEFAULT 'Draft', payslip_url TEXT, paid_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())""")
         conn.close()
     except Exception as ex:
         print(f"[payroll] ensure tables: {ex}", flush=True)
@@ -162,7 +176,7 @@ def run_detail(rid):
     _ensure_payroll()
     if request.method == 'PUT':
         d = request.get_json() or {}
-        allowed = ['status','notes','total_net_salary']
+        allowed = ['status','notes','total_net_salary','is_active']
         sets = ', '.join(f"{k}=%s" for k in d if k in allowed)
         vals = [d[k] for k in d if k in allowed]
         if sets:
