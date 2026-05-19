@@ -109,7 +109,7 @@ def _seed(cur):
             role = cur.fetchone()
             if role:
                 cur.execute("""INSERT INTO users (username, email, password_hash, role_id, full_name, is_active)
-                    VALUES ('admin','admin@mcraan.com',%s,%s,'System Administrator',TRUE)
+                    VALUES ('admin','admin@mcraan.com',%s,%s,'System Administrator',1)
                     ON CONFLICT(username) DO NOTHING""", (pw, role['id']))
                 print("[v2] Default admin user created", flush=True)
     except Exception as e:
