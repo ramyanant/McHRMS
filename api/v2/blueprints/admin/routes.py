@@ -98,20 +98,33 @@ def flush_data():
         from ...extensions import get_pg_conn
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
         # Delete all transactional data, preserve master/config tables
+        # Correct FK-safe deletion order: children before parents
         tables = [
+            # Payroll (no dependents)
             'payroll_entries', 'payroll_runs',
+            # Recruitment pipeline (in reverse dependency order)
             'onboarding_tasks', 'onboarding',
             'offers', 'interviews', 'applications',
+            'candidate_documents', 'job_documents',
+            'candidates', 'job_requisitions',
+            # HR
             'employee_leaves', 'timesheets',
-            'invoice_line_items', 'invoices',
-            'bills',
+            # Finance
+            'invoice_documents', 'invoice_line_items', 'invoices',
+            'bill_documents', 'bills_expenses',
+            # Projects
             'project_documents', 'project_milestones', 'project_resources', 'projects',
+            # Vendors & Clients
             'vendor_documents', 'vendors',
             'client_documents', 'clients',
-            'employee_documents', 'employees',
+            # Employees (last — everything else references them)
+            'employee_documents',
+            'employee_addresses', 'employee_education',
+            'employee_experience', 'employee_emergency_contacts',
             'users',
-            'candidates', 'job_requisitions',
-            'audit_logs',
+            'employees',
+            # Logs
+            'audit_logs', 'notifications',
         ]
         for t in tables:
             try: cur.execute(f"DELETE FROM {t}")

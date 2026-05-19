@@ -202,9 +202,18 @@ export async function renderNew() {
         entries = json.map(function(row) {
           // Normalize column names (case-insensitive, handle spaces/underscores)
           var norm = {};
+          // Robust normalization: strip whitespace, lowercase, replace ALL non-alphanumeric with _
           Object.keys(row).forEach(function(k) {
-            norm[k.toLowerCase().replace(/[\s_]+/g,'_')] = row[k];
+            var cleanKey = k.trim().toLowerCase()
+              .replace(/[^a-z0-9]+/g, '_')  // replace ANY non-alphanum with underscore
+              .replace(/^_+|_+$/g, '')       // strip leading/trailing underscores
+              .replace(/_+/g, '_');           // collapse multiple underscores
+            norm[cleanKey] = row[k];
           });
+          // Debug: log keys found in first row (remove after testing)
+          if (entries.length === 0) {
+            console.log('[Payroll] Column keys found:', Object.keys(norm).join(', '));
+          }
           var basic=parseFloat(norm.basic||norm['a._basic']||norm.a_basic||0);
           var hra=parseFloat(norm.hra||norm['b._hra']||norm.b_hra||0);
           var conv=parseFloat(norm.conveyance||norm['c._conveyance']||norm.c_conveyance||0);
@@ -214,13 +223,13 @@ export async function renderNew() {
           var oth=parseFloat(norm.other_earnings||norm['g._other']||norm.g_other||0);
           var lop=parseFloat(norm.loss_of_pay||norm.lop||0);
           var gross=basic+hra+conv+med+spec+inc+oth;
-          var pt=parseFloat(norm.prof_tax||norm.profession_tax||norm['h._profession_tax']||norm.h_profession_tax||norm.pt||norm['professional_tax']||0);
-          var esi=parseFloat(norm.esi||norm['i._esi']||norm.i_esi||norm['e.s.i']||0);
-          var tds=parseFloat(norm.tds||norm['j._tds']||norm.j_tds||norm['t.d.s']||0);
-          var epf=parseFloat(norm.epf||norm['k._epf']||norm.k_epf||norm['e.p.f']||norm['pf']||norm['provident_fund']||0);
-          var medd=parseFloat(norm.medical_deduction||norm['medical_ded']||norm['l._medical']||norm.l_medical||norm['med_deduction']||norm.med_ded||0);
-          var adv=parseFloat(norm.advance||norm['m._advance']||norm.m_advance||norm['advance_deduction']||norm['advances']||0);
-          var othd=parseFloat(norm.other_deductions||norm['n._other']||norm.n_other||norm['other_ded']||norm['others']||0);
+          var pt=parseFloat(norm.prof_tax||norm.profession_tax||norm.professional_tax||norm.pt||norm.h_profession_tax||norm.p_t||0);
+          var esi=parseFloat(norm.esi||norm.i_esi||norm.e_s_i||0);
+          var tds=parseFloat(norm.tds||norm.j_tds||norm.t_d_s||norm.income_tax||0);
+          var epf=parseFloat(norm.epf||norm.k_epf||norm.e_p_f||norm.pf||norm.provident_fund||norm.employee_pf||0);
+          var medd=parseFloat(norm.medical_deduction||norm.medical_ded||norm.med_deduction||norm.med_ded||norm.l_medical||norm.medical||0);
+          var adv=parseFloat(norm.advance||norm.m_advance||norm.advance_deduction||norm.advances||0);
+          var othd=parseFloat(norm.other_deductions||norm.n_other||norm.other_ded||norm.others||norm.misc_deductions||0);
           var totalDed=pt+esi+tds+epf+medd+adv+othd;
           var net=gross-totalDed-lop;
           return {
@@ -256,8 +265,14 @@ export async function renderNew() {
       'LOP','Basic','HRA','Conv.','Medical','Special','Incentive','Other','Gross',
       'PT','ESI','TDS','EPF','Med.Ded.','Advance','Other Ded.','Total Ded.','Net'];
 
-    document.getElementById('payroll-preview').innerHTML =
-      '<div class="card" style="margin-top:16px"><div class="card-header"><h3 class="card-title">Preview ('+entries.length+' employees)</h3></div>' +
+    // Show raw detected columns so user can see what was found
+        var detectedCols = json.length > 0 ? Object.keys(json[0]).map(function(k){return k.trim();}).join(' | ') : 'none';
+        var colDebug = '<div class="card" style="margin-top:8px;border:1px solid #bfdbfe">' +
+          '<div class="card-body" style="padding:8px 12px;font-size:11px">' +
+          '<strong>📊 Columns detected:</strong> <code style="font-size:10px">' + detectedCols + '</code>' +
+          '</div></div>';
+        document.getElementById('payroll-preview').innerHTML = colDebug +
+          '<div class="card" style="margin-top:8px"><div class="card-header"><h3 class="card-title">Preview ('+entries.length+' employees)</h3></div>' +
       '<div class="tbl-wrap"><table class="data-table" style="font-size:11px"><thead><tr>' +
         cols.map(function(c,i){ return '<th style="white-space:nowrap">'+labels[i]+'</th>'; }).join('') +
       '</tr></thead><tbody>' +

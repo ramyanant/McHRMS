@@ -289,8 +289,14 @@ export async function renderSettingsDash() {
     var confirm2 = prompt('Type RESET to confirm:');
     if (confirm2 !== 'RESET') { alert('Reset cancelled.'); return; }
     try {
-      var { post } = await import('../api.js');
-      await post('/admin/flush-data', { confirm: 'FLUSH-ALL-DATA' });
+      var token = localStorage.getItem('mch_token') || '';
+      var res = await fetch('/api/v2/admin/flush-data', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+        body: JSON.stringify({ confirm: 'FLUSH-ALL-DATA' })
+      });
+      var json = await res.json();
+      if (!json.success) throw new Error(json.message || 'Reset failed');
       alert('✅ All data has been reset. The system is ready for a fresh start.');
       window.location.reload();
     } catch(e) { alert('Error: ' + e.message); }
