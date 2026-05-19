@@ -64,16 +64,17 @@ def create_run():
     d = request.get_json() or {}
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        cur.execute("""INSERT INTO payroll_runs (month, year, status, processed_by)
-            VALUES (%s,%s,'New',%s) RETURNING id""",
+        cur.execute("""INSERT INTO payroll_runs (month, year, run_date, status, processed_by)
+            VALUES (%s,%s,%s,'New',%s) RETURNING id""",
             (d.get('month', datetime.date.today().month),
              d.get('year',  datetime.date.today().year),
+             d.get('run_date') or str(datetime.date.today()),
              g.user.get('id')))
         run_id = cur.fetchone()['id']
-        # Update optional fields that may not exist on old tables
+        # Update optional fields (notes etc) — ignore if columns don't exist yet
         try:
-            cur.execute("UPDATE payroll_runs SET run_date=%s, notes=%s WHERE id=%s",
-                (d.get('run_date', str(datetime.date.today())), d.get('notes'), run_id))
+            cur.execute("UPDATE payroll_runs SET notes=%s WHERE id=%s",
+                (d.get('notes'), run_id))
         except Exception: pass
 
         # Insert entries from parsed payroll data
