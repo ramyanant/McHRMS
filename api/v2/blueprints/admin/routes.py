@@ -138,6 +138,30 @@ def flush_data():
         try: cur.execute("SET session_replication_role = DEFAULT")
         except: pass
         conn.close()
-        return ok(message="All data flushed. System ready for fresh start.")
+
+        # Re-create admin user so login still works after reset
+        try:
+            import hashlib
+            from ...extensions import db_row1, db_execute
+            # Clear stale sessions
+            try: db_execute("DELETE FROM user_sessions")
+            except: pass
+            # Get Admin role id
+            role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
+            if role:
+                pw = hashlib.sha256("Admin@123".encode()).hexdigest()
+                db_execute("""
+                    INSERT INTO users (username, email, password_hash, role_id, full_name, is_active)
+                    VALUES ('admin','admin@mcraan.com',%s,%s,'System Administrator',TRUE)
+                    ON CONFLICT (username) DO UPDATE SET
+                        password_hash=EXCLUDED.password_hash,
+                        is_active=TRUE,
+                        role_id=EXCLUDED.role_id
+                """, (pw, role['id']))
+                print("[flush] Admin user restored", flush=True)
+        except Exception as reseed_err:
+            print(f"[flush] Admin reseed error: {reseed_err}", flush=True)
+
+        return ok(message="All data flushed. Admin restored: username=admin password=Admin@123")
     except Exception as ex:
         return err(str(ex))
