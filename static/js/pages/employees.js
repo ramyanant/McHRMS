@@ -158,6 +158,7 @@ function renderEmployeeDetail(emp, masters) {
         f('Passport',emp.passport_number,true)+f('LinkedIn',emp.linkedin_url)+
         '</div></div></div>';
       case 'employment': return '<div class="card"><div class="card-header"><h3 class="card-title">Employment Details</h3></div><div class="card-body"><div class="field-grid">'+
+        (emp.login_username ? f('System Login', '<code style="font-size:13px">'+emp.login_username+'</code>'+(emp.must_change_pwd?' <span class="badge badge-warning">Must change password</span>':'')) : '')+
         f('Start Date',fmt.date(emp.start_date))+f('Status',emp.status)+
         f('Notice Period',(emp.notice_period||'—')+' days')+f('Referred By',emp.referred_by)+
         f('PF Number',emp.pf_number,true)+f('ESI Number',emp.esi_number,true)+
@@ -439,7 +440,13 @@ function renderEmployeeForm(emp, masters) {
         navigate('/employees/'+emp.id);
       } else {
         const r = await post('/employees', allData);
-        toast('Employee created', 'success');
+        const uname = r.username ? r.username : null;
+        toast(
+          uname
+            ? 'Employee created ✓  Login: ' + uname + ' / Employee123'
+            : 'Employee created successfully',
+          'success'
+        );
         navigate('/employees/'+r.id);
       }
     } catch(e) { toast(e.message, 'error'); }

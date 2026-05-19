@@ -233,7 +233,8 @@ def _run_migrations(app):
 
             "ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS project_id INTEGER",
             "ALTER TABLE employee_leaves ADD COLUMN IF NOT EXISTS year INTEGER",
-            # Add missing employee columns
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_pwd INTEGER DEFAULT 0",
+                        # Add missing employee columns
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_branch TEXT",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_holder_name TEXT",
             

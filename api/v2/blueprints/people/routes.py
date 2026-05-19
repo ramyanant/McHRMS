@@ -128,9 +128,62 @@ def create_employee():  # v1779206157
         print(f"[CREATE EMPLOYEE ERROR] {insert_err}", flush=True)
         return err(f"Failed to create employee: {insert_err}", 500)
 
+    # ── Auto-create user account for new employee ─────────────────────────
+    try:
+        import re as _re
+        # Build username: firstname.lastname (lowercase, no special chars)
+        first = _re.sub(r'[^a-z0-9]', '', d.get('first_name','').lower().strip())
+        last  = _re.sub(r'[^a-z0-9]', '', d.get('last_name', '').lower().strip())
+        base_username = f"{first}.{last}"
+
+        # Ensure username is unique — append number if taken
+        username = base_username
+        suffix = 1
+        while db_row1("SELECT id FROM users WHERE username=%s", (username,)):
+            username = f"{base_username}{suffix}"
+            suffix += 1
+
+        # Default password: Employee123 (sha256 hashed)
+        import hashlib
+        pw_hash = hashlib.sha256("Employee123".encode()).hexdigest()
+
+        # Get Employee role id
+        emp_role = db_row1("SELECT id FROM master_user_roles WHERE name='Employee' LIMIT 1")
+        if not emp_role:
+            emp_role = db_row1("SELECT id FROM master_user_roles ORDER BY id LIMIT 1")
+
+        if emp_role:
+            db_execute(
+                """INSERT INTO users
+                    (username, email, password_hash, role_id, full_name,
+                     employee_id, is_active, must_change_pwd)
+                   VALUES (%s,%s,%s,%s,%s,%s,1,1)""",
+                (username,
+                 d.get('email') or f"{username}@mcraan.com",
+                 pw_hash,
+                 emp_role['id'],
+                 f"{d['first_name']} {d['last_name']}",
+                 eid)
+            )
+            print(f"[create_employee] User account created: {username}", flush=True)
+        else:
+            print("[create_employee] Warning: no role found for auto-user", flush=True)
+    except Exception as user_err:
+        # User creation failure must NOT block employee creation
+        print(f"[create_employee] User auto-create error: {user_err}", flush=True)
+
     write_audit_log('employees', 'CREATE', 'employee', eid,
                     f"Employee created: {d['first_name']} {d['last_name']} ({emp_id})")
-    return created({'id': eid, 'emp_id': emp_id})
+    # Build username to return in response (same logic as above)
+    try:
+        import re as _re2
+        _first = _re2.sub(r'[^a-z0-9]', '', d.get('first_name','').lower())
+        _last  = _re2.sub(r'[^a-z0-9]', '', d.get('last_name', '').lower())
+        _created_user = db_row1("SELECT username FROM users WHERE employee_id=%s", (eid,))
+        _username = _created_user['username'] if _created_user else f"{_first}.{_last}"
+    except Exception:
+        _username = None
+    return created({'id': eid, 'emp_id': emp_id, 'username': _username})
 
 # ── Employee Detail ───────────────────────────────────────────
 @people_bp.route('/employees/<int:eid>', methods=['GET','PUT','DELETE'])
@@ -141,8 +194,11 @@ def employee_detail(eid):
         et.name as employment_type,
         c.name as client_name,
         rm.first_name||' '||rm.last_name as reporting_manager_name,
-        b.name as business_unit_name
+        b.name as business_unit_name,
+        u.username as login_username,
+        u.must_change_pwd as must_change_pwd
         FROM employees e
+        LEFT JOIN users u ON u.employee_id=e.id AND u.is_active=1
         LEFT JOIN departments d ON d.id=e.department_id
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
         LEFT JOIN clients c ON c.id=e.client_id
