@@ -103,6 +103,9 @@ def _run_migrations(app):
         migrations = [
             # users table
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS login_attempts INTEGER DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT",
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP",
+
             # organisation enhanced tables
             """CREATE TABLE IF NOT EXISTS organisation_contacts (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), name TEXT NOT NULL, designation TEXT, department TEXT, email TEXT, phone TEXT, is_primary INTEGER DEFAULT 0, sort_order INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())""",
             """CREATE TABLE IF NOT EXISTS organisation_addresses (id SERIAL PRIMARY KEY, organisation_id INTEGER NOT NULL REFERENCES organisation(id), address_type TEXT NOT NULL DEFAULT 'Registered', line1 TEXT, line2 TEXT, city TEXT, state TEXT, pincode TEXT, country TEXT DEFAULT 'India', currency TEXT DEFAULT 'INR', timezone TEXT DEFAULT 'Asia/Kolkata', hours_of_operation TEXT, is_primary INTEGER DEFAULT 0, is_active INTEGER DEFAULT 1, created_at TIMESTAMP DEFAULT NOW())""",

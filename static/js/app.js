@@ -51,6 +51,9 @@ function showLogin() {
         '</div>' +
         '<div id="login-error" class="login-error" style="display:none"></div>' +
         '<button class="btn btn-primary btn-full" id="login-btn">Sign In \u2192</button>' +
+        '<div style="text-align:center;margin-top:12px">' +
+          '<a href="#" id="forgot-link" style="font-size:13px;color:var(--primary);text-decoration:none">Forgot Password?</a>' +
+        '</div>' +
       '</div>' +
       '<div class="login-footer">McRaaN Human Resources &amp; Talent Acquisition</div>' +
     '</div>';
@@ -78,7 +81,162 @@ function showLogin() {
   document.getElementById('lp').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
   document.getElementById('lu').onkeydown = e => { if (e.key === 'Enter') document.getElementById('lp').focus(); };
   setTimeout(() => document.getElementById('lu').focus(), 100);
+
+  // ── Forgot Password flow ────────────────────────────────────────
+  const forgotLink = document.getElementById('forgot-link');
+  if (forgotLink) forgotLink.onclick = (e) => {
+    e.preventDefault();
+    showForgotPassword();
+  };
 }
+
+
+// ── Forgot Password ────────────────────────────────────────────
+function showForgotPassword() {
+  const login = document.getElementById('login-screen');
+  login.style.display = 'flex';
+  login.innerHTML =
+    '<div class="login-card">' +
+      '<div class="login-logo">' +
+        '<div class="login-logo-text">McHR<span>&amp;</span>TA</div>' +
+        '<div class="login-tagline">Password Reset</div>' +
+      '</div>' +
+      '<div class="login-form" id="forgot-step-1">' +
+        '<p style="font-size:14px;color:var(--text-muted);margin-bottom:16px;line-height:1.5">' +
+          'Enter your username or email address. A reset code will be generated for you.' +
+        '</p>' +
+        '<div class="fg">' +
+          '<label class="flabel">Username or Email</label>' +
+          '<input class="finput" id="fp-identifier" type="text" placeholder="Enter username or email" autocomplete="username">' +
+        '</div>' +
+        '<div id="forgot-error" class="login-error" style="display:none"></div>' +
+        '<button class="btn btn-primary btn-full" id="forgot-btn">Send Reset Code →</button>' +
+        '<div style="text-align:center;margin-top:12px">' +
+          '<a href="#" id="back-to-login" style="font-size:13px;color:var(--text-muted);text-decoration:none">← Back to Sign In</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // Step 1 — request reset code
+  document.getElementById('forgot-btn').onclick = async () => {
+    const identifier = document.getElementById('fp-identifier').value.trim();
+    const errEl = document.getElementById('forgot-error');
+    const btn   = document.getElementById('forgot-btn');
+    if (!identifier) {
+      errEl.textContent = 'Please enter your username or email';
+      errEl.style.display = ''; return;
+    }
+    btn.disabled = true; btn.textContent = 'Sending…';
+    try {
+      const res = await fetch('/api/v2/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: identifier })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Request failed');
+      // Show step 2 — enter reset code + new password
+      showResetCode(identifier, data.reset_code);
+    } catch (e) {
+      errEl.textContent = e.message || 'Failed. Try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Send Reset Code →';
+    }
+  };
+
+  document.getElementById('fp-identifier').onkeydown = e => {
+    if (e.key === 'Enter') document.getElementById('forgot-btn').click();
+  };
+  document.getElementById('back-to-login').onclick = e => {
+    e.preventDefault(); showLogin();
+  };
+  setTimeout(() => document.getElementById('fp-identifier').focus(), 100);
+}
+
+function showResetCode(identifier, resetCode) {
+  const login = document.getElementById('login-screen');
+  login.innerHTML =
+    '<div class="login-card">' +
+      '<div class="login-logo">' +
+        '<div class="login-logo-text">McHR<span>&amp;</span>TA</div>' +
+        '<div class="login-tagline">Set New Password</div>' +
+      '</div>' +
+      '<div class="login-form">' +
+        (resetCode
+          ? '<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px;text-align:center">' +
+              '<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">Your Reset Code</div>' +
+              '<div style="font-size:28px;font-weight:700;letter-spacing:6px;font-family:monospace;color:var(--primary)">' + resetCode + '</div>' +
+              '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">Valid for 15 minutes</div>' +
+            '</div>'
+          : '') +
+        '<div class="fg">' +
+          '<label class="flabel">Reset Code</label>' +
+          '<input class="finput" id="rp-code" type="text" placeholder="6-digit code" maxlength="6" style="letter-spacing:4px;font-size:20px;text-align:center" autocomplete="off">' +
+        '</div>' +
+        '<div class="fg">' +
+          '<label class="flabel">New Password</label>' +
+          '<input class="finput" id="rp-pass" type="password" placeholder="Minimum 8 characters" autocomplete="new-password">' +
+        '</div>' +
+        '<div class="fg">' +
+          '<label class="flabel">Confirm Password</label>' +
+          '<input class="finput" id="rp-pass2" type="password" placeholder="Repeat new password" autocomplete="new-password">' +
+        '</div>' +
+        '<div id="reset-error" class="login-error" style="display:none"></div>' +
+        '<button class="btn btn-primary btn-full" id="reset-btn">Reset Password →</button>' +
+        '<div style="text-align:center;margin-top:12px">' +
+          '<a href="#" id="back-to-login2" style="font-size:13px;color:var(--text-muted);text-decoration:none">← Back to Sign In</a>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // Pre-fill the code if server returned it
+  if (resetCode) document.getElementById('rp-code').value = resetCode;
+
+  document.getElementById('reset-btn').onclick = async () => {
+    const code  = document.getElementById('rp-code').value.trim();
+    const pass  = document.getElementById('rp-pass').value;
+    const pass2 = document.getElementById('rp-pass2').value;
+    const errEl = document.getElementById('reset-error');
+    const btn   = document.getElementById('reset-btn');
+    errEl.style.display = 'none';
+    if (!code)       { errEl.textContent = 'Enter the reset code'; errEl.style.display=''; return; }
+    if (pass.length < 8) { errEl.textContent = 'Password must be at least 8 characters'; errEl.style.display=''; return; }
+    if (pass !== pass2)  { errEl.textContent = 'Passwords do not match'; errEl.style.display=''; return; }
+    btn.disabled = true; btn.textContent = 'Resetting…';
+    try {
+      const res = await fetch('/api/v2/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: identifier, reset_code: code, new_password: pass })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Reset failed');
+      // Success — show confirmation then go to login
+      login.innerHTML =
+        '<div class="login-card">' +
+          '<div class="login-logo">' +
+            '<div class="login-logo-text">McHR<span>&amp;</span>TA</div>' +
+          '</div>' +
+          '<div class="login-form" style="text-align:center">' +
+            '<div style="font-size:48px;margin-bottom:12px">✅</div>' +
+            '<h3 style="color:var(--text);margin-bottom:8px">Password Reset!</h3>' +
+            '<p style="color:var(--text-muted);font-size:14px;margin-bottom:20px">Your password has been updated successfully.</p>' +
+            '<button class="btn btn-primary btn-full" id="go-login-btn">Sign In →</button>' +
+          '</div>' +
+        '</div>';
+      document.getElementById('go-login-btn').onclick = () => showLogin();
+    } catch (e) {
+      errEl.textContent = e.message || 'Reset failed. Try again.';
+      errEl.style.display = '';
+      btn.disabled = false; btn.textContent = 'Reset Password →';
+    }
+  };
+
+  document.getElementById('back-to-login2').onclick = e => {
+    e.preventDefault(); showLogin();
+  };
+}
+
 
 // ── App shell ─────────────────────────────────────────────────
 function showApp() {
@@ -348,7 +506,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import('./pages/' + mod + '.js?v=1779228882');
+    const m = await import('./pages/' + mod + '.js?v=1779231937');
     await m[fn](params);
     if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active

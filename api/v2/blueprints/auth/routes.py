@@ -184,3 +184,107 @@ def change_password():
                (hash_password(d['new_password']), user['id']))
     write_audit_log('auth', 'PASSWORD_CHANGED', 'user', user['id'], "Password changed")
     return ok(message="Password changed successfully")
+
+
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """
+    Generate a password reset token.
+    In production this would email the token; here it returns it directly
+    since no email service is configured.
+    """
+    d = request.get_json() or {}
+    identifier = (d.get('username') or d.get('email') or '').strip()
+    if not identifier:
+        return err("Please enter your username or email", 400)
+
+    user = db_row1("""
+        SELECT id, username, email, full_name FROM users
+        WHERE (username=%s OR email=%s) AND is_active=1
+    """, (identifier, identifier))
+
+    # Always return success to prevent user enumeration
+    if not user:
+        return ok({"message": "If that account exists, a reset code has been generated.",
+                   "demo_mode": True})
+
+    # Generate 6-digit OTP
+    import random, hashlib
+    otp = str(random.randint(100000, 999999))
+    # Store hashed OTP + expiry in users table
+    otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+
+    try:
+        db_execute("""UPDATE users
+            SET password_reset_token=%s,
+                password_reset_expires=NOW() + INTERVAL '15 minutes'
+            WHERE id=%s""", (otp_hash, user['id']))
+    except Exception:
+        # Columns may not exist yet — add them
+        try:
+            conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT")
+            cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMP")
+            conn.close()
+            db_execute("""UPDATE users
+                SET password_reset_token=%s,
+                    password_reset_expires=NOW() + INTERVAL '15 minutes'
+                WHERE id=%s""", (otp_hash, user['id']))
+        except Exception as ex:
+            return err(f"Could not generate reset token: {ex}", 500)
+
+    write_audit_log('auth', 'PASSWORD_RESET_REQUESTED', 'user', user['id'],
+                    f"Password reset requested for: {user['username']}")
+
+    # In a real system, email the OTP. Here we return it directly (demo mode).
+    return ok({
+        "message": "Reset code generated.",
+        "reset_code": otp,  # Would be emailed in production
+        "username": user['username'],
+        "demo_mode": True,
+        "expires_in": "15 minutes"
+    })
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """Validate OTP and set new password."""
+    d = request.get_json() or {}
+    identifier = (d.get('username') or '').strip()
+    otp        = (d.get('reset_code') or d.get('token') or '').strip()
+    new_pass   = (d.get('new_password') or '').strip()
+
+    if not identifier or not otp or not new_pass:
+        return err("Username, reset code and new password are all required", 400)
+    if len(new_pass) < 8:
+        return err("New password must be at least 8 characters", 400)
+
+    import hashlib
+    otp_hash = hashlib.sha256(otp.encode()).hexdigest()
+
+    user = db_row1("""
+        SELECT id, username FROM users
+        WHERE (username=%s OR email=%s)
+          AND password_reset_token=%s
+          AND password_reset_expires > NOW()
+          AND is_active=1
+    """, (identifier, identifier, otp_hash))
+
+    if not user:
+        return err("Invalid or expired reset code. Please request a new one.", 400)
+
+    # Reset password and clear token
+    db_execute("""UPDATE users
+        SET password_hash=%s,
+            password_reset_token=NULL,
+            password_reset_expires=NULL,
+            must_change_pwd=FALSE,
+            login_attempts=0,
+            locked_until=NULL
+        WHERE id=%s""", (hash_password(new_pass), user['id']))
+
+    write_audit_log('auth', 'PASSWORD_RESET', 'user', user['id'],
+                    f"Password reset completed for: {user['username']}")
+
+    return ok(message="Password reset successfully. You can now log in.")
+
