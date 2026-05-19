@@ -1,4 +1,5 @@
 """People Blueprint — v1 schema compatible"""
+import psycopg2
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
 from ...middleware.auth import require_auth, require_role, hash_password
@@ -67,33 +68,40 @@ def create_employee():
         next_n = 1001
     emp_id = f"EMP-{next_n}"
 
-    conn = get_pg_conn()
-    conn.autocommit = True
-    cur = conn.cursor()
-    cur.execute("""INSERT INTO employees
-        (emp_id, first_name, middle_name, last_name, email, phone,
-         personal_email, personal_phone, job_title, department_id,
-         employment_type_id, location, office_location_id,
-         reporting_manager_id, client_id, salary, bill_rate,
-         start_date, status, pan, aadhaar, pf_number, esi_number,
-         bank_name, bank_account_number, bank_ifsc)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-        RETURNING id""",
-        (emp_id, d['first_name'], d.get('middle_name'), d['last_name'],
-         d.get('email') or None, d.get('phone') or None,
-         d.get('personal_email') or None, d.get('personal_phone') or None,
-         d.get('job_title') or None, _int(d.get('department_id')),
-         _int(d.get('employment_type_id')),
-         d.get('location') or None, _int(d.get('office_location_id')),
-         _int(d.get('reporting_manager_id')), _int(d.get('client_id')),
-         _float(d.get('salary'), 0), _float(d.get('bill_rate'), 0),
-         d.get('start_date') or None, d.get('status') or 'Active',
-         d.get('pan') or None, d.get('aadhaar') or None,
-         d.get('pf_number') or None, d.get('esi_number') or None,
-         d.get('bank_name') or None, d.get('bank_account_number') or None,
-         d.get('bank_ifsc') or None))
-    eid = cur.fetchone()['id']
-    conn.close()
+    try:
+        conn = get_pg_conn()
+        conn.autocommit = True
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur.execute("""INSERT INTO employees
+            (emp_id, first_name, middle_name, last_name, email, phone,
+             personal_email, personal_phone, job_title, department_id,
+             employment_type_id, location, office_location_id,
+             reporting_manager_id, client_id, salary, bill_rate,
+             start_date, status, pan, aadhaar, pf_number, esi_number,
+             bank_name, bank_account_number, bank_ifsc)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING id""",
+            (emp_id, d.get('first_name'), d.get('middle_name'), d.get('last_name'),
+             d.get('email') or None, d.get('phone') or None,
+             d.get('personal_email') or None, d.get('personal_phone') or None,
+             d.get('job_title') or None, _int(d.get('department_id')),
+             _int(d.get('employment_type_id')),
+             d.get('location') or None, _int(d.get('office_location_id')),
+             _int(d.get('reporting_manager_id')), _int(d.get('client_id')),
+             _float(d.get('salary'), 0), _float(d.get('bill_rate'), 0),
+             d.get('start_date') or None, d.get('status') or 'Active',
+             d.get('pan') or None, d.get('aadhaar') or None,
+             d.get('pf_number') or None, d.get('esi_number') or None,
+             d.get('bank_name') or None, d.get('bank_account_number') or None,
+             d.get('bank_ifsc') or None))
+        row = cur.fetchone()
+        eid = row['id'] if isinstance(row, dict) else row[0]
+        conn.close()
+    except Exception as insert_err:
+        try: conn.close()
+        except: pass
+        print(f"[CREATE EMPLOYEE ERROR] {insert_err}", flush=True)
+        return err(f"Failed to create employee: {insert_err}", 500)
 
     write_audit_log('employees', 'CREATE', 'employee', eid,
                     f"Employee created: {d['first_name']} {d['last_name']} ({emp_id})")
