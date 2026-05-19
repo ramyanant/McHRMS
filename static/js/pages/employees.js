@@ -385,10 +385,25 @@ function renderEmployeeForm(emp, masters) {
   };
 
   window._empFormTab = (tab, el) => {
+    // Save current tab data BEFORE switching so nothing is lost
+    try {
+      const form = document.getElementById('emp-full-form');
+      if (form) Object.assign(window._savedTabData, Object.fromEntries(new FormData(form)));
+    } catch(e) {}
     activeTab = tab;
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('emp-form-tabs').innerHTML = tabForm(tab);
+    // Restore previously saved values into the new tab's fields
+    try {
+      const form = document.getElementById('emp-full-form');
+      if (form) {
+        Object.entries(window._savedTabData).forEach(([k, v]) => {
+          const el2 = form.querySelector('[name="'+k+'"]');
+          if (el2 && el2.type !== 'file' && el2.type !== 'button') el2.value = v || '';
+        });
+      }
+    } catch(e) {}
   };
 
   // Save collects ALL tab data by switching through them

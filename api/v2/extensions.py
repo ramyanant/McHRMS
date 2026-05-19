@@ -45,14 +45,14 @@ def db_rows(sql, params=()):
     """Execute a SELECT and return all rows as list of dicts."""
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(sql, params)
+        cur.execute(sql, params if params else None)
         return [dict(r) for r in cur.fetchall()]
 
 def db_row1(sql, params=()):
     """Execute a SELECT and return first row as dict, or None."""
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(sql, params)
+        cur.execute(sql, params if params else None)
         r = cur.fetchone()
         return dict(r) if r else None
 
@@ -60,7 +60,7 @@ def db_scalar(sql, params=()):
     """Execute a SELECT and return first value of first row."""
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(sql, params)
+        cur.execute(sql, params if params else None)
         r = cur.fetchone()
         return list(dict(r).values())[0] if r else 0
 
@@ -71,7 +71,7 @@ def db_execute(sql, params=(), returning=False):
     """
     with get_db() as conn:
         cur = conn.cursor()
-        cur.execute(sql, params)
+        cur.execute(sql, params if params else None)
         if returning:
             r = cur.fetchone()
             return dict(r) if r else None
