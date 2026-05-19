@@ -36,12 +36,15 @@ export async function render() {
     var hires = d.recent_hires || [];
     var hiresHTML = hires.length
       ? hires.map(function(e) {
+          var fullName  = e.name || ((e.first_name || '') + ' ' + (e.last_name || '')).trim() || 'Unknown';
+          var initials  = fullName.split(' ').filter(Boolean).map(function(w){ return w[0].toUpperCase(); }).slice(0,2).join('');
+          var startDate = e.start_date ? new Date(e.start_date).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : '';
           return '<div class="hire-row" onclick="navigateTo(\'/employees/'+e.id+'\')" style="cursor:pointer">' +
             '<div class="av av-sm av-green">' + initials + '</div>' +
             '<div class="hire-info"><div class="hire-name">' + fullName + '</div>' +
             '<div class="hire-title">' + (e.job_title || '—') + '</div></div>' +
             '<div class="hire-date">' + startDate + '</div>' +
-            '</div>'
+            '</div>';
         }).join('')
       : '<div class="empty-mini">No recent hires</div>';
 
