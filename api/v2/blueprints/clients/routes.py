@@ -1,7 +1,7 @@
 """Clients Blueprint — v1 schema compatible"""
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth
+from ...middleware.auth import require_auth, require_role
 
 def _int(v):
     try: return int(v) if v not in (None,'','null','undefined') else None
