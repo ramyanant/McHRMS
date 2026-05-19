@@ -88,85 +88,101 @@ def update_settings():
 @admin_bp.route('/flush-data', methods=['POST'])
 @require_auth
 def flush_data():
-    """Flush all transactional data — ADMIN ONLY, requires confirmation code."""
+    """Flush all transactional data — keeps master tables and admin user intact."""
     if g.user.get('role') not in ['Admin', 'System Administrator', 'Super Admin']:
         return err("Admin access required", 403)
     d = request.get_json() or {}
     if d.get('confirm') != 'FLUSH-ALL-DATA':
         return err("Invalid confirmation code. Send {confirm: 'FLUSH-ALL-DATA'}", 400)
     try:
-        from ...extensions import get_pg_conn
+        import hashlib
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        # Delete all transactional data, preserve master/config tables
-        # Correct FK-safe deletion order: children before parents
+
+        # ── TABLES TO DELETE (strict FK-safe order, children first) ──────────
+        # These are ALL transactional tables. Master/lookup tables are NOT touched.
+        # Master tables kept: master_*, office_locations, business_units,
+        #   departments, cost_centres, app_settings, organisation
         tables = [
-            # Payroll (no dependents)
-            'payroll_entries', 'payroll_runs',
-            # Recruitment pipeline (in reverse dependency order)
-            'onboarding_tasks', 'onboarding',
-            'offers', 'interviews', 'applications',
-            'candidate_documents', 'job_documents',
-            'candidates', 'job_requisitions',
+            # Sessions first (references users)
+            'user_sessions',
+            # Payroll
+            'payroll_entries',
+            'payroll_runs',
+            # Recruitment — deepest children first
+            'onboarding_tasks',
+            'onboarding',
+            'offers',
+            'interviews',
+            'applications',
+            'candidate_documents',
+            'job_documents',
+            'candidates',
+            'job_requisitions',
             # HR
-            'employee_leaves', 'timesheets',
+            'employee_leaves',
+            'timesheets',
             # Finance
-            'invoice_documents', 'invoice_line_items', 'invoices',
-            'bill_documents', 'bills_expenses',
+            'invoice_documents',
+            'invoice_line_items',
+            'invoices',
+            'bill_documents',
+            'bills_expenses',
             # Projects
-            'project_documents', 'project_milestones', 'project_resources', 'projects',
+            'project_documents',
+            'project_milestones',
+            'project_resources',
+            'projects',
             # Vendors & Clients
-            'vendor_documents', 'vendors',
-            'client_documents', 'clients',
-            # Employees (last — everything else references them)
+            'vendor_documents',
+            'vendors',
+            'client_documents',
+            'clients',
+            # Employees — all sub-tables before main table
             'employee_documents',
-            'employee_addresses', 'employee_education',
-            'employee_experience', 'employee_emergency_contacts',
+            'employee_addresses',
+            'employee_education',
+            'employee_experience',
+            'employee_emergency_contacts',
+            # Users before employees (users.employee_id FK)
             'users',
             'employees',
-            # Logs
-            'audit_log', 'notifications',  # Note: table is 'audit_log' not 'audit_logs'
+            # Logs last (no FKs blocking)
+            'audit_log',
+            'notifications',
         ]
-        # First disable FK constraints temporarily, then delete all
-        try: cur.execute("SET session_replication_role = replica")
-        except: pass  # Some DBs don't support this
+
+        deleted = []
+        skipped = []
         for t in tables:
-            try: 
+            try:
                 cur.execute(f"DELETE FROM {t}")
-                print(f"[flush] cleared: {t}", flush=True)
-            except Exception as ex: 
+                n = cur.rowcount
+                deleted.append(f"{t}({n})")
+                print(f"[flush] cleared {t}: {n} rows", flush=True)
+            except Exception as ex:
+                skipped.append(t)
                 print(f"[flush] skip {t}: {ex}", flush=True)
-        try: cur.execute("SET session_replication_role = DEFAULT")
-        except: pass
+
         conn.close()
 
-        # Re-create admin user so login still works after reset
+        # ── RESTORE ADMIN USER ────────────────────────────────────────────────
         try:
-            import hashlib
-            from ...extensions import db_row1, db_execute, get_pg_conn
-            # Clear stale sessions
-            try: db_execute("DELETE FROM user_sessions")
-            except: pass
-            # Get Admin role id
             role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
             if role:
                 pw = hashlib.sha256("Admin@123".encode()).hexdigest()
-                # Use raw conn to avoid any conflict issues
-                conn2 = get_pg_conn()
-                conn2.autocommit = True
-                cur2 = conn2.cursor()
-                # Delete any leftover admin (shouldn't exist, but safety)
-                cur2.execute("DELETE FROM users WHERE username='admin'")
-                # Re-insert fresh
+                conn2 = get_pg_conn(); conn2.autocommit = True; cur2 = conn2.cursor()
                 cur2.execute(
                     "INSERT INTO users (username, email, password_hash, role_id, full_name, is_active) "
                     "VALUES (%s,%s,%s,%s,%s,1)",
-                    ('admin','admin@mcraan.com', pw, role['id'], 'System Administrator')
+                    ('admin', 'admin@mcraan.com', pw, role['id'], 'System Administrator')
                 )
                 conn2.close()
-                print("[flush] Admin user restored: admin/Admin@123", flush=True)
+                print("[flush] Admin user restored", flush=True)
         except Exception as reseed_err:
             print(f"[flush] Admin reseed error: {reseed_err}", flush=True)
 
-        return ok(message="All data flushed. Login with admin / Admin@123")
+        return ok(message=f"Reset complete. Cleared: {len(deleted)} tables. Login: admin / Admin@123",
+                  data={"cleared": deleted, "skipped": skipped})
+
     except Exception as ex:
         return err(str(ex))
