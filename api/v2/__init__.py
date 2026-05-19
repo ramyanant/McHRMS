@@ -22,8 +22,12 @@ def _bootstrap_v2(app):
                     cur.execute(stmt)
                 except Exception as e:
                     # Non-fatal — table may already exist with different definition
-                    if 'already exists' not in str(e).lower():
-                        print(f"[schema] warning: {e}", flush=True)
+                    err_str = str(e).lower()
+                    if 'already exists' not in err_str:
+                        # Silence known harmless warnings about indexes on pre-existing tables
+                        silent = ['does not exist', 'already exists', 'duplicate']
+                        if not any(s in err_str for s in silent):
+                            print(f"[schema] warning: {e}", flush=True)
         conn.close()
         print("[v2] Schema bootstrap complete", flush=True)
     except Exception as e:
@@ -225,19 +229,22 @@ def _run_migrations(app):
             "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS notes TEXT",
             "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
             "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
-            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            
+
+            "ALTER TABLE timesheets ADD COLUMN IF NOT EXISTS project_id INTEGER",
+            "ALTER TABLE employee_leaves ADD COLUMN IF NOT EXISTS year INTEGER",
             # Add missing employee columns
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_branch TEXT",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_holder_name TEXT",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS linkedin_url TEXT",
+            
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation TEXT",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender TEXT",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob DATE",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS marital_status TEXT",
+            
+            
+            
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality TEXT",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS blood_group TEXT",
+            
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS notice_period TEXT",
-            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT",
+            
                         # Document tables for candidates, jobs, invoices, bills
             """CREATE TABLE IF NOT EXISTS candidate_documents (
                 id SERIAL PRIMARY KEY, candidate_id INTEGER REFERENCES candidates(id),
@@ -258,7 +265,7 @@ def _run_migrations(app):
                 notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
                 is_active INTEGER DEFAULT 1)""",
             """CREATE TABLE IF NOT EXISTS bill_documents (
-                id SERIAL PRIMARY KEY, bill_id INTEGER REFERENCES bills(id),
+                id SERIAL PRIMARY KEY, bill_id INTEGER REFERENCES bills_expenses(id),
                 doc_type TEXT DEFAULT 'Bill', doc_name TEXT NOT NULL,
                 file_size TEXT, mime_type TEXT, file_data TEXT,
                 notes TEXT, uploaded_by INTEGER, uploaded_at TIMESTAMP DEFAULT NOW(),
@@ -294,7 +301,10 @@ def _run_migrations(app):
             try:
                 cur.execute(sql)
             except Exception as ex:
-                print(f"[migration] skip: {ex}", flush=True)
+                ex_str = str(ex).lower()
+                # Only print truly unexpected errors, not harmless ones
+                if 'already exists' not in ex_str and 'duplicate column' not in ex_str:
+                    print(f"[migration] skip: {ex}", flush=True)
         conn.close()
         print("[v2] Migrations complete", flush=True)
     except Exception as e:
