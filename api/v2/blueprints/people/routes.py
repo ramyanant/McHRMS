@@ -10,6 +10,16 @@ from ...utils.pagination import get_page_params
 
 people_bp = Blueprint('people', __name__, url_prefix='/api/v2')
 
+def _int(v):
+    """Safely convert to int or None — handles empty strings from dropdowns."""
+    try: return int(v) if v not in (None, '', 'null', 'undefined') else None
+    except (ValueError, TypeError): return None
+
+def _float(v, d=0):
+    """Safely convert to float or default."""
+    try: return float(v) if v not in (None, '', 'null', 'undefined') else d
+    except (ValueError, TypeError): return d
+
 # ── Employee List ─────────────────────────────────────────────
 @people_bp.route('/employees', methods=['GET'])
 @require_auth

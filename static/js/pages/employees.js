@@ -238,11 +238,35 @@ function renderEmployeeDetail(emp, masters) {
 
   setContent('<div class="detail-layout">'+sidebar()+renderMain()+'</div>');
 
+  // Store data when switching tabs so nothing is lost
+  const _savedTabData = {};
   window._empTab = (tab, el) => {
+    // Save current tab data before switching
+    try {
+      const currentForm = document.getElementById('emp-full-form');
+      if (currentForm) {
+        const data = Object.fromEntries(new FormData(currentForm));
+        Object.assign(_savedTabData, data);
+      }
+    } catch(e) {}
     activeTab = tab;
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('emp-tab-content').innerHTML = tabContent(tab);
+    // Restore saved data into the newly rendered tab
+    try {
+      const newForm = document.getElementById('emp-full-form');
+      if (newForm) {
+        Object.entries(_savedTabData).forEach(([k, v]) => {
+          const el2 = newForm.querySelector('[name="'+k+'"]');
+          if (el2 && el2.tagName !== 'BUTTON') {
+            if (el2.type === 'checkbox') el2.checked = !!v;
+            else if (el2.tagName === 'SELECT') el2.value = v || '';
+            else el2.value = v || '';
+          }
+        });
+      }
+    } catch(e) {}
   };
   window._editEmp = () => renderEmployeeForm(emp, masters);
 }
@@ -369,20 +393,9 @@ function renderEmployeeForm(emp, masters) {
 
   // Save collects ALL tab data by switching through them
   window._saveEmp = async () => {
-    const allData = {};
-    // Collect data from ALL tabs by rendering each into a temp div
-    const TABS = ['basic','employment','compensation','banking','personal'];
-    for (const tab of TABS) {
-      const tmpDiv = document.createElement('div');
-      tmpDiv.innerHTML = '<form id="tmp-tab-form">' + tabForm(tab) + '</form>';
-      document.body.appendChild(tmpDiv);
-      try {
-        const tabData = Object.fromEntries(new FormData(document.getElementById('tmp-tab-form')));
-        Object.assign(allData, tabData);
-      } catch(tabErr) {}
-      document.body.removeChild(tmpDiv);
-    }
-    // Also collect current visible tab (overrides with user's actual input)
+    // Collect saved tab data + current visible tab data
+    const allData = Object.assign({}, _savedTabData);
+    // Current visible tab always wins (most recent user input)
     try {
       const currentData = fd('emp-full-form');
       Object.assign(allData, currentData);
