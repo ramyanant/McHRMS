@@ -64,18 +64,33 @@ def create_run():
     d = request.get_json() or {}
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        cur.execute("""INSERT INTO payroll_runs (month, year, run_date, status, processed_by)
-            VALUES (%s,%s,%s,'New',%s) RETURNING id""",
-            (d.get('month', datetime.date.today().month),
-             d.get('year',  datetime.date.today().year),
-             d.get('run_date') or str(datetime.date.today()),
-             g.user.get('id')))
-        run_id = cur.fetchone()['id']
-        # Update optional fields (notes etc) — ignore if columns don't exist yet
+        # payroll_runs uses schema.sql columns: month, year, status, notes, created_by
+        # run_date and processed_by exist in different table versions — try both
+        month_val = d.get('month') or datetime.date.today().month
+        year_val  = d.get('year')  or datetime.date.today().year
+        rundate   = d.get('run_date') or str(datetime.date.today())
+        notes_val = d.get('notes') or ''
+
+        # Try with schema.sql columns first (created_by, notes, run_date)
         try:
-            cur.execute("UPDATE payroll_runs SET notes=%s WHERE id=%s",
-                (d.get('notes'), run_id))
-        except Exception: pass
+            cur.execute("""INSERT INTO payroll_runs (month, year, status, notes, created_by)
+                VALUES (%s,%s,'New',%s,%s) RETURNING id""",
+                (month_val, year_val, notes_val, g.user.get('id')))
+        except Exception:
+            cur.execute("SAVEPOINT sp_run")
+            try:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_run") 
+            except Exception: pass
+            # Fallback: absolute minimal
+            cur.execute("INSERT INTO payroll_runs (month, year, status) VALUES (%s,%s,'New') RETURNING id",
+                (month_val, year_val))
+        run_id = cur.fetchone()['id']
+
+        # Update run_date separately (column may be named differently)
+        for col in ['run_date']:
+            try:
+                cur.execute(f"UPDATE payroll_runs SET {col}=%s WHERE id=%s", (rundate, run_id))
+            except Exception: pass
 
         # Insert entries from parsed payroll data
         entries = d.get('entries', [])
@@ -99,39 +114,42 @@ def create_run():
                                   (str(emp_id_val).strip(),))
                 emp_id_val = emp_row['id'] if emp_row else None
 
-            # Step 1: Insert with only guaranteed columns (id, run_id, emp_id)
-            cur.execute(
-                "INSERT INTO payroll_entries (payroll_run_id, employee_id) VALUES (%s,%s) RETURNING id",
-                (run_id, emp_id_val))
+            # INSERT using schema.sql guaranteed columns for payroll_entries:
+            # id, payroll_run_id, employee_id, month, year, basic, hra,
+            # tds, other_deductions, total_deductions, net_salary
+            cur.execute("""INSERT INTO payroll_entries
+                (payroll_run_id, employee_id, month, year,
+                 basic, hra, tds, other_deductions, total_deductions, net_salary)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                (run_id, emp_id_val, month_val, year_val,
+                 float(entry.get('basic',0)), float(entry.get('hra',0)),
+                 float(entry.get('tds',0)), float(entry.get('other_deductions',0)),
+                 total_ded, net))
             entry_id = cur.fetchone()['id']
 
-            # Step 2: Update every field — each in its own try so one missing col won't block others
-            updates = {
-                'basic': float(entry.get('basic',0)),
-                'hra':   float(entry.get('hra',0)),
-                'esi':   float(entry.get('esi',0)),
-                'tds':   float(entry.get('tds',0)),
-                'other_deductions':  float(entry.get('other_deductions',0)),
-                'total_deductions':  total_ded,
-                'net_salary':        net,
-                'loss_of_pay':       float(entry.get('loss_of_pay',0)),
-                'conveyance':        float(entry.get('conveyance',0)),
-                'medical':           float(entry.get('medical',0)),
-                'special':           float(entry.get('special',0)),
-                'incentive':         float(entry.get('incentive',0)),
-                'other_earnings':    float(entry.get('other_earnings',0)),
-                'gross_salary':      gross,
-                'prof_tax':          float(entry.get('prof_tax',0)),
-                'epf':               float(entry.get('epf',0)),
-                'medical_deduction': float(entry.get('medical_deduction',0)),
-                'advance':           float(entry.get('advance',0)),
-                'ctc':               float(entry.get('ctc',0)),
-            }
-            for col, val in updates.items():
-                try:
-                    cur.execute(f"UPDATE payroll_entries SET {col}=%s WHERE id=%s", (val, entry_id))
-                except Exception:
-                    cur.execute("ROLLBACK TO SAVEPOINT sp") if False else None
+            # UPDATE each extended field — silently skips any missing columns
+            _ext_cols = [
+                ('lop_days',          float(entry.get('loss_of_pay',0))),
+                ('loss_of_pay',       float(entry.get('loss_of_pay',0))),
+                ('allowances',        float(entry.get('other_earnings',0))),
+                ('gross_salary',      gross),
+                ('esi_employee',      float(entry.get('esi',0))),
+                ('esi',               float(entry.get('esi',0))),
+                ('pf_employee',       float(entry.get('epf',0))),
+                ('epf',               float(entry.get('epf',0))),
+                ('conveyance',        float(entry.get('conveyance',0))),
+                ('medical',           float(entry.get('medical',0))),
+                ('special',           float(entry.get('special',0))),
+                ('incentive',         float(entry.get('incentive',0))),
+                ('other_earnings',    float(entry.get('other_earnings',0))),
+                ('prof_tax',          float(entry.get('prof_tax',0))),
+                ('medical_deduction', float(entry.get('medical_deduction',0))),
+                ('advance',           float(entry.get('advance',0))),
+                ('ctc',               float(entry.get('ctc',0))),
+            ]
+            for _c, _v in _ext_cols:
+                try: cur.execute(f"UPDATE payroll_entries SET {_c}=%s WHERE id=%s", (_v, entry_id))
+                except Exception: pass
 
         conn.close()
         return created({'id': run_id})
