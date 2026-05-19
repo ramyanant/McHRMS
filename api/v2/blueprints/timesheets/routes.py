@@ -16,7 +16,8 @@ def _int(v):
 
 def _float(v, d=0):
     try: return float(v) if v not in (None,'','null','undefined') else d
-    except: return d, require_role
+    except: return d
+from ...middleware.auth import require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found, forbidden
 from ...utils.validators import validate, ValidationError
