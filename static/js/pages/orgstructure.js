@@ -144,22 +144,24 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
 
   render();
 
-  window._orgDelete = function(entity, id, name) {
+  window._orgDelete = async function(entity, id, name) {
     var entityUrls = {
       'Business Units': '/business-units/',
+      'Departments':    '/departments/',
       'Cost Centres':   '/cost-centres/',
       'Locations':      '/locations/',
     };
     var url = entityUrls[entity];
-    if (!url) return;
-    if (!confirm('Delete "' + (name||entity) + '"?')) return;
-    put(url + id, { is_active: 0 }).then(function() {
+    if (!url) { toast('Delete not configured for ' + entity, 'error'); return; }
+    if (!confirm('Delete "' + (name || entity) + '"? This cannot be undone.')) return;
+    try {
+      await del(url + id);
       toast('Deleted', 'info');
-      // Refresh page
       if (entity === 'Business Units') { renderBUs(); }
+      else if (entity === 'Departments') { renderDepts(); }
       else if (entity === 'Cost Centres') { renderCostCentres(); }
       else if (entity === 'Locations') { renderLocations(); }
-    }).catch(function(e) { toast(e.message || 'Delete failed', 'error'); });
+    } catch(e) { toast(e.message || 'Delete failed', 'error'); }
   };
   window._orgView = function(v2) {
     view = v2;
@@ -188,7 +190,7 @@ export async function renderBUs() {
     window._addBU       = () => buModal(null, masters);
     window._deleteBU    = async (id, name) => {
       if (!confirm('Delete Business Unit "' + name + '"? This cannot be undone.')) return;
-      await put('/business-units/' + id, { is_active: 0 });
+      await del('/business-units/' + id);
       toast('Business Unit deleted', 'info');
       renderBUs();
     };
@@ -383,7 +385,7 @@ export async function renderDepts() {
           '<td>' + badge(d.is_active ? 'Active' : 'Inactive') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editDept(' + d.id + ')">✏ Edit</button>' +
-            '<button class="btn btn-danger btn-xs" onclick="window._deleteDept(' + d.id + ')">Delete</button>' +
+            '<button class="btn btn-danger btn-xs" onclick="window._deleteDept(' + d.id + ',\'' + v(d.name,'') + '\')">Delete</button>' +
           '</td></tr>'
         ).join('') +
         '</tbody></table></div></div>';
@@ -420,11 +422,13 @@ export async function renderDepts() {
     window._deptFilter = val => { filterStatus = val; render(); };
     window._deptSort   = col => { sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1); render(); };
     window._addDept    = () => deptModal(null, masters);
-    window._deleteDept = async (id) => {
-      if (!confirm('Delete this department?')) return;
-      await put('/departments/' + id, { is_active: 0 });
-      toast('Department deleted', 'info');
-      renderDepts();
+    window._deleteDept = async (id, name) => {
+      if (!confirm('Delete department "' + (name||'this department') + '"? This cannot be undone.')) return;
+      try {
+        await del('/departments/' + id);
+        toast('Department deleted', 'info');
+        renderDepts();
+      } catch(e) { toast(e.message || 'Delete failed', 'error'); }
     };
     window._editDept   = id => deptModal(rows.find(r => r.id===id), masters);
   } catch(e) { showError(e.message); }
@@ -576,7 +580,7 @@ export async function renderLocations() {
     window._addLoc      = () => locModal(null, masters);
     window._deleteLoc   = async (id) => {
       if (!confirm('Delete this location?')) return;
-      await put('/locations/' + id, { is_active: 0 });
+      await del('/locations/' + id);
       toast('Location deleted', 'info');
       renderLocations();
     };

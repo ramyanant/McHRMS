@@ -678,8 +678,8 @@ def cc_detail(cid):
             'business_unit_id':d.get('business_unit_id', cc['business_unit_id']),
             'budget':         d.get('budget', cc['budget']),
         }
-        if not d.get('is_active', True) == False:
-            updates['is_active'] = d.get('is_active', cc['is_active'])
+        if 'is_active' in d:
+            updates['is_active'] = d['is_active']
         if 'manager_id' in d: updates['manager_id'] = d['manager_id']
         if 'currency'   in d: updates['currency']   = d['currency']
         set_clause = ', '.join(f"{k}=%s" for k in updates)
