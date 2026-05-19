@@ -239,14 +239,13 @@ function renderEmployeeDetail(emp, masters) {
   setContent('<div class="detail-layout">'+sidebar()+renderMain()+'</div>');
 
   // Store data when switching tabs so nothing is lost
-  const _savedTabData = {};
   window._empTab = (tab, el) => {
     // Save current tab data before switching
     try {
       const currentForm = document.getElementById('emp-full-form');
       if (currentForm) {
         const data = Object.fromEntries(new FormData(currentForm));
-        Object.assign(_savedTabData, data);
+        Object.assign(window._savedTabData, data);
       }
     } catch(e) {}
     activeTab = tab;
@@ -257,7 +256,7 @@ function renderEmployeeDetail(emp, masters) {
     try {
       const newForm = document.getElementById('emp-full-form');
       if (newForm) {
-        Object.entries(_savedTabData).forEach(([k, v]) => {
+        Object.entries(window._savedTabData).forEach(([k, v]) => {
           const el2 = newForm.querySelector('[name="'+k+'"]');
           if (el2 && el2.tagName !== 'BUTTON') {
             if (el2.type === 'checkbox') el2.checked = !!v;
@@ -284,6 +283,7 @@ function renderEmployeeForm(emp, masters) {
   const tabs = ['basic','personal','employment','banking'];
   const tabLabels = { basic:'Basic Info', personal:'Personal', employment:'Employment', banking:'Banking' };
   let activeTab = 'basic';
+  window.window._savedTabData = window.window._savedTabData || {};  // shared across tab scopes
 
   function tabForm(tab) {
     switch(tab) {
@@ -394,7 +394,7 @@ function renderEmployeeForm(emp, masters) {
   // Save collects ALL tab data by switching through them
   window._saveEmp = async () => {
     // Collect saved tab data + current visible tab data
-    const allData = Object.assign({}, _savedTabData);
+    const allData = Object.assign({}, window._savedTabData);
     // Current visible tab always wins (most recent user input)
     try {
       const currentData = fd('emp-full-form');
