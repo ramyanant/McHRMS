@@ -198,6 +198,12 @@ def _run_migrations(app):
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
             # Payroll: CA statement file storage
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS created_by INTEGER",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS total_net_salary NUMERIC(12,2) DEFAULT 0",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS cbx_file_content TEXT",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS run_date DATE",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'New'",
+
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS month INTEGER",
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS year INTEGER",
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS processed_by INTEGER",

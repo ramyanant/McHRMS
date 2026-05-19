@@ -283,6 +283,8 @@ export async function renderNew() {
         });
         renderPreview();
         document.getElementById('file-status').textContent = '✅ ' + entries.length + ' rows loaded from ' + file.name;
+        var saveBtn = document.getElementById('save-run-btn');
+        if (saveBtn && entries.length > 0) saveBtn.disabled = false;
         document.getElementById('save-pr-btn').disabled = false;
       } catch(err) {
         document.getElementById('file-status').textContent = '❌ Error: ' + err.message;
