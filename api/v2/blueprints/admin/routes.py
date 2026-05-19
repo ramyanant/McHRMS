@@ -186,3 +186,94 @@ def flush_data():
 
     except Exception as ex:
         return err(str(ex))
+
+
+@admin_bp.route('/full-reset', methods=['POST'])
+@require_auth
+def full_reset():
+    """Full factory reset — wipes ALL data including org structure. Keeps only master lookup tables and admin user."""
+    if g.user.get('role') not in ['Admin', 'System Administrator', 'Super Admin']:
+        return err("Admin access required", 403)
+    d = request.get_json() or {}
+    if d.get('confirm') != 'FULL-FACTORY-RESET':
+        return err("Invalid confirmation. Send {confirm: 'FULL-FACTORY-RESET'}", 400)
+    try:
+        import hashlib
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+
+        # Everything from transactional reset PLUS org structure
+        tables = [
+            # Sessions
+            'user_sessions',
+            # Payroll
+            'payroll_entries', 'payroll_runs',
+            # Recruitment
+            'onboarding_tasks', 'onboarding',
+            'offers', 'interviews', 'applications',
+            'candidate_documents', 'job_documents',
+            'candidates', 'job_requisitions',
+            # HR
+            'employee_leaves', 'timesheets',
+            # Finance
+            'invoice_documents', 'invoice_line_items', 'invoices',
+            'bill_documents', 'bills_expenses',
+            # Projects
+            'project_documents', 'project_milestones', 'project_resources', 'projects',
+            # Vendors & Clients
+            'vendor_documents', 'vendors',
+            'client_documents', 'clients',
+            # Employees
+            'employee_documents', 'employee_addresses', 'employee_education',
+            'employee_experience', 'employee_emergency_contacts',
+            'users', 'employees',
+            # Logs
+            'audit_log', 'notifications',
+            # ── ORG STRUCTURE (full reset only) ──
+            'organisation_documents',
+            'organisation_banks',
+            'organisation_contacts',
+            'organisation_gst',
+            'organisation_identity',
+            'organisation_registrations',
+            'organisation_addresses',
+            'cost_centres',
+            'office_locations',
+            'departments',
+            'business_units',
+            'organisation',
+        ]
+
+        deleted, skipped = [], []
+        for t in tables:
+            try:
+                cur.execute(f"DELETE FROM {t}")
+                n = cur.rowcount
+                deleted.append(f"{t}({n})")
+                print(f"[full-reset] cleared {t}: {n} rows", flush=True)
+            except Exception as ex:
+                skipped.append(t)
+                print(f"[full-reset] skip {t}: {ex}", flush=True)
+
+        conn.close()
+
+        # Restore admin user
+        try:
+            role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
+            if role:
+                pw = hashlib.sha256("Admin@123".encode()).hexdigest()
+                conn2 = get_pg_conn(); conn2.autocommit = True; cur2 = conn2.cursor()
+                cur2.execute(
+                    "INSERT INTO users (username, email, password_hash, role_id, full_name, is_active) "
+                    "VALUES (%s,%s,%s,%s,%s,1)",
+                    ('admin', 'admin@mcraan.com', pw, role['id'], 'System Administrator')
+                )
+                conn2.close()
+                print("[full-reset] Admin user restored", flush=True)
+        except Exception as e:
+            print(f"[full-reset] Admin reseed error: {e}", flush=True)
+
+        return ok(message=f"Full factory reset complete. Cleared: {len(deleted)} tables. Login: admin / Admin@123",
+                  data={"cleared": deleted, "skipped": skipped})
+
+    except Exception as ex:
+        return err(str(ex))

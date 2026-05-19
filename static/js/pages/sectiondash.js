@@ -272,12 +272,23 @@ export async function renderSettingsDash() {
         '<h3 class="card-title" style="color:var(--danger,#dc2626)">⚠️ Danger Zone</h3>' +
       '</div>' +
       '<div class="card-body">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">' +
-          '<div>' +
-            '<div class="fw-bold">Reset All Data</div>' +
-            '<div class="text-muted" style="font-size:12px">Permanently delete all transactional data. Master data and configuration are preserved. This cannot be undone.</div>' +
+        '<div style="padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between">' +
+            '<div>' +
+              '<div class="fw-bold">1. Reset Transactional Data</div>' +
+              '<div class="text-muted" style="font-size:12px">Deletes employees, clients, vendors, projects, candidates, invoices, bills, payroll, timesheets and all documents.<br>Keeps: Org Profile, Business Units, Departments, Cost Centres, Locations, Admin user.</div>' +
+            '</div>' +
+            '<button class="btn btn-danger" onclick="window._resetData()" style="white-space:nowrap;margin-left:16px;min-width:160px">🗑 Reset Transactions</button>' +
           '</div>' +
-          '<button class="btn btn-danger" onclick="window._resetData()" style="white-space:nowrap;margin-left:16px">🗑 Reset Data</button>' +
+        '</div>' +
+        '<div style="padding:8px 0;margin-top:8px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between">' +
+            '<div>' +
+              '<div class="fw-bold" style="color:var(--danger)">2. Full Factory Reset</div>' +
+              '<div class="text-muted" style="font-size:12px">Deletes EVERYTHING including Org Profile, Business Units, Departments, Cost Centres, Locations.<br>Only master lookup tables and Admin user are kept. Use this for a completely clean slate.</div>' +
+            '</div>' +
+            '<button class="btn btn-danger" onclick="window._fullReset()" style="white-space:nowrap;margin-left:16px;min-width:160px;background:var(--danger)">💥 Full Factory Reset</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
     '</div>' +
@@ -300,5 +311,23 @@ export async function renderSettingsDash() {
       alert('✅ All data has been reset. The system is ready for a fresh start.');
       window.location.reload();
     } catch(e) { alert('Error: ' + e.message); }
-  };
+  }
+
+  window._fullReset = async function() {
+    if (!confirm('⚠️ FULL FACTORY RESET\n\nThis will delete EVERYTHING:\n• All employees, clients, vendors, projects\n• All org structure (Business Units, Departments, Cost Centres, Locations, Org Profile)\n• All invoices, bills, payroll, timesheets\n• All candidates, jobs, documents\n\nOnly master lookup tables and Admin user will remain.\n\nThis CANNOT be undone. Are you absolutely sure?')) return;
+    var confirmed = prompt('Type FULL-RESET to confirm complete factory reset:');
+    if (confirmed !== 'FULL-RESET') { alert('Factory reset cancelled.'); return; }
+    try {
+      var token = localStorage.getItem('mch_token') || '';
+      var res = await fetch('/api/v2/admin/full-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Token': token },
+        body: JSON.stringify({ confirm: 'FULL-FACTORY-RESET' })
+      });
+      var json = await res.json();
+      if (!json.success) throw new Error(json.message || 'Reset failed');
+      alert('✅ Full factory reset complete. All data cleared.\n\nLogin with: admin / Admin@123');
+      window.location.reload();
+    } catch(e) { alert('Error: ' + e.message); }
+  };;
 }
