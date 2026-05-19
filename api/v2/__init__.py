@@ -347,6 +347,24 @@ def _run_migrations(app):
         print(f"[v2] Migration error: {e}", flush=True)
 
 
+
+def _add_schema_diag(app):
+    """Temporary: returns exact live column info for payroll tables."""
+    from flask import jsonify
+    import psycopg2, psycopg2.extras, os
+    @app.route('/api/v2/_schema_diag')
+    def schema_diag():
+        url = os.environ.get('DATABASE_URL','').replace('postgres://','postgresql://',1)
+        conn = psycopg2.connect(url, cursor_factory=psycopg2.extras.RealDictCursor)
+        cur  = conn.cursor()
+        cur.execute("""SELECT table_name, column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_name IN ('payroll_runs','payroll_entries')
+            ORDER BY table_name, ordinal_position""")
+        rows = [dict(r) for r in cur.fetchall()]
+        conn.close()
+        return jsonify(rows)
+
 def create_app(config_override=None):
     BASE_DIR   = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     STATIC_DIR = os.path.join(BASE_DIR, 'static')
@@ -479,4 +497,5 @@ def create_app(config_override=None):
         import traceback; traceback.print_exc()
         return jsonify({"success": False, "message": str(e)}), 500
 
+    _add_schema_diag(app)
     return app
