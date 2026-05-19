@@ -74,96 +74,99 @@ def list_runs():
 @payroll_bp.route('/payroll/runs', methods=['POST'])
 @require_auth
 def create_run():
+    """Create payroll run. Live DB schema determined from information_schema."""
     _ensure_payroll()
     d = request.get_json() or {}
+    entries_data = d.get('entries', [])
+    month_val = int(d.get('month') or datetime.date.today().month)
+    year_val  = int(d.get('year')  or datetime.date.today().year)
+    rundate   = d.get('run_date') or str(datetime.date.today())
+    notes_val = d.get('notes') or ''
+    user_id   = g.user.get('id')
+    # Month label for payroll_entries.month (stored as TEXT NOT NULL)
+    month_label = f"{year_val}-{month_val:02d}"
+
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        # payroll_runs uses schema.sql columns: month, year, status, notes, created_by
-        # run_date and processed_by exist in different table versions — try both
-        month_val = d.get('month') or datetime.date.today().month
-        year_val  = d.get('year')  or datetime.date.today().year
-        rundate   = d.get('run_date') or str(datetime.date.today())
-        notes_val = d.get('notes') or ''
 
-        # Try with schema.sql columns first (created_by, notes, run_date)
-        try:
-            cur.execute("""INSERT INTO payroll_runs (month, year, status, notes, created_by)
-                VALUES (%s,%s,'New',%s,%s) RETURNING id""",
-                (month_val, year_val, notes_val, g.user.get('id')))
-        except Exception:
-            # Fallback: absolute minimal (autocommit mode — no SAVEPOINTs)
-            cur.execute("INSERT INTO payroll_runs (month, year, status) VALUES (%s,%s,'New') RETURNING id",
-                (month_val, year_val))
+        # INSERT payroll_runs — run_date is NOT NULL (no default)
+        # Only use columns confirmed to exist in live DB
+        cur.execute("""INSERT INTO payroll_runs
+            (run_date, month, year, status, processed_by, notes)
+            VALUES (%s,%s,%s,'New',%s,%s) RETURNING id""",
+            (rundate, month_val, year_val, user_id, notes_val))
         run_id = cur.fetchone()['id']
 
-        # Update run_date separately (column may be named differently)
-        for col in ['run_date']:
-            try:
-                cur.execute(f"UPDATE payroll_runs SET {col}=%s WHERE id=%s", (rundate, run_id))
-            except Exception: pass
-
-        # Insert entries from parsed payroll data
-        entries = d.get('entries', [])
-        for entry in entries:
-            gross    = float(entry.get('gross_salary',0)) or sum([
-                float(entry.get('basic',0)), float(entry.get('hra',0)),
-                float(entry.get('conveyance',0)), float(entry.get('medical',0)),
-                float(entry.get('special',0)), float(entry.get('incentive',0)),
-                float(entry.get('other_earnings',0))])
-            total_ded = float(entry.get('total_deductions',0)) or sum([
-                float(entry.get('prof_tax',0)), float(entry.get('esi',0)),
-                float(entry.get('tds',0)), float(entry.get('epf',0)),
-                float(entry.get('medical_deduction',0)), float(entry.get('advance',0)),
-                float(entry.get('other_deductions',0))])
-            net = float(entry.get('net_salary',0)) or (gross - total_ded - float(entry.get('loss_of_pay',0)))
-
-            # Resolve employee_id: accept numeric id OR emp_id string like "EMP-1001"
-            emp_id_val = entry.get('employee_id') or entry.get('emp_id') or ''
-            if emp_id_val and not str(emp_id_val).isdigit():
+        # INSERT each payroll_entries row
+        for entry in entries_data:
+            # Resolve employee_id: string "EMP-1001" → integer
+            emp_id = entry.get('employee_id') or entry.get('emp_id') or ''
+            if emp_id and not str(emp_id).isdigit():
                 emp_row = db_row1("SELECT id FROM employees WHERE emp_id=%s AND is_active=1",
-                                  (str(emp_id_val).strip(),))
-                emp_id_val = emp_row['id'] if emp_row else None
+                                  (str(emp_id).strip(),))
+                emp_id = emp_row['id'] if emp_row else None
 
-            # INSERT using schema.sql guaranteed columns for payroll_entries:
-            # id, payroll_run_id, employee_id, month, year, basic, hra,
-            # tds, other_deductions, total_deductions, net_salary
+            def f(k, default=0):
+                return float(entry.get(k) or default)
+
+            gross    = f('gross_salary') or (f('basic')+f('hra')+f('conveyance')+
+                       f('medical')+f('special')+f('incentive')+f('other_earnings'))
+            total_ded = f('total_deductions') or (f('prof_tax')+f('esi')+
+                        f('tds')+f('epf')+f('medical_deduction')+
+                        f('advance')+f('other_deductions'))
+            net       = f('net_salary') or (gross - total_ded - f('loss_of_pay'))
+            lop       = f('loss_of_pay')
+
+            # INSERT with NOT NULL columns: employee_id + month (TEXT)
             cur.execute("""INSERT INTO payroll_entries
-                (payroll_run_id, employee_id, month, year,
-                 basic, hra, tds, other_deductions, total_deductions, net_salary)
+                (payroll_run_id, employee_id, month,
+                 basic, hra, tds, other_deductions, total_deductions, net_salary, ctc)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-                (run_id, emp_id_val, month_val, year_val,
-                 float(entry.get('basic',0)), float(entry.get('hra',0)),
-                 float(entry.get('tds',0)), float(entry.get('other_deductions',0)),
-                 total_ded, net))
-            entry_id = cur.fetchone()['id']
+                (run_id, emp_id, month_label,
+                 f('basic'), f('hra'), f('tds'), f('other_deductions'),
+                 total_ded, net, f('ctc')))
+            eid = cur.fetchone()['id']
 
-            # UPDATE each extended field — silently skips any missing columns
-            _ext_cols = [
-                ('lop_days',          float(entry.get('loss_of_pay',0))),
-                ('loss_of_pay',       float(entry.get('loss_of_pay',0))),
-                ('allowances',        float(entry.get('other_earnings',0))),
+            # UPDATE each extended field using ACTUAL live column names
+            # Map our data fields to confirmed live column names
+            field_map = [
+                # (live_column_name, value)
                 ('gross_salary',      gross),
-                ('esi_employee',      float(entry.get('esi',0))),
-                ('esi',               float(entry.get('esi',0))),
-                ('pf_employee',       float(entry.get('epf',0))),
-                ('epf',               float(entry.get('epf',0))),
-                ('conveyance',        float(entry.get('conveyance',0))),
-                ('medical',           float(entry.get('medical',0))),
-                ('special',           float(entry.get('special',0))),
-                ('incentive',         float(entry.get('incentive',0))),
-                ('other_earnings',    float(entry.get('other_earnings',0))),
-                ('prof_tax',          float(entry.get('prof_tax',0))),
-                ('medical_deduction', float(entry.get('medical_deduction',0))),
-                ('advance',           float(entry.get('advance',0))),
-                ('ctc',               float(entry.get('ctc',0))),
+                ('total_earnings',    gross),       # alternate name
+                ('loss_of_pay',       lop),
+                ('lop_days',          lop),         # alternate name
+                ('lop_amount',        lop),         # alternate name
+                ('conveyance',        f('conveyance')),
+                ('medical',           f('medical')),
+                ('medical_allowance', f('medical')), # alternate name
+                ('special',           f('special')),
+                ('special_allowance', f('special')), # alternate name
+                ('incentive',         f('incentive')),
+                ('other_earnings',    f('other_earnings')),
+                ('other_allowances',  f('other_earnings')), # alternate name
+                ('prof_tax',          f('prof_tax')),
+                ('profession_tax',    f('prof_tax')), # alternate name
+                ('esi',               f('esi')),
+                ('esi_employee',      f('esi')),     # alternate name
+                ('epf',               f('epf')),
+                ('pf_employee',       f('epf')),     # alternate name
+                ('medical_deduction', f('medical_deduction')),
+                ('medical_insurance', f('medical_deduction')), # alternate name
+                ('advance',           f('advance')),
+                ('hra',               f('hra')),
             ]
-            for _c, _v in _ext_cols:
-                try: cur.execute(f"UPDATE payroll_entries SET {_c}=%s WHERE id=%s", (_v, entry_id))
-                except Exception: pass
+            for col, val in field_map:
+                try:
+                    cur.execute(f"UPDATE payroll_entries SET {col}=%s WHERE id=%s",
+                               (val, eid))
+                except Exception:
+                    pass  # Column doesn't exist in this version — skip
 
         conn.close()
         return created({'id': run_id})
     except Exception as ex:
+        try: conn.close()
+        except: pass
         return err(str(ex))
 
 @payroll_bp.route('/payroll/runs/<int:rid>', methods=['GET','PUT'])
