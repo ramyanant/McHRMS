@@ -194,7 +194,7 @@ def run_detail(rid):
             FROM payroll_entries pe
             JOIN employees e ON e.id = pe.employee_id
             LEFT JOIN departments d ON d.id = e.department_id
-            LEFT JOIN office_locations l ON l.id = e.location_id
+            LEFT JOIN office_locations l ON l.id = e.office_location_id
             WHERE pe.payroll_run_id = %s
             ORDER BY e.first_name""", (rid,))
         return ok({'run': run, 'entries': entries})
