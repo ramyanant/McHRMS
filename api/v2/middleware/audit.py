@@ -4,6 +4,19 @@ Every write operation (POST/PUT/PATCH/DELETE) is automatically logged.
 Captures: user, timestamp, IP, module, action, entity, before/after values.
 """
 import json
+from decimal import Decimal
+
+class _SafeEncoder(json.JSONEncoder):
+    """JSON encoder that handles Decimal, datetime and other non-standard types."""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        if hasattr(obj, 'isoformat'):
+            return obj.isoformat()
+        try:
+            return super().default(obj)
+        except TypeError:
+            return str(obj)
 from datetime import datetime
 from flask import request, g
 from ..extensions import db_execute
@@ -37,8 +50,8 @@ def write_audit_log(
             uid, uname, ip, ua,
             module, action, entity_type, str(entity_id) if entity_id else None,
             description,
-            json.dumps(before_value) if before_value else None,
-            json.dumps(after_value)  if after_value  else None,
+            json.dumps(before_value, cls=_SafeEncoder) if before_value else None,
+            json.dumps(after_value,  cls=_SafeEncoder) if after_value  else None,
             datetime.utcnow(),
         ))
     except Exception as ex:
