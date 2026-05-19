@@ -43,8 +43,8 @@ export async function api(path, options = {}) {
     headers,
   });
 
-  // 401 → force logout
-  if (res.status === 401) {
+  // 401 → force logout (but NOT on auth/login itself, which returns 401 for wrong password)
+  if (res.status === 401 && !path.includes('/auth/login')) {
     clearAuth();
     window.router?.navigate('/login');
     throw new Error('Session expired. Please log in again.');

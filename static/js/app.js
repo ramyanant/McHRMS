@@ -34,26 +34,26 @@ function showLogin() {
   document.getElementById('app-shell').style.display = 'none';
   const login = document.getElementById('login-screen');
   login.style.display = 'flex';
-  login.innerHTML = `
-    <div class="login-card">
-      <div class="login-logo">
-        <div class="login-logo-text">McHR<span>&</span>TA</div>
-        <div class="login-tagline">Human Resources & Talent Acquisition</div>
-      </div>
-      <div class="login-form">
-        <div class="fg">
-          <label class="flabel">Username or Email</label>
-          <input class="finput" id="lu" type="text" placeholder="admin" autocomplete="username">
-        </div>
-        <div class="fg">
-          <label class="flabel">Password</label>
-          <input class="finput" id="lp" type="password" placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <div id="login-error" class="login-error" style="display:none"></div>
-        <button class="btn btn-primary btn-full" id="login-btn">Sign In →</button>
-      </div>
-      <div class="login-footer">McRaaN Human Resources & Talent Acquisition</div>
-    </div>`;
+  login.innerHTML =
+    '<div class="login-card">' +
+      '<div class="login-logo">' +
+        '<div class="login-logo-text">McHR<span>&amp;</span>TA</div>' +
+        '<div class="login-tagline">Human Resources &amp; Talent Acquisition</div>' +
+      '</div>' +
+      '<div class="login-form">' +
+        '<div class="fg">' +
+          '<label class="flabel">Username or Email</label>' +
+          '<input class="finput" id="lu" type="text" placeholder="admin" autocomplete="username">' +
+        '</div>' +
+        '<div class="fg">' +
+          '<label class="flabel">Password</label>' +
+          '<input class="finput" id="lp" type="password" placeholder="\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" autocomplete="current-password">' +
+        '</div>' +
+        '<div id="login-error" class="login-error" style="display:none"></div>' +
+        '<button class="btn btn-primary btn-full" id="login-btn">Sign In \u2192</button>' +
+      '</div>' +
+      '<div class="login-footer">McRaaN Human Resources &amp; Talent Acquisition</div>' +
+    '</div>';
 
   const doLogin = async () => {
     const u = document.getElementById('lu').value.trim();
@@ -348,7 +348,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import('./pages/' + mod + '.js?v=1778963292');
+    const m = await import('./pages/' + mod + '.js?v=1779166382');
     await m[fn](params);
     if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active
