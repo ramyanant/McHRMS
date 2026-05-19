@@ -303,7 +303,7 @@ export async function renderDepts() {
   showLoader();
   try {
     const [rows, masters] = await Promise.all([get('/departments'), getMasters()]);
-    let view = 'tree', filterStatus = '', sortCol = null, sortDir = 1;
+    let view = 'table', filterStatus = '', sortCol = null, sortDir = 1;
 
     // Group by BU for tree
     const byBU = {};
