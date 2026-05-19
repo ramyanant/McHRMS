@@ -21,7 +21,7 @@ export async function renderHome() {
   setBreadcrumb([{ label:'Audit Logs' }]);
   showLoader();
   try {
-    var data = await get('/audit-logs?per_page=500');
+    var data = await get('/admin/audit-logs?per_page=500');
     var rows = data.items || data || [];
 
     var q = '', filterModule = '', filterAction = '', filterUser = '';

@@ -124,7 +124,7 @@ def flush_data():
             'users',
             'employees',
             # Logs
-            'audit_logs', 'notifications',
+            'audit_log', 'notifications',  # Note: table is 'audit_log' not 'audit_logs'
         ]
         for t in tables:
             try: cur.execute(f"DELETE FROM {t}")
