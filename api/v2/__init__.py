@@ -197,6 +197,7 @@ def _run_migrations(app):
             # master_user_roles
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
             # Payroll: CA statement file storage
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS created_by INTEGER",
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS month INTEGER",
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS year INTEGER",
             "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS processed_by INTEGER",

@@ -64,7 +64,7 @@ def create_run():
     d = request.get_json() or {}
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        cur.execute("""INSERT INTO payroll_runs (month, year, run_date, status, created_by, notes)
+        cur.execute("""INSERT INTO payroll_runs (month, year, run_date, status, processed_by, notes)
             VALUES (%s,%s,%s,'New',%s,%s) RETURNING id""",
             (d.get('month', datetime.date.today().month),
              d.get('year',  datetime.date.today().year),

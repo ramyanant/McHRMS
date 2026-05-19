@@ -190,7 +190,7 @@ export async function renderNew() {
     '</div>' +
     '<div class="form-actions">' +
       '<button class="btn btn-ghost" onclick="navigateTo(\'/payroll\')">Cancel</button>' +
-      '<button class="btn btn-primary" id="save-pr-btn" onclick="window._savePayrollRun()" disabled>Save Payroll Run</button>' +
+      '<button class="btn btn-primary" id="save-pr-btn" onclick="window._savePayrollRun()" id="save-run-btn" disabled>Save Payroll Run</button>' +
     '</div>' +
     '</div></div>'
   );
@@ -216,49 +216,69 @@ export async function renderNew() {
         var json = XLSX.utils.sheet_to_json(ws, { defval: 0 });
         entries = json.map(function(row) {
           // Normalize column names (case-insensitive, handle spaces/underscores)
-          var norm = {};
-          // Robust normalization: strip whitespace, lowercase, replace ALL non-alphanumeric with _
-          Object.keys(row).forEach(function(k) {
-            var cleanKey = k.trim().toLowerCase()
-              .replace(/[^a-z0-9]+/g, '_')  // replace ANY non-alphanum with underscore
-              .replace(/^_+|_+$/g, '')       // strip leading/trailing underscores
-              .replace(/_+/g, '_');           // collapse multiple underscores
-            norm[cleanKey] = row[k];
-          });
-          // Debug: log keys found in first row (remove after testing)
-          if (entries.length === 0) {
-            console.log('[Payroll] Column keys found:', Object.keys(norm).join(', '));
-          }
-          var basic=parseFloat(norm.basic||norm['a._basic']||norm.a_basic||0);
-          var hra=parseFloat(norm.hra||norm['b._hra']||norm.b_hra||0);
-          var conv=parseFloat(norm.conveyance||norm['c._conveyance']||norm.c_conveyance||0);
-          var med=parseFloat(norm.medical_allowance||norm['d._medical']||norm.d_medical||norm.medical||0);
-          var spec=parseFloat(norm.special||norm['e._special']||norm.e_special||0);
-          var inc=parseFloat(norm.incentive||norm['f._incentive']||norm.f_incentive||0);
-          var oth=parseFloat(norm.other_earnings||norm['g._other']||norm.g_other||0);
-          var lop=parseFloat(norm.loss_of_pay||norm.lop||0);
-          var gross=basic+hra+conv+med+spec+inc+oth;
-          var pt=parseFloat(norm.prof_tax||norm.profession_tax||norm.professional_tax||norm.pt||norm.h_profession_tax||norm.p_t||0);
-          var esi=parseFloat(norm.esi||norm.i_esi||norm.e_s_i||0);
-          var tds=parseFloat(norm.tds||norm.j_tds||norm.t_d_s||norm.income_tax||0);
-          var epf=parseFloat(norm.epf||norm.k_epf||norm.e_p_f||norm.pf||norm.provident_fund||norm.employee_pf||0);
-          var medd=parseFloat(norm.medical_deduction||norm.medical_ded||norm.med_deduction||norm.med_ded||norm.t_medical||norm.l_medical||norm.s_medical||norm.med_ded_||norm.mededu||0);
-          var adv=parseFloat(norm.advance||norm.m_advance||norm.advance_deduction||norm.advances||0);
-          var othd=parseFloat(norm.other_deductions||norm.n_other||norm.other_ded||norm.others||norm.misc_deductions||0);
-          var totalDed=pt+esi+tds+epf+medd+adv+othd;
-          var net=gross-totalDed-lop;
+          // ── POSITIONAL COLUMN PARSER (A=0 … X=23) ──────────────────────────────
+          // Columns are read by position — header names are IGNORED for data rows.
+          // A(0)=EmpID  B(1)=Name   C(2)=Designation  D(3)=Department  E(4)=Location
+          // F(5)=CTC    G(6)=LOP    H(7)=Basic         I(8)=HRA         J(9)=Conv
+          // K(10)=Medical  L(11)=Special  M(12)=Incentive  N(13)=Other  O(14)=Gross
+          // P(15)=PT    Q(16)=ESI   R(17)=TDS   S(18)=EPF
+          // T(19)=Med.Ded.  U(20)=Advance  V(21)=OtherDed  W(22)=TotalDed  X(23)=Net
+          var cols = Object.values(row);
+          function col(i) { return parseFloat(cols[i]) || 0; }
+          function colS(i) { var v = cols[i]; return (v === null || v === undefined) ? '' : String(v).trim(); }
+
+          var empId  = colS(0);
+          var name   = colS(1);
+          var desig  = colS(2);
+          var dept   = colS(3);
+          var loc    = colS(4);
+          var ctc    = col(5);
+          var lop    = col(6);
+          var basic  = col(7);
+          var hra    = col(8);
+          var conv   = col(9);
+          var med    = col(10);
+          var spec   = col(11);
+          var inc    = col(12);
+          var oth    = col(13);
+          var gross  = col(14);  // use spreadsheet gross (col O)
+          var pt     = col(15);
+          var esi    = col(16);
+          var tds    = col(17);
+          var epf    = col(18);
+          var medd   = col(19);
+          var adv    = col(20);
+          var othd   = col(21);
+          var totalDed = col(22);  // use spreadsheet total (col W)
+          var net    = col(23);    // use spreadsheet net (col X)
+
           return {
-            employee_id:   norm.employee_id||norm.emp_id||norm.empid||'',
-            emp_id_display:norm.employee_id||norm.emp_id||norm.empid||'—',
-            employee_name: norm.employee_name||norm.name||'—',
-            designation:   norm.designation||'—',
-            department:    norm.department||'—',
-            location:      norm.location||'—',
-            ctc:           parseFloat(norm.ctc||0),
-            loss_of_pay:lop, basic,hra,conveyance:conv,medical:med,special:spec,incentive:inc,other_earnings:oth,
-            gross_salary:gross,prof_tax:pt,esi,tds,epf,medical_deduction:medd,advance:adv,other_deductions:othd,
-            total_deductions:totalDed,net_salary:net,
-            _status:'',
+            employee_id:   empId,
+            emp_id:        empId,
+            name:          name,
+            designation:   desig,
+            department:    dept,
+            location:      loc,
+            ctc:           ctc,
+            loss_of_pay:   lop,
+            basic:         basic,
+            hra:           hra,
+            conveyance:    conv,
+            medical:       med,
+            special:       spec,
+            incentive:     inc,
+            other_earnings:oth,
+            gross_salary:  gross,
+            prof_tax:      pt,
+            esi:           esi,
+            tds:           tds,
+            epf:           epf,
+            medical_deduction: medd,
+            advance:       adv,
+            other_deductions:  othd,
+            total_deductions:  totalDed,
+            net_salary:    net,
+            _status:       '',
           };
         });
         renderPreview();
@@ -318,11 +338,62 @@ export async function renderNew() {
     var year  = parseInt(document.getElementById('pr-year').value);
     var date  = document.getElementById('pr-date').value;
     var notes = document.getElementById('pr-notes').value;
+    var btn = document.getElementById('save-run-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
+      // 1. Save to database
       var res = await post('/payroll/runs', { month, year, run_date: date, notes, entries });
-      toast('Payroll run created!', 'success');
-      navigate('/payroll/' + res.id);
-    } catch(e2) { toast(e2.message, 'error'); }
+      var runId = res.id;
+
+      // 2. Generate Excel download (same 24-col format as input)
+      try {
+        var mod2 = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs');
+        var XL = mod2;
+        var cols = ['Emp ID','Name','Designation','Department','Location','CTC',
+          'LOP','Basic','HRA','Conv.','Medical','Special','Incentive','Other Earnings',
+          'Gross','PT','ESI','TDS','EPF','Med.Ded.','Advance','Other Ded.','Total Ded.','Net Salary'];
+        var rows = [cols];
+        entries.forEach(function(e) {
+          rows.push([
+            e.emp_id||e.employee_id, e.name||'', e.designation||'', e.department||'', e.location||'',
+            e.ctc||0, e.loss_of_pay||0, e.basic||0, e.hra||0, e.conveyance||0,
+            e.medical||0, e.special||0, e.incentive||0, e.other_earnings||0, e.gross_salary||0,
+            e.prof_tax||0, e.esi||0, e.tds||0, e.epf||0, e.medical_deduction||0,
+            e.advance||0, e.other_deductions||0, e.total_deductions||0, e.net_salary||0
+          ]);
+        });
+        var ws = XL.utils.aoa_to_sheet(rows);
+        var wb = XL.utils.book_new();
+        XL.utils.book_append_sheet(wb, ws, 'Payroll');
+        var mname = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1];
+        XL.writeFile(wb, 'Payroll_' + mname + '_' + year + '.xlsx');
+      } catch(xlErr) { console.warn('Excel export failed:', xlErr); }
+
+      // 3. Generate CBX .txt download
+      try {
+        var runDateFmt = date ? new Date(date).toLocaleDateString('en-GB').replace(/\//g,'/') : new Date().toLocaleDateString('en-GB').replace(/\//g,'/');
+        var cbxLines = entries.map(function(e) {
+          var acc  = (e.bank_account_number||'').trim();
+          var net  = Math.round(parseFloat(e.net_salary||0));
+          var name = (e.name||'').trim();
+          var ifsc = (e.bank_ifsc||'').trim();
+          var email= (e.personal_email||e.email||'').trim();
+          return 'N,,' + acc + ',' + net + ',' + name + ',,,,,,,,,,,,,,,,,,' + runDateFmt + ',,' + ifsc + ',,,' + email;
+        });
+        var cbxBlob = new Blob([cbxLines.join('\n')], { type: 'text/plain' });
+        var cbxUrl  = URL.createObjectURL(cbxBlob);
+        var cbxLink = document.createElement('a');
+        cbxLink.href = cbxUrl; cbxLink.download = 'Payroll_' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month-1] + '_' + year + '.txt';
+        document.body.appendChild(cbxLink); cbxLink.click(); document.body.removeChild(cbxLink);
+        URL.revokeObjectURL(cbxUrl);
+      } catch(cbxErr) { console.warn('CBX export failed:', cbxErr); }
+
+      toast('✓ Payroll saved. Excel + CBX downloaded.', 'success');
+      navigate('/payroll/' + runId);
+    } catch(e2) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Save Payroll Run'; }
+      toast(e2.message, 'error');
+    }
   };
 }
 
