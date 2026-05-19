@@ -1,7 +1,15 @@
 """Projects Blueprint — full project lifecycle with resources, milestones, risks"""
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d, require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -105,8 +113,8 @@ def create_project():
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (code, d['name'], d.get('short_name'), d.get('project_type','T&M'), d.get('category'),
          d.get('description'), d.get('status','Draft'), d.get('priority','Medium'),
-         d.get('client_id'), d.get('account_manager_id'), d.get('project_manager_id'),
-         d.get('department_id'), d.get('business_unit_id'), d.get('cost_centre_id'),
+         _int(d.get('client_id')), _int(d.get('account_manager_id')), _int(d.get('project_manager_id')),
+         _int(d.get('department_id')), _int(d.get('business_unit_id')), _int(d.get('cost_centre_id')),
          d.get('start_date'), d.get('end_date'), d.get('go_live_date'),
          d.get('budget',0), d.get('budget_currency','INR'), d.get('estimated_revenue',0),
          d.get('billing_type','T&M'), d.get('billing_cycle','Monthly'),

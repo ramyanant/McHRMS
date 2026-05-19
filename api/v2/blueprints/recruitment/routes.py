@@ -50,8 +50,8 @@ def create_job():
          location, comp_min, comp_max, description, requirements, target_start, status,
          work_mode, min_experience, max_experience, positions, budget, job_type, notice_period, assigned_to)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['title'], d.get('client_id'), d.get('employment_type_id') or d.get('engagement_type_id'),
-         d.get('department_id'), d.get('recruiter_id'), d.get('priority_id'),
+        (d['title'], _int(d.get('client_id')), d.get('employment_type_id') or d.get('engagement_type_id'),
+         _int(d.get('department_id')), d.get('recruiter_id'), d.get('priority_id'),
          d.get('location'), d.get('comp_min') or d.get('min_salary'),
          d.get('comp_max') or d.get('max_salary'),
          d.get('description'), d.get('requirements'), d.get('target_start') or d.get('target_date'),
@@ -431,7 +431,7 @@ def create_offer():
          employment_type_id,offer_date,expiry_date,status,created_by)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['candidate_id'],d['requisition_id'],d.get('application_id'),
-         d.get('designation'),d.get('department_id'),d.get('joining_date'),
+         d.get('designation'),_int(d.get('department_id')),d.get('joining_date'),
          d.get('offered_ctc'),d.get('offered_basic'),d.get('offered_hra'),
          d.get('offered_allowances'),d.get('employment_type_id'),
          d.get('offer_date'),d.get('expiry_date'),d.get('status','Draft'),

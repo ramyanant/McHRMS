@@ -3,7 +3,15 @@ v1 invoices: amount + tax_amount, total_amount GENERATED, NO GST breakdown colum
 """
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d, require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -71,7 +79,7 @@ def create_invoice():
         (inv_no, d['client_id'], d.get('contract_type_id'),
          d.get('period_start'), d.get('period_end'),
          subtotal, tax_amount, d.get('due_date'), d.get('notes'),
-         d.get('po_number'), d.get('cost_centre_id'), d.get('description'), status_id))
+         d.get('po_number'), _int(d.get('cost_centre_id')), d.get('description'), status_id))
     iid = cur.fetchone()['id']
     conn.close()
 

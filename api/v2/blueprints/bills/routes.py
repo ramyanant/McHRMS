@@ -2,6 +2,14 @@
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
 from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -45,8 +53,8 @@ def create_bill():
          payment_mode,status,description,bill_number,po_number,
          receipt_data,receipt_name,submitted_by)
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['expense_type'],d.get('vendor_id'),d.get('project_id'),d.get('client_id'),
-         d.get('cost_centre_id'),amount,tax,amount+tax,
+        (d['expense_type'],_int(d.get('vendor_id')),_int(d.get('project_id')),_int(d.get('client_id')),
+         _int(d.get('cost_centre_id')),amount,tax,amount+tax,
          d.get('currency','INR'),d['expense_date'],d.get('due_date'),
          d.get('payment_mode','Bank Transfer'),d.get('status','Draft'),
          d.get('description'),d.get('bill_number'),d.get('po_number'),

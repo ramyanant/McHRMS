@@ -8,7 +8,15 @@ Core workflow:
 """
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d, require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found, forbidden
 from ...utils.validators import validate, ValidationError

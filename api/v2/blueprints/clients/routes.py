@@ -1,7 +1,15 @@
 """Clients Blueprint — v1 schema compatible"""
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d, require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -61,7 +69,7 @@ def create_client():
          d.get('billing_contact_name'), d.get('billing_contact_email'), d.get('billing_contact_phone'),
          d.get('address'), d.get('address_line2'), d.get('city'), d.get('state_id'),
          d.get('pincode'), d.get('country_id'), d.get('gstin'), d.get('pan'),
-         d.get('account_manager_id'), d.get('health_score', 80)))
+         _int(d.get('account_manager_id')), d.get('health_score', 80)))
     cid = cur.fetchone()['id']
     conn.close()
     write_audit_log('clients', 'CREATE', 'client', cid, f"Client created: {d['name']}")

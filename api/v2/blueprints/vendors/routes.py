@@ -1,7 +1,15 @@
 """Vendors Blueprint — v1 schema compatible"""
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,'','null','undefined') else None
+    except: return None
+
+def _float(v, d=0):
+    try: return float(v) if v not in (None,'','null','undefined') else d
+    except: return d, require_role
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -40,7 +48,7 @@ def create_vendor():
     cur = conn.cursor()
     # Lookup or create category
     cat_name = d.get('category') or d.get('category_name')
-    cat_id   = d.get('category_id')
+    cat_id   = _int(d.get('category_id'))
     if not cat_id and cat_name:
         cat = db_row1("SELECT id FROM master_vendor_categories WHERE name ILIKE %s", (cat_name,))
         if cat: cat_id = cat['id']

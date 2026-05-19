@@ -80,13 +80,18 @@ def create_employee():
         VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING id""",
         (emp_id, d['first_name'], d.get('middle_name'), d['last_name'],
-         d.get('email'), d.get('phone'), d.get('personal_email'), d.get('personal_phone'),
-         d.get('job_title'), d.get('department_id'), d.get('employment_type_id'),
-         d.get('location'), d.get('office_location_id'), d.get('reporting_manager_id'),
-         d.get('client_id'), d.get('salary', 0), d.get('bill_rate', 0),
-         d.get('start_date'), d.get('status', 'Active'),
-         d.get('pan'), d.get('aadhaar'), d.get('pf_number'), d.get('esi_number'),
-         d.get('bank_name'), d.get('bank_account_number'), d.get('bank_ifsc')))
+         d.get('email') or None, d.get('phone') or None,
+         d.get('personal_email') or None, d.get('personal_phone') or None,
+         d.get('job_title') or None, _int(d.get('department_id')),
+         _int(d.get('employment_type_id')),
+         d.get('location') or None, _int(d.get('office_location_id')),
+         _int(d.get('reporting_manager_id')), _int(d.get('client_id')),
+         _float(d.get('salary'), 0), _float(d.get('bill_rate'), 0),
+         d.get('start_date') or None, d.get('status') or 'Active',
+         d.get('pan') or None, d.get('aadhaar') or None,
+         d.get('pf_number') or None, d.get('esi_number') or None,
+         d.get('bank_name') or None, d.get('bank_account_number') or None,
+         d.get('bank_ifsc') or None))
     eid = cur.fetchone()['id']
     conn.close()
 
@@ -134,6 +139,16 @@ def employee_detail(eid):
                      'linkedin_url','designation','gender','dob','marital_status',
                      'nationality','blood_group','notice_period']
         updates = {k: d[k] for k in updatable if k in d}
+        # Coerce FK integer fields — empty strings crash PostgreSQL INT columns
+        _int_fks = {'department_id','office_location_id','reporting_manager_id',
+                    'client_id','employment_type_id','business_unit_id','cost_centre_id'}
+        for k in _int_fks:
+            if k in updates:
+                updates[k] = _int(updates[k])
+        # Coerce float fields
+        for k in ('salary','bill_rate'):
+            if k in updates:
+                updates[k] = _float(updates[k], 0)
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)
             db_execute(f"UPDATE employees SET {set_clause}, updated_at=NOW() WHERE id=%s",
