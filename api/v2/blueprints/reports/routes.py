@@ -22,7 +22,7 @@ def dashboard():
             LEFT JOIN applications a ON a.stage_id=s.id
             GROUP BY s.id, s.name ORDER BY s.sort_order"""),
         'recent_hires': db_rows("""SELECT id, emp_id, first_name||' '||last_name as name,
-            job_title, start_date FROM employees WHERE is_active=1
+            job_title, start_date, photo_url FROM employees WHERE is_active=1
             AND start_date IS NOT NULL ORDER BY start_date DESC LIMIT 5"""),
         'overdue_invoices': db_rows("""SELECT i.invoice_number, c.name as client,
             i.total_amount, i.due_date FROM invoices i
