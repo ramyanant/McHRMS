@@ -12,7 +12,11 @@ Business Analyst Requirements Addressed:
 """
 from flask import Blueprint, request, g
 from ...extensions import db_rows, db_row1, db_execute, get_pg_conn
-from ...middleware.auth import require_auth, require_role, verify_password, hash_password
+from ...middleware.auth import require_auth
+
+def _int(v):
+    try: return int(v) if v not in (None,"","null","undefined") else None
+    except: return None, require_role, verify_password, hash_password
 from ...middleware.audit import write_audit_log
 from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
@@ -158,7 +162,7 @@ def add_contact():
     org = db_row1("SELECT id FROM organisation LIMIT 1")
     if not org: return err("Organisation not set up yet")
     d = request.get_json() or {}
-    try: validate(d, {'name': ['required']})
+    try: validate(d, {'name': ['required'], 'city': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
 
     result = db_execute("""INSERT INTO organisation_contacts
@@ -703,11 +707,14 @@ def create_location():
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     result = db_execute("""INSERT INTO office_locations
-        (name, city, state, country, address_line1, pincode, type, headcount)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (name, city, state, country, address_line1, pincode, type, headcount, phone, email, business_unit_id, manager_id, is_hq)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (d['name'], d.get('city'), d.get('state'), d.get('country','India'),
-         d.get('address'), d.get('pincode'),
-         d.get('type','Regional'), d.get('headcount',0)), returning=True)
+         d.get('address_line1') or d.get('address'), d.get('pincode'),
+         d.get('type','Regional'), d.get('headcount',0) or 0,
+         d.get('phone') or None, d.get('email') or None,
+         _int(d.get('business_unit_id')), _int(d.get('manager_id')),
+         int(d.get('is_hq',0) or 0)), returning=True)
     return created({'id': result['id']})
 
 @org_bp.route('/locations/<int:lid>', methods=['GET','PUT','DELETE'])

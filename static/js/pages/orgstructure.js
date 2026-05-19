@@ -36,11 +36,17 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
   setPageTitle(title, subtitle);
   setBreadcrumb(breadcrumb);
 
-  let sortCol = null, sortDir = 1, filterStatus = '';
-  let view = 'table';
+  let sortCol = null, sortDir = 1, filterStatus = '', searchQ = '';
+  let view = 'table'; let page = 1; const PER = 25;
 
   function getFiltered() {
     let data = [...rows];
+    if (searchQ) {
+      const q = searchQ.toLowerCase();
+      data = data.filter(r =>
+        Object.values(r).some(v => v && String(v).toLowerCase().includes(q))
+      );
+    }
     if (filterStatus !== '') {
       data = data.filter(r => {
         const val = r[statusField];
@@ -69,9 +75,18 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
       '</div>';
   }
 
-  function renderTable(data) {
-    if (!data.length) return '<div class="empty-mini">No ' + entityName + ' found</div>';
-    return '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+  function renderTable(allData) {
+    if (!allData.length) return '<div class="empty-mini">No ' + entityName + ' found</div>';
+    const pages = Math.max(1, Math.ceil(allData.length / PER));
+    page = Math.min(Math.max(1, page), pages);
+    const data = allData.slice((page-1)*PER, page*PER);
+    let pgBar = '';
+    if (pages > 1) {
+      pgBar = '<div class="pagination" style="padding:8px 0">';
+      for (let p = 1; p <= pages; p++) pgBar += '<button class="pg-btn' + (p===page?' active':'') + '" onclick="window._orgPage(' + p + ')">' + p + '</button>';
+      pgBar += '<span class="pg-info">' + allData.length + ' total</span></div>';
+    }
+    const tbl = '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
       columns.map(c =>
         '<th class="sortable" onclick="window._orgSort(\'' + c.key + '\')">' +
         c.label + '<span class="sort-icon" id="sort-' + c.key + '"></span></th>'
@@ -86,6 +101,7 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
         '</td></tr>'
       ).join('') +
       '</tbody></table></div>';
+    return tbl + pgBar;
   }
 
   function render() {
@@ -108,7 +124,8 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
     '<div class="page-body">' +
     '<div class="struct-toolbar">' +
       statsHtml +
-      '<div style="display:flex;gap:8px;align-items:center">' +
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        '<input class="finput" style="width:200px" placeholder="Search..." oninput="window._orgSearch(this.value)" id="org-search-input">' +
         '<select class="fselect" style="width:130px" onchange="window._orgFilter(this.value)">' +
           '<option value="">All Status</option>' +
           '<option value="active">Active</option>' +
@@ -226,6 +243,7 @@ function buModal(existing, masters) {
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
       const data = fd('bu-form'); data.is_active = parseInt(data.is_active);
+      if (!data.name || !data.name.trim()) { toast('Name is required', 'error'); return; }
       if (isEdit) await put('/business-units/' + existing.id, data);
       else await post('/business-units', data);
       toast(isEdit ? 'Updated' : 'Created', 'success');
@@ -430,6 +448,7 @@ function deptModal(existing, masters) {
     onSubmit: async () => {
       const data = fd('dept-form');
       data.is_active = parseInt(data.is_active);
+      if (!data.name || !data.name.trim()) { toast('Name is required', 'error'); return; }
       const mgr = (masters['employees-lookup']||[]).find(e => e.id == data.manager_id);
       if (mgr) data.head_name = mgr.name;
       if (isEdit) await put('/departments/' + existing.id, data);
@@ -530,6 +549,7 @@ function ccModal(existing, masters) {
     submitLabel: isEdit ? 'Save' : 'Create',
     onSubmit: async () => {
       const data = fd('cc-form'); data.is_active = parseInt(data.is_active);
+      if (!data.name || !data.name.trim()) { toast('Name is required', 'error'); return; }
       try {
         if (isEdit) await put('/cost-centres/' + existing.id, data);
         else await post('/cost-centres', data);
