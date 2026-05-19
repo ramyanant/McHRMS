@@ -203,7 +203,7 @@ def full_reset():
 
         # Everything from transactional reset PLUS org structure
         tables = [
-            # Sessions
+            # Sessions first (FK to users)
             'user_sessions',
             # Payroll
             'payroll_entries', 'payroll_runs',
@@ -214,7 +214,7 @@ def full_reset():
             'candidates', 'job_requisitions',
             # HR
             'employee_leaves', 'timesheets',
-            # Finance
+            # Finance — documents before parent tables
             'invoice_documents', 'invoice_line_items', 'invoices',
             'bill_documents', 'bills_expenses',
             # Projects
@@ -229,13 +229,16 @@ def full_reset():
             # Logs
             'audit_log', 'notifications',
             # ── ORG STRUCTURE (full reset only) ──
+            # Sub-tables before parent tables
             'organisation_documents',
-            'organisation_banks',
+            'organisation_bank_accounts',
             'organisation_contacts',
             'organisation_gst',
             'organisation_identity',
             'organisation_registrations',
+            'organisation_labour_certs',
             'organisation_addresses',
+            # Org structure: children before parent
             'cost_centres',
             'office_locations',
             'departments',
