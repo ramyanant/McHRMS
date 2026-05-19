@@ -94,17 +94,28 @@ def create_run():
             ])
             net = gross - total_ded - float(entry.get('loss_of_pay', 0))
             cur.execute("""INSERT INTO payroll_entries
-                (payroll_run_id, employee_id, loss_of_pay, basic, hra, conveyance, medical,
-                 special, incentive, other_earnings, gross_salary, prof_tax, esi, tds, epf,
-                 medical_deduction, advance, other_deductions, total_deductions, net_salary, ctc)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                (run_id, entry.get('employee_id'),
-                 entry.get('loss_of_pay',0), entry.get('basic',0), entry.get('hra',0),
-                 entry.get('conveyance',0), entry.get('medical',0), entry.get('special',0),
-                 entry.get('incentive',0), entry.get('other_earnings',0), gross,
-                 entry.get('prof_tax',0), entry.get('esi',0), entry.get('tds',0),
-                 entry.get('epf',0), entry.get('medical_deduction',0), entry.get('advance',0),
-                 entry.get('other_deductions',0), total_ded, net, entry.get('ctc',0)))
+                    (payroll_run_id, employee_id, basic, hra, esi, tds,
+                     other_deductions, total_deductions, net_salary)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+                    (run_id, entry.get('employee_id'),
+                     float(entry.get('basic',0)), float(entry.get('hra',0)),
+                     float(entry.get('esi',0)), float(entry.get('tds',0)),
+                     float(entry.get('other_deductions',0)), total_ded, net))
+            entry_id = cur.fetchone()['id']
+            try:
+                cur.execute("""UPDATE payroll_entries SET
+                    loss_of_pay=%s, conveyance=%s, medical=%s, special=%s,
+                    incentive=%s, other_earnings=%s, gross_salary=%s, prof_tax=%s,
+                    epf=%s, medical_deduction=%s, advance=%s, ctc=%s WHERE id=%s""",
+                    (float(entry.get('loss_of_pay',0)), float(entry.get('conveyance',0)),
+                     float(entry.get('medical',0)), float(entry.get('special',0)),
+                     float(entry.get('incentive',0)), float(entry.get('other_earnings',0)),
+                     gross, float(entry.get('prof_tax',0)), float(entry.get('epf',0)),
+                     float(entry.get('medical_deduction',0)), float(entry.get('advance',0)),
+                     float(entry.get('ctc',0)), entry_id))
+            except Exception as upd_err:
+                print(f"[payroll] entry update: {upd_err}", flush=True)
+            # emp_id placeholder (no RETURNING needed above already set)
         conn.close()
         return created({'id': run_id})
     except Exception as ex:
