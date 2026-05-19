@@ -115,7 +115,7 @@ def lookup_clients():
 def client_documents(cid):
     if request.method == 'GET':
         try:
-            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type, file_data,
                 uploaded_at, expiry_date, notes FROM client_documents
                 WHERE client_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (cid,))
             return ok(docs)

@@ -96,7 +96,7 @@ def bills_summary():
 def bill_docs(bid):
     if request.method == 'GET':
         try:
-            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type, file_data,
                 uploaded_at, notes FROM bill_documents
                 WHERE bill_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (bid,))
             return ok(docs)

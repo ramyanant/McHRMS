@@ -192,7 +192,11 @@ def _run_migrations(app):
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS created_by INTEGER",
             # master_user_roles
             "ALTER TABLE master_user_roles ADD COLUMN IF NOT EXISTS description TEXT",
-            # Onboarding: employee_id must be nullable (candidates not yet employees)
+            # Payroll: CA statement file storage
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS ca_filename TEXT",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS ca_file_data TEXT",
+            "ALTER TABLE payroll_runs ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+                        # Onboarding: employee_id must be nullable (candidates not yet employees)
             "ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id)",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
@@ -209,7 +213,32 @@ def _run_migrations(app):
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS description TEXT",
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_data TEXT",
             "ALTER TABLE invoices ADD COLUMN IF NOT EXISTS invoice_file_name TEXT",
-            # Document tables for candidates, jobs, invoices, bills
+            # Add missing columns to ALL document tables
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
+            "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE employee_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS uploaded_by INTEGER",
+            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE organisation_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            # Add missing employee columns
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS bank_branch TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_holder_name TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS linkedin_url TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS gender TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS dob DATE",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS marital_status TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nationality TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS blood_group TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS notice_period TEXT",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS photo_url TEXT",
+                        # Document tables for candidates, jobs, invoices, bills
             """CREATE TABLE IF NOT EXISTS candidate_documents (
                 id SERIAL PRIMARY KEY, candidate_id INTEGER REFERENCES candidates(id),
                 doc_type TEXT DEFAULT 'Resume', doc_name TEXT NOT NULL,

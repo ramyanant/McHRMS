@@ -23,116 +23,131 @@ function kpi(l, val, icon, c) {
 // thSort handled inline in each function
 
 export async function renderList() {
-  setPageTitle('Payroll', 'Salary runs');
+  setPageTitle('Payroll', 'Monthly salary runs');
   setBreadcrumb([{ label: 'Payroll' }]);
   showLoader();
   try {
     var data = await get('/payroll/runs');
-    var rows = data.items || [];
-    var filterStatus = '', sortCol = 'year', sortDir = -1;
+    var rows = data.items || data || [];
+    var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var q = '', filterStatus = '', sortCol = 'year', sortDir = -1, page = 1;
+    var PER = 25;
 
-    function sorted(arr) {
-      return arr.slice().sort(function(a,b) {
-        if (sortCol === 'year') return ((b.year*12+b.month) - (a.year*12+a.month)) * sortDir;
-        return String(a[sortCol]||'').localeCompare(String(b[sortCol]||'')) * sortDir;
+    function getF() {
+      return rows.filter(function(r) {
+        var mLabel = MONTHS[(r.month||1)-1] + ' ' + r.year;
+        var matchQ = !q || mLabel.toLowerCase().includes(q.toLowerCase()) ||
+                     (r.status||'').toLowerCase().includes(q.toLowerCase());
+        var matchS = !filterStatus || r.status === filterStatus;
+        return matchQ && matchS;
+      }).sort(function(a,b) {
+        var av = a[sortCol], bv = b[sortCol];
+        if (sortCol === 'year') { av = a.year*100+(a.month||0); bv = b.year*100+(b.month||0); }
+        return (av > bv ? 1 : av < bv ? -1 : 0) * sortDir;
       });
     }
-    function getF() {
-      var d = rows.slice();
-      if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
-      return sorted(d);
+
+    function sortBtn(col, label) {
+      var active = sortCol === col;
+      return '<button class="btn btn-ghost btn-xs" style="font-weight:'+(active?'700':'400')+'" onclick="window._prSort(\'' + col + '\')">' +
+        label + (active ? (sortDir===1?' ▲':' ▼') : '') + '</button>';
     }
 
-    function renderTable() {
-      var d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">No payroll runs yet</div>' +
-        '<button class="btn btn-primary" onclick="navigateTo(\'/payroll/new\')">+ Create Payroll Run</button></div>';
-      return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-        '<th class="sortable" onclick="window._prSort(\'year\')" style="cursor:pointer">Month / Year ⇅</th>' +
-        '<th class="sortable" onclick="window._prSort(\'run_date\')" style="cursor:pointer">Run Date ⇅</th>' +
-        '<th class="sortable" onclick="window._prSort(\'employee_count\')" style="cursor:pointer">Employees ⇅</th>' +
-        '<th class="sortable" onclick="window._prSort(\'total_net_salary\')" style="cursor:pointer">Net Amount ⇅</th>' +
-        '<th class="sortable" onclick="window._prSort(\'status\')" style="cursor:pointer">Status ⇅</th>' +
-        '<th>Actions</th>' +
-      '</tr></thead><tbody>' +
-      d.map(function(r) {
-        var monthYear = MONTHS[r.month - 1] + ' ' + r.year;
-        return '<tr class="tbl-clickable" onclick="navigateTo(\'/payroll/'+r.id+'\')">' +
-          '<td class="fw-bold">'+v(monthYear)+'</td>' +
-          '<td class="mono">'+fmt.date(r.run_date)+'</td>' +
-          '<td>'+(r.employee_count || 0)+'</td>' +
-          '<td class="mono fw-bold">'+fmt.money(r.total_net_salary)+'</td>' +
-          '<td>'+badge(r.status || 'New')+'</td>' +
-          '<td class="tbl-actions" onclick="event.stopPropagation()">' +
-            '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/payroll/'+r.id+'\')">View</button>' +
-            (r.status !== 'Processed'
-              ? '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/payroll/'+r.id+'\')">✏ Edit</button>'
-              : '') +
-            (r.status === 'Approved' || r.status === 'Processed'
-              ? '<button class="btn btn-primary btn-xs" onclick="window._genCBX('+r.id+',\''+v(monthYear)+'\')">⬇ CBX</button>'
-              : '') +
-            (r.status === 'Processed'
-              ? '<button class="btn btn-ghost btn-xs" onclick="window._genPayslips('+r.id+')">📄 Payslips</button>'
-              : '') +
-            '<button class="btn btn-danger btn-xs" onclick="window._deletePR('+r.id+')">Del</button>' +
-          '</td></tr>';
-      }).join('') +
-      '</tbody></table></div></div>';
-    }
+    function render() {
+      var all = getF(), total = all.length, pages = Math.max(1,Math.ceil(total/PER));
+      page = Math.min(Math.max(1,page), pages);
+      var slice = all.slice((page-1)*PER, page*PER);
 
-    var totalNet = rows.reduce(function(s,r){ return s + parseFloat(r.total_net_salary||0); }, 0);
-    var pending  = rows.filter(function(r){ return r.status === 'New' || r.status === 'On Hold'; }).length;
+      var pgBar = '';
+      if (pages > 1) {
+        pgBar = '<div class="pagination">';
+        if (page > 1) pgBar += '<button class="pg-btn" onclick="window._prPage('+(page-1)+')">&#8249;</button>';
+        for (var p2 = Math.max(1,page-2); p2 <= Math.min(pages,page+2); p2++) {
+          pgBar += '<button class="pg-btn'+(p2===page?' active':'')+'" onclick="window._prPage('+p2+')">'+p2+'</button>';
+        }
+        if (page < pages) pgBar += '<button class="pg-btn" onclick="window._prPage('+(page+1)+')">&#8250;</button>';
+        pgBar += '<span class="pg-info">'+total+' runs</span></div>';
+      }
 
-    setContent(
-      '<div class="page-body">' +
-      '<div class="kpi-grid kpi-4" style="margin-bottom:16px">' +
-        kpi('Total Runs', rows.length, '📋', 'blue') +
-        kpi('Pending Approval', pending, '⏳', 'amber') +
-        kpi('Total Net Salary', fmt.money(totalNet), '💰', 'green') +
-        kpi('Processed', rows.filter(function(r){return r.status==='Processed';}).length, '✅', 'purple') +
-      '</div>' +
-      '<div class="struct-toolbar">' +
-        '<div style="display:flex;gap:8px">' +
-          '<select class="fselect" style="width:130px" onchange="window._prFilter(this.value)">' +
-            '<option value="">All Status</option>' +
-            STATUSES.map(function(s){return '<option>'+s+'</option>';}).join('') +
-          '</select>' +
+      var html = '<div class="page-body">' +
+        '<div class="card">' +
+        '<div class="card-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<h3 class="card-title" style="flex:1">Payroll Runs</h3>' +
+        '<input class="finput" style="width:180px" placeholder="Search month/year/status…" value="'+v(q)+'" oninput="window._prQ(this.value)">' +
+        '<select class="fselect" style="width:140px" onchange="window._prStatus(this.value)">' +
+        '<option value="">All Statuses</option>' +
+        ['New','Approved','Processed','On Hold','Rejected'].map(function(s){
+          return '<option value="'+s+'"'+(filterStatus===s?' selected':'')+'>'+s+'</option>';
+        }).join('') + '</select>' +
+        '<button class="btn btn-primary btn-sm" onclick="navigateTo(\'payroll/new\')">+ New Payroll Run</button>' +
         '</div>' +
-        '<button class="btn btn-primary" onclick="navigateTo(\'/payroll/new\')">+ New Payroll Run</button>' +
-      '</div>' +
-      '<div id="pr-content">'+renderTable()+'</div>' +
-      '</div>'
-    );
+        '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+        '<th>'+sortBtn('year','Month / Year')+'</th>' +
+        '<th>CA Statement</th>' +
+        '<th>CBX Statement</th>' +
+        '<th>Banking File</th>' +
+        '<th>'+sortBtn('status','Status')+'</th>' +
+        '<th>Emp</th>' +
+        '<th>Actions</th>' +
+        '</tr></thead><tbody>' +
+        (slice.length === 0 ? '<tr><td colspan="7" class="text-center" style="padding:32px;color:var(--txt3)">No payroll runs found</td></tr>' :
+        slice.map(function(r) {
+          var mLabel = MONTHS[(r.month||1)-1] + ' ' + r.year;
+          var statusColor = {New:'info',Approved:'success',Processed:'success','On Hold':'warning',Rejected:'danger'}[r.status]||'default';
+          var caBtn = r.ca_filename ?
+            '<button class="btn btn-ghost btn-xs" title="'+v(r.ca_filename)+'" onclick="window._prDownCA('+r.id+')">&#128190; '+v(r.ca_filename).slice(-15)+'</button>' :
+            '<span style="color:var(--txt3);font-size:11px">None</span>';
+          var cbxBtn = (r.status === 'Approved' || r.status === 'Processed') ?
+            '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/cbx" target="_blank">&#128190; CBX</a>' :
+            '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
+          var bankBtn = r.status === 'Processed' ?
+            '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/cbx?format=txt" target="_blank">&#128196; TXT</a>' :
+            '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
+          return '<tr class="tbl-clickable" data-id="'+r.id+'">' +
+            '<td><strong>'+mLabel+'</strong></td>' +
+            '<td onclick="event.stopPropagation()">'+caBtn+'</td>' +
+            '<td onclick="event.stopPropagation()">'+cbxBtn+'</td>' +
+            '<td onclick="event.stopPropagation()">'+bankBtn+'</td>' +
+            '<td><span class="badge badge-'+statusColor+'">'+v(r.status)+'</span></td>' +
+            '<td>'+(r.employee_count||0)+'</td>' +
+            '<td class="tbl-actions" onclick="event.stopPropagation()">' +
+            '<button class="btn btn-ghost btn-xs" data-id="'+r.id+'" onclick="window._prView(this)">View</button>' +
+            '<button class="btn btn-danger btn-xs" data-id="'+r.id+'" data-label="'+mLabel+'" onclick="window._prDelete(this)">Delete</button>' +
+            '</td></tr>';
+        }).join('')) +
+        '</tbody></table></div>' + pgBar + '</div></div>';
 
-    window._prFilter = function(val) { filterStatus = val; document.getElementById('pr-content').innerHTML = renderTable(); };
-    window._prSort   = function(col) { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('pr-content').innerHTML = renderTable(); };
+      setContent(html);
 
-    window._genCBX = async function(id, label) {
-      try {
-        var res = await get('/payroll/runs/'+id+'/cbx');
-        var content = res.content || '';
-        if (!content) { toast('No approved entries to generate CBX', 'error'); return; }
-        var blob = new Blob([content], { type: 'text/plain' });
-        var link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = res.filename || ('payroll_'+id+'.txt');
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        toast('CBX file downloaded', 'success');
-      } catch(e) { toast(e.message, 'error'); }
-    };
+      window._prQ      = function(val){ q=val; page=1; render(); };
+      window._prStatus = function(val){ filterStatus=val; page=1; render(); };
+      window._prSort   = function(col){ if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=-1;} render(); };
+      window._prPage   = function(p){ page=p; render(); };
+      // Row click navigation using data-id
+      document.querySelectorAll('tr[data-id]').forEach(function(tr) {
+        tr.addEventListener('click', function() { navigateTo('payroll/'+this.dataset.id); });
+      });
+      window._prView = function(btn) { navigateTo('payroll/'+btn.dataset.id); };
+      window._prDelete = async function(btn) {
+        var id = btn.dataset.id, label = btn.dataset.label;
+        if(!confirm('Delete payroll run for '+label+'? This cannot be undone.')) return;
+        try { await put('/payroll/runs/'+id, {is_active:0}); toast('Deleted','info'); rows=rows.filter(function(r){return String(r.id)!==String(id);}); render(); }
+        catch(ex){ toast(ex.message||'Failed','error'); }
+      };
+      window._prDownCA = async function(id) {
+        try {
+          var run = await get('/payroll/runs/'+id);
+          if (run && run.ca_file_data) {
+            var a = document.createElement('a');
+            a.href = run.ca_file_data;
+            a.download = run.ca_filename || 'ca_statement.xlsx';
+            a.click();
+          } else { toast('No CA statement file stored','error'); }
+        } catch(ex){ toast(ex.message||'Failed','error'); }
+      };
+    }
 
-    window._genPayslips = async function(id) {
-      navigate('/payroll/'+id+'?tab=payslips');
-    };
-
-    window._deletePR = async function(id) {
-      if (!confirm('Delete this payroll run?')) return;
-      await put('/payroll/runs/'+id, { status: 'Rejected' });
-      toast('Deleted', 'info');
-      rows.splice(rows.findIndex(function(r){ return r.id === id; }), 1);
-      document.getElementById('pr-content').innerHTML = renderTable();
-    };
-
+    render();
   } catch(e) { showError(e.message); }
 }
 
@@ -266,7 +281,7 @@ export async function renderNew() {
       'PT','ESI','TDS','EPF','Med.Ded.','Advance','Other Ded.','Total Ded.','Net'];
 
     // Show raw detected columns so user can see what was found
-        var detectedCols = json.length > 0 ? Object.keys(json[0]).map(function(k){return k.trim();}).join(' | ') : 'none';
+        var detectedCols = window._payrollRawKeys || (entries.length > 0 ? 'Upload processed (' + entries.length + ' rows)' : 'none');
         var colDebug = '<div class="card" style="margin-top:8px;border:1px solid #bfdbfe">' +
           '<div class="card-body" style="padding:8px 12px;font-size:11px">' +
           '<strong>📊 Columns detected:</strong> <code style="font-size:10px">' + detectedCols + '</code>' +

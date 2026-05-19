@@ -73,7 +73,7 @@ def vendor_detail(vid):
         WHERE v.id=%s""", (vid,))
     if not vendor: return not_found("Vendor")
     if request.method == 'GET':
-        vendor['documents'] = db_rows("SELECT id, doc_type, doc_name, uploaded_at FROM vendor_documents WHERE vendor_id=%s", (vid,))
+        vendor['documents'] = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_at FROM vendor_documents WHERE vendor_id=%s", (vid,))
         return ok(vendor)
     if request.method == 'PUT':
         d = request.get_json() or {}
@@ -107,10 +107,10 @@ def vendor_documents(vid):
             doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
             mime_type TEXT, is_active INTEGER DEFAULT 1,
             uploaded_at TIMESTAMP DEFAULT NOW())""")
-        cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type)
-            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
+        cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type, notes, uploaded_by)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (vid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
-             d.get('file_size'), d.get('mime_type')))
+             d.get('file_size'), d.get('mime_type'), d.get('notes'), g.user.get('id')))
         doc_id = cur.fetchone()['id']; conn.close()
         return created({'id': doc_id})
     except Exception as e: return err(str(e))

@@ -126,9 +126,17 @@ def flush_data():
             # Logs
             'audit_log', 'notifications',  # Note: table is 'audit_log' not 'audit_logs'
         ]
+        # First disable FK constraints temporarily, then delete all
+        try: cur.execute("SET session_replication_role = replica")
+        except: pass  # Some DBs don't support this
         for t in tables:
-            try: cur.execute(f"DELETE FROM {t}")
-            except Exception as ex: print(f"[flush] skip {t}: {ex}")
+            try: 
+                cur.execute(f"DELETE FROM {t}")
+                print(f"[flush] cleared: {t}", flush=True)
+            except Exception as ex: 
+                print(f"[flush] skip {t}: {ex}", flush=True)
+        try: cur.execute("SET session_replication_role = DEFAULT")
+        except: pass
         conn.close()
         return ok(message="All data flushed. System ready for fresh start.")
     except Exception as ex:

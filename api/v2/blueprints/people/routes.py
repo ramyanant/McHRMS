@@ -57,10 +57,13 @@ def create_employee():
 
     # Generate emp_id
     last = db_row1("SELECT emp_id FROM employees WHERE emp_id LIKE 'EMP-%' ORDER BY id DESC LIMIT 1")
-    if last and last['emp_id']:
-        try: next_n = int(last['emp_id'].split('-')[1]) + 1
-        except: next_n = 1001
-    else:
+    try:
+        if last and last.get('emp_id'):
+            parts = str(last['emp_id']).split('-')
+            next_n = int(parts[1]) + 1 if len(parts) >= 2 and parts[1].isdigit() else 1001
+        else:
+            next_n = 1001
+    except Exception:
         next_n = 1001
     emp_id = f"EMP-{next_n}"
 
@@ -127,7 +130,9 @@ def employee_detail(eid):
                      'location','rating','personal_email','personal_phone','notice_period',
                      'gender','dob','marital_status','nationality','blood_group',
                      'business_unit_id','salary_structure','project','designation',
-                     'is_active','photo_url']
+                     'is_active','photo_url','bank_branch','account_holder_name',
+                     'linkedin_url','designation','gender','dob','marital_status',
+                     'nationality','blood_group','notice_period']
         updates = {k: d[k] for k in updatable if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)
@@ -217,6 +222,7 @@ def list_users():
         FROM users u
         JOIN master_user_roles r ON r.id=u.role_id
         LEFT JOIN employees e ON e.id=u.employee_id
+        WHERE u.is_active=1
         ORDER BY u.username""")
     return ok(rows)
 
@@ -407,7 +413,7 @@ def employee_documents_admin(eid):
     """Admin view of employee documents."""
     if request.method == 'GET':
         try:
-            docs = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, uploaded_at FROM employee_documents WHERE employee_id=%s AND is_active=1 ORDER BY uploaded_at DESC", (eid,))
+            docs = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_at FROM employee_documents WHERE employee_id=%s AND is_active=1 ORDER BY uploaded_at DESC", (eid,))
             return ok(docs)
         except Exception: return ok([])
     d = request.get_json() or {}

@@ -87,7 +87,12 @@ def create_project():
     # Auto-generate project code
     last = db_row1("SELECT project_code FROM projects WHERE project_code LIKE 'PRJ-%' ORDER BY id DESC LIMIT 1")
     try:
-        code = f"PRJ-{(int(last['project_code'].split('-')[1])+1):04d}" if last and last['project_code'] else "PRJ-0001"
+        if last and last.get('project_code'):
+            parts = str(last['project_code']).split('-')
+            next_n = int(parts[1]) + 1 if len(parts) >= 2 and parts[1].isdigit() else 1
+            code = f"PRJ-{next_n:04d}"
+        else:
+            code = "PRJ-0001"
     except Exception:
         code = "PRJ-0001"
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
@@ -222,7 +227,7 @@ def project_documents(pid):
     _ensure_projects()
     if request.method == 'GET':
         try:
-            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type, file_data,
                 uploaded_at, notes FROM project_documents
                 WHERE project_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (pid,))
             return ok(docs)

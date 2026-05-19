@@ -430,7 +430,8 @@ export async function renderCandidates() {
     const AVAIL_LIST   = ['Immediate','Notice Period','Looking for Change','Currently Employed','Freelancer'];
 
     let q = '', filterStatus = '', filterRating = '', filterAvail = '';
-    let sortCol = 'created_at', sortDir = -1;
+    let sortCol = 'created_at', sortDir = -1, candPage = 1;
+    const CAND_PER = 25;
 
     const statuses   = [...new Set(rows.map(r => r.status).filter(Boolean))];
 

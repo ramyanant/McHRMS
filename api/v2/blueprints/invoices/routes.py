@@ -149,7 +149,7 @@ def invoice_summary():
 def invoice_docs(iid):
     if request.method == 'GET':
         try:
-            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
+            docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type, file_data,
                 uploaded_at, notes FROM invoice_documents
                 WHERE invoice_id=%s AND is_active=1 ORDER BY uploaded_at DESC""", (iid,))
             return ok(docs)
