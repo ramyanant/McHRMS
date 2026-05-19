@@ -378,6 +378,12 @@ def create_app(config_override=None):
 
     @app.route('/api/v2/admin/restore-admin', methods=['GET','POST'])
     def restore_admin():
+        # Require secret key to prevent unauthorized admin reset
+        from flask import request as _req
+        secret = _req.args.get('key') or (_req.json or {}).get('key') if _req.method == 'POST' else _req.args.get('key')
+        if secret != 'McRaaN-Admin-Restore-2024':
+            from flask import jsonify
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
         """Emergency endpoint: restore admin user if missing. Safe to call anytime."""
         try:
             import hashlib

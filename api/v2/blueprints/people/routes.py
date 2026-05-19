@@ -66,6 +66,21 @@ def create_employee():  # v1779206157
     except ValidationError as e:
         return err("Validation failed", 400, e.errors)
 
+    # Format validations
+    import re as _re
+    if d.get('pan') and not _re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]$', str(d['pan']).upper()):
+        return err("PAN must be in format ABCDE1234F", 400)
+    if d.get('aadhaar') and not _re.match(r'^\d{12}$', str(d['aadhaar']).replace(' ','')):
+        return err("Aadhaar must be 12 digits", 400)
+    if d.get('email') and not _re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', str(d['email'])):
+        return err("Invalid email format", 400)
+
+    # Check email uniqueness
+    if d.get('email'):
+        existing = db_row1("SELECT id FROM employees WHERE email=%s AND is_active=1", (d['email'],))
+        if existing:
+            return err(f"Email {d['email']} is already registered to another employee", 409)
+
     # Generate emp_id
     last = db_row1("SELECT emp_id FROM employees WHERE emp_id LIKE 'EMP-%' ORDER BY id DESC LIMIT 1")
     try:

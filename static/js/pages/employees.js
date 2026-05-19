@@ -403,6 +403,19 @@ function renderEmployeeForm(emp, masters) {
     // Remove empty strings so they don't overwrite existing values
     Object.keys(allData).forEach(k => { if (allData[k] === '') delete allData[k]; });
 
+    // Frontend validation
+    if (!allData.first_name || !allData.last_name) {
+      toast('First Name and Last Name are required', 'error'); return;
+    }
+    if (allData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(allData.email)) {
+      toast('Invalid email format', 'error'); return;
+    }
+    if (allData.pan && !/^[A-Z]{5}[0-9]{4}[A-Z]$/i.test(allData.pan)) {
+      toast('PAN must be in format ABCDE1234F (e.g. ABCDE1234F)', 'error'); return;
+    }
+    if (allData.aadhaar && !/^\d{12}$/.test(allData.aadhaar.replace(/\s/g,''))) {
+      toast('Aadhaar must be exactly 12 digits', 'error'); return;
+    }
     try {
       if (isEdit) {
         await put('/employees/'+emp.id, allData);
