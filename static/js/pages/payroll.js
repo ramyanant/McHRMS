@@ -232,7 +232,7 @@ export async function renderNew() {
           var basic=parseFloat(norm.basic||norm['a._basic']||norm.a_basic||0);
           var hra=parseFloat(norm.hra||norm['b._hra']||norm.b_hra||0);
           var conv=parseFloat(norm.conveyance||norm['c._conveyance']||norm.c_conveyance||0);
-          var med=parseFloat(norm.medical||norm['d._medical']||norm.d_medical||0);
+          var med=parseFloat(norm.medical_allowance||norm['d._medical']||norm.d_medical||norm.medical||0);
           var spec=parseFloat(norm.special||norm['e._special']||norm.e_special||0);
           var inc=parseFloat(norm.incentive||norm['f._incentive']||norm.f_incentive||0);
           var oth=parseFloat(norm.other_earnings||norm['g._other']||norm.g_other||0);
@@ -242,7 +242,7 @@ export async function renderNew() {
           var esi=parseFloat(norm.esi||norm.i_esi||norm.e_s_i||0);
           var tds=parseFloat(norm.tds||norm.j_tds||norm.t_d_s||norm.income_tax||0);
           var epf=parseFloat(norm.epf||norm.k_epf||norm.e_p_f||norm.pf||norm.provident_fund||norm.employee_pf||0);
-          var medd=parseFloat(norm.medical_deduction||norm.medical_ded||norm.med_deduction||norm.med_ded||norm.l_medical||norm.medical||0);
+          var medd=parseFloat(norm.medical_deduction||norm.medical_ded||norm.med_deduction||norm.med_ded||norm.t_medical||norm.l_medical||norm.s_medical||norm.med_ded_||norm.mededu||0);
           var adv=parseFloat(norm.advance||norm.m_advance||norm.advance_deduction||norm.advances||0);
           var othd=parseFloat(norm.other_deductions||norm.n_other||norm.other_ded||norm.others||norm.misc_deductions||0);
           var totalDed=pt+esi+tds+epf+medd+adv+othd;
