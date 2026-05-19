@@ -91,11 +91,7 @@ def create_run():
                 VALUES (%s,%s,'New',%s,%s) RETURNING id""",
                 (month_val, year_val, notes_val, g.user.get('id')))
         except Exception:
-            cur.execute("SAVEPOINT sp_run")
-            try:
-                cur.execute("ROLLBACK TO SAVEPOINT sp_run") 
-            except Exception: pass
-            # Fallback: absolute minimal
+            # Fallback: absolute minimal (autocommit mode — no SAVEPOINTs)
             cur.execute("INSERT INTO payroll_runs (month, year, status) VALUES (%s,%s,'New') RETURNING id",
                 (month_val, year_val))
         run_id = cur.fetchone()['id']
@@ -180,7 +176,7 @@ def run_detail(rid):
         sets = ', '.join(f"{k}=%s" for k in d if k in allowed)
         vals = [d[k] for k in d if k in allowed]
         if sets:
-            db_execute(f"UPDATE payroll_runs SET {sets}, updated_at=NOW() WHERE id=%s",
+            db_execute(f"UPDATE payroll_runs SET {sets} WHERE id=%s",
                       vals + [rid])
         return ok(message="Updated")
 
