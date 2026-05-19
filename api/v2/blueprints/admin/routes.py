@@ -159,7 +159,7 @@ def flush_data():
                 # Re-insert fresh
                 cur2.execute(
                     "INSERT INTO users (username, email, password_hash, role_id, full_name, is_active) "
-                    "VALUES (%s,%s,%s,%s,%s,TRUE)",
+                    "VALUES (%s,%s,%s,%s,%s,1)",
                     ('admin','admin@mcraan.com', pw, role['id'], 'System Administrator')
                 )
                 conn2.close()

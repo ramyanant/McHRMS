@@ -381,11 +381,11 @@ def create_app(config_override=None):
                 role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
             pw = hashlib.sha256("Admin@123".encode()).hexdigest()
             if existing:
-                db_execute("UPDATE users SET password_hash=%s, is_active=TRUE WHERE username='admin'", (pw,))
+                db_execute("UPDATE users SET password_hash=%s, is_active=1 WHERE username='admin'", (pw,))
                 msg = "Admin password reset to Admin@123"
             else:
                 db_execute(
-                    "INSERT INTO users (username,email,password_hash,role_id,full_name,is_active) VALUES (%s,%s,%s,%s,%s,TRUE)",
+                    "INSERT INTO users (username,email,password_hash,role_id,full_name,is_active) VALUES (%s,%s,%s,%s,%s,1)",
                     ('admin','admin@mcraan.com',pw,role['id'],'System Administrator')
                 )
                 msg = "Admin user created"
