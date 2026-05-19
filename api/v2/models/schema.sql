@@ -613,11 +613,7 @@ CREATE TABLE IF NOT EXISTS timesheets (
 );
 CREATE INDEX IF NOT EXISTS idx_ts_employee  ON timesheets(employee_id);
 CREATE INDEX IF NOT EXISTS idx_ts_week      ON timesheets(week_ending);
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='timesheets' AND column_name='project_id') THEN
-    CREATE INDEX IF NOT EXISTS idx_ts_project ON timesheets(project_id);
-  END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_ts_project   ON timesheets(project_id);
 
 -- ── Payroll ──────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS payroll_runs (
@@ -666,11 +662,7 @@ CREATE TABLE IF NOT EXISTS payroll_entries (
     updated_at         TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_payroll_emp     ON payroll_entries(employee_id);
-DO $$ BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='payroll_entries' AND column_name='year') THEN
-    CREATE INDEX IF NOT EXISTS idx_payroll_period ON payroll_entries(year, month);
-  END IF;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_payroll_period  ON payroll_entries(year, month);
 
 -- ── Recruitment ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS job_requisitions (
