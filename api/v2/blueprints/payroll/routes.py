@@ -80,42 +80,59 @@ def create_run():
         # Insert entries from parsed payroll data
         entries = d.get('entries', [])
         for entry in entries:
-            gross = sum([
+            gross    = float(entry.get('gross_salary',0)) or sum([
                 float(entry.get('basic',0)), float(entry.get('hra',0)),
                 float(entry.get('conveyance',0)), float(entry.get('medical',0)),
                 float(entry.get('special',0)), float(entry.get('incentive',0)),
-                float(entry.get('other_earnings',0))
-            ])
-            total_ded = sum([
+                float(entry.get('other_earnings',0))])
+            total_ded = float(entry.get('total_deductions',0)) or sum([
                 float(entry.get('prof_tax',0)), float(entry.get('esi',0)),
                 float(entry.get('tds',0)), float(entry.get('epf',0)),
                 float(entry.get('medical_deduction',0)), float(entry.get('advance',0)),
-                float(entry.get('other_deductions',0))
-            ])
-            net = gross - total_ded - float(entry.get('loss_of_pay', 0))
-            cur.execute("""INSERT INTO payroll_entries
-                    (payroll_run_id, employee_id, basic, hra, esi, tds,
-                     other_deductions, total_deductions, net_salary)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-                    (run_id, entry.get('employee_id'),
-                     float(entry.get('basic',0)), float(entry.get('hra',0)),
-                     float(entry.get('esi',0)), float(entry.get('tds',0)),
-                     float(entry.get('other_deductions',0)), total_ded, net))
+                float(entry.get('other_deductions',0))])
+            net = float(entry.get('net_salary',0)) or (gross - total_ded - float(entry.get('loss_of_pay',0)))
+
+            # Resolve employee_id: accept numeric id OR emp_id string like "EMP-1001"
+            emp_id_val = entry.get('employee_id') or entry.get('emp_id') or ''
+            if emp_id_val and not str(emp_id_val).isdigit():
+                emp_row = db_row1("SELECT id FROM employees WHERE emp_id=%s AND is_active=1",
+                                  (str(emp_id_val).strip(),))
+                emp_id_val = emp_row['id'] if emp_row else None
+
+            # Step 1: Insert with only guaranteed columns (id, run_id, emp_id)
+            cur.execute(
+                "INSERT INTO payroll_entries (payroll_run_id, employee_id) VALUES (%s,%s) RETURNING id",
+                (run_id, emp_id_val))
             entry_id = cur.fetchone()['id']
-            try:
-                cur.execute("""UPDATE payroll_entries SET
-                    loss_of_pay=%s, conveyance=%s, medical=%s, special=%s,
-                    incentive=%s, other_earnings=%s, gross_salary=%s, prof_tax=%s,
-                    epf=%s, medical_deduction=%s, advance=%s, ctc=%s WHERE id=%s""",
-                    (float(entry.get('loss_of_pay',0)), float(entry.get('conveyance',0)),
-                     float(entry.get('medical',0)), float(entry.get('special',0)),
-                     float(entry.get('incentive',0)), float(entry.get('other_earnings',0)),
-                     gross, float(entry.get('prof_tax',0)), float(entry.get('epf',0)),
-                     float(entry.get('medical_deduction',0)), float(entry.get('advance',0)),
-                     float(entry.get('ctc',0)), entry_id))
-            except Exception as upd_err:
-                print(f"[payroll] entry update: {upd_err}", flush=True)
-            # emp_id placeholder (no RETURNING needed above already set)
+
+            # Step 2: Update every field — each in its own try so one missing col won't block others
+            updates = {
+                'basic': float(entry.get('basic',0)),
+                'hra':   float(entry.get('hra',0)),
+                'esi':   float(entry.get('esi',0)),
+                'tds':   float(entry.get('tds',0)),
+                'other_deductions':  float(entry.get('other_deductions',0)),
+                'total_deductions':  total_ded,
+                'net_salary':        net,
+                'loss_of_pay':       float(entry.get('loss_of_pay',0)),
+                'conveyance':        float(entry.get('conveyance',0)),
+                'medical':           float(entry.get('medical',0)),
+                'special':           float(entry.get('special',0)),
+                'incentive':         float(entry.get('incentive',0)),
+                'other_earnings':    float(entry.get('other_earnings',0)),
+                'gross_salary':      gross,
+                'prof_tax':          float(entry.get('prof_tax',0)),
+                'epf':               float(entry.get('epf',0)),
+                'medical_deduction': float(entry.get('medical_deduction',0)),
+                'advance':           float(entry.get('advance',0)),
+                'ctc':               float(entry.get('ctc',0)),
+            }
+            for col, val in updates.items():
+                try:
+                    cur.execute(f"UPDATE payroll_entries SET {col}=%s WHERE id=%s", (val, entry_id))
+                except Exception:
+                    cur.execute("ROLLBACK TO SAVEPOINT sp") if False else None
+
         conn.close()
         return created({'id': run_id})
     except Exception as ex:
