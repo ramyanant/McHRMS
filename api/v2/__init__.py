@@ -463,6 +463,7 @@ def _run_migrations(app):
             "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS rating INTEGER DEFAULT 0",
             "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS sla_score INTEGER DEFAULT 0",
             "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS notes TEXT",
             # vendor_documents: schema has file_name/file_url, code uses doc_name/file_data
             "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS doc_name TEXT",
             "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS file_size TEXT",
