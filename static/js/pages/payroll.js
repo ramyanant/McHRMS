@@ -106,7 +106,7 @@ export async function renderList() {
           var statusColor = {New:'info',Approved:'success',Processed:'success','On Hold':'warning',Rejected:'danger'}[r.status]||'default';
           // CA Statement — direct download from stored file
           var caBtn = r.ca_filename
-            ? '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/ca?token='+window._authToken()+'" target="_blank" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename).slice(-20)+'</a>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCA('+r.id+')" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename).slice(-20)+'</button>'
             : '<span style="color:var(--txt3);font-size:11px">None</span>';
           // CBX Statement — available Approved/Processed, Excel format (re-generates on click)
           var cbxBtn = (r.status === 'Approved' || r.status === 'Processed')
@@ -154,13 +154,21 @@ export async function renderList() {
       };
       window._prDownCA = async function(id) {
         try {
-          var run = await get('/payroll/runs/'+id);
-          if (run && run.ca_file_data) {
-            var a = document.createElement('a');
-            a.href = run.ca_file_data;
-            a.download = run.ca_filename || 'ca_statement.xlsx';
-            a.click();
-          } else { toast('No CA statement file stored','error'); }
+          var tok = window._authToken();
+          var resp = await fetch('/api/v2/payroll/runs/'+id+'/ca?token='+encodeURIComponent(tok));
+          if (!resp.ok) {
+            var e2 = await resp.json().catch(function(){return {};});
+            toast(e2.message || 'CA file not found', 'error'); return;
+          }
+          var blob = await resp.blob();
+          var cd   = resp.headers.get('Content-Disposition') || '';
+          var fname = (cd.match(/filename="([^"]+)"/) || [])[1] || 'ca_statement.xlsx';
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = fname;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          URL.revokeObjectURL(a.href);
+          toast('CA file downloaded', 'success');
         } catch(ex){ toast(ex.message||'Failed','error'); }
       };
       window._prDownBank = async function(id, year, month) {
@@ -278,17 +286,27 @@ export async function renderNew() {
       try {
         var wb = XLSX.read(ev.target.result, { type: 'binary' });
         var ws = wb.Sheets[wb.SheetNames[0]];
-        var json = XLSX.utils.sheet_to_json(ws, { defval: 0 });
+        // {header:1} forces array-of-arrays — first row is headers, rest are data
+        // Positional access A=0,B=1...X=23 is always reliable regardless of header text
+        var rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // Find first row that looks like data (has an EmpID-like value in col 0)
+        var dataStart = 1; // skip header row
+        // If first row col0 looks like 'EMP-' or a number, treat row 0 as data
+        if (rawRows.length > 0 && rawRows[0][0] && String(rawRows[0][0]).match(/^EMP-/i)) {
+          dataStart = 0; // no header row
+        }
+        var json = rawRows.slice(dataStart).filter(function(r) {
+          // skip blank rows and sub-total rows (col0 must look like EMP-xxxx)
+          return r && r[0] && String(r[0]).trim().match(/^EMP-/i);
+        });
         entries = json.map(function(row) {
-          // Normalize column names (case-insensitive, handle spaces/underscores)
           // ── POSITIONAL COLUMN PARSER (A=0 … X=23) ──────────────────────────────
-          // Columns are read by position — header names are IGNORED for data rows.
           // A(0)=EmpID  B(1)=Name   C(2)=Designation  D(3)=Department  E(4)=Location
           // F(5)=CTC    G(6)=LOP    H(7)=Basic         I(8)=HRA         J(9)=Conv
           // K(10)=Medical  L(11)=Special  M(12)=Incentive  N(13)=Other  O(14)=Gross
           // P(15)=PT    Q(16)=ESI   R(17)=TDS   S(18)=EPF
           // T(19)=Med.Ded.  U(20)=Advance  V(21)=OtherDed  W(22)=TotalDed  X(23)=Net
-          var cols = Object.values(row);
+          var cols = row; // already an array
           function col(i) { return parseFloat(cols[i]) || 0; }
           function colS(i) { var v = cols[i]; return (v === null || v === undefined) ? '' : String(v).trim(); }
 
@@ -367,7 +385,7 @@ export async function renderNew() {
 
   function renderPreview() {
     if (!entries.length) return;
-    var cols = ['emp_id_display','employee_name','designation','department','location','ctc',
+    var cols = ['emp_id','name','designation','department','location','ctc',
       'loss_of_pay','basic','hra','conveyance','medical','special','incentive','other_earnings','gross_salary',
       'prof_tax','esi','tds','epf','medical_deduction','advance','other_deductions','total_deductions','net_salary'];
     var labels = ['Emp ID','Name','Designation','Department','Location','CTC',
@@ -388,7 +406,7 @@ export async function renderNew() {
       entries.map(function(e,idx) {
         return '<tr>' + cols.map(function(c) {
           var val = e[c];
-          if (c === 'emp_id_display' || c === 'employee_name' || c === 'designation' || c === 'department' || c === 'location') {
+          if (c === 'emp_id' || c === 'name' || c === 'designation' || c === 'department' || c === 'location') {
             return '<td style="white-space:nowrap">'+v(val)+'</td>';
           }
           return '<td class="mono" contenteditable="true" onblur="window._editCell('+idx+',\''+c+'\',this.textContent)" style="text-align:right;min-width:60px">'+parseFloat(val||0).toFixed(2)+'</td>';
