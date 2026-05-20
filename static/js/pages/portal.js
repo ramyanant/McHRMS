@@ -479,7 +479,14 @@ export async function renderPayslips() {
     var resp = await get('/payslips/list');
     var items = (resp && resp.items) || [];
 
-    // Year filter options from the data
+    // Show the Employee column whenever the visible list spans more than
+    // one employee — managers see their reports, admins see everyone.
+    // For an individual employee viewing only their own, the column is
+    // redundant and hidden.
+    var distinctEmps = {};
+    items.forEach(function(r){ if (r.employee_id != null) distinctEmps[r.employee_id] = true; });
+    var showEmp = Object.keys(distinctEmps).length > 1;
+
     var years = {};
     items.forEach(function(r){ if (r.year) years[r.year] = true; });
     var yearOpts = '<option value="">All Years</option>' +
@@ -490,18 +497,22 @@ export async function renderPayslips() {
     var monthOpts = '<option value="">All Months</option>' +
       monthNames.map(function(n,i){ return '<option value="'+(i+1)+'">'+n+'</option>'; }).join('');
 
+    var colCount = showEmp ? 6 : 5;
+
     function rowsHtml(list) {
       if (!list.length) {
-        return '<tr><td colspan="5" class="empty-row">No payslips yet. They will appear here once a payroll run is processed.</td></tr>';
+        return '<tr><td colspan="'+colCount+'" class="text-muted" style="text-align:center;padding:24px">'+
+          'No payslips yet. They will appear here once a payroll run is processed.</td></tr>';
       }
       return list.map(function(r){
         var lop = parseFloat(r.lop_days || 0);
         return '<tr>' +
+          (showEmp ? '<td>'+v(r.employee_name,'—')+'</td>' : '') +
           '<td class="mono">'+v(r.ym)+'</td>' +
-          '<td>'+fmt.date(r.run_date)+'</td>' +
-          '<td>'+(lop ? lop : '0')+' Day(s)</td>' +
-          '<td class="mono" style="text-align:right">'+fmt.money(r.net_salary)+'</td>' +
-          '<td style="text-align:right">' +
+          '<td class="mono">'+fmt.date(r.run_date)+'</td>' +
+          '<td>'+(lop || 0)+' Day(s)</td>' +
+          '<td class="mono fw-bold" style="text-align:right">'+fmt.money(r.net_salary)+'</td>' +
+          '<td style="text-align:right;white-space:nowrap">' +
             '<button class="btn btn-ghost btn-sm" onclick="window._viewPayslip('+r.entry_id+')">👁 View</button> ' +
             '<button class="btn btn-primary btn-sm" onclick="window._downloadPayslip('+r.entry_id+')">⬇ PDF</button>' +
           '</td>' +
@@ -512,25 +523,25 @@ export async function renderPayslips() {
     function render(list) {
       setContent(
         '<div class="page-body">' +
-        '<div class="card">' +
-          '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px">' +
-            '<h3 class="card-title">Payslip History</h3>' +
-            '<div style="display:flex;gap:8px">' +
-              '<select id="ps-year" class="form-control" onchange="window._filterPayslips()" style="width:auto">'+yearOpts+'</select>' +
-              '<select id="ps-month" class="form-control" onchange="window._filterPayslips()" style="width:auto">'+monthOpts+'</select>' +
-            '</div>' +
+        '<div class="list-toolbar">' +
+          '<div></div>' +
+          '<div style="display:flex;gap:8px">' +
+            '<select id="ps-year" class="finput" onchange="window._filterPayslips()">'+yearOpts+'</select>' +
+            '<select id="ps-month" class="finput" onchange="window._filterPayslips()">'+monthOpts+'</select>' +
           '</div>' +
-          '<div class="card-body">' +
-            '<div class="tbl-wrap"><table class="tbl">' +
-              '<thead><tr>' +
-                '<th>Period</th><th>Date of Salary</th><th>LOP</th>' +
-                '<th style="text-align:right">Net Salary</th>' +
-                '<th style="text-align:right">Actions</th>' +
-              '</tr></thead>' +
-              '<tbody id="ps-tbody">'+rowsHtml(list)+'</tbody>' +
-            '</table></div>' +
-          '</div>' +
-        '</div></div>'
+        '</div>' +
+        '<div class="card"><div class="tbl-wrap"><table class="data-table">' +
+          '<thead><tr>' +
+            (showEmp ? '<th>Employee</th>' : '') +
+            '<th>Period</th>' +
+            '<th>Date of Salary</th>' +
+            '<th>LOP</th>' +
+            '<th style="text-align:right">Net Salary</th>' +
+            '<th style="text-align:right">Actions</th>' +
+          '</tr></thead>' +
+          '<tbody id="ps-tbody">'+rowsHtml(list)+'</tbody>' +
+        '</table></div></div>' +
+        '</div>'
       );
     }
 

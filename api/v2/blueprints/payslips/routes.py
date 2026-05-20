@@ -148,11 +148,12 @@ def _safe_filename_part(s):
 
 
 def _filename_for(meta):
-    """YYYY-MM Payslip - EmpID - Firstname Lastname.pdf"""
+    """YYYYMM Payslip - EmpID Firstname Lastname.pdf (matches the IQuest
+    reference file naming convention exactly)."""
     fname = (_safe_filename_part(meta['first_name']) + ' ' +
              _safe_filename_part(meta['last_name'])).strip()
-    return (f"{meta['year']}-{meta['month']:02d} Payslip - "
-            f"{_safe_filename_part(meta['emp_id_str'])} - {fname}.pdf")
+    return (f"{meta['year']}{meta['month']:02d} Payslip - "
+            f"{_safe_filename_part(meta['emp_id_str'])} {fname}.pdf")
 
 
 def _load_entry_context(entry_id):
@@ -169,7 +170,6 @@ def _load_entry_context(entry_id):
                d.name AS department_name,
                l.name AS location_name,
                l.address_line1 AS loc_addr1,
-               l.address AS loc_addr_alt,
                l.city AS loc_city, l.state AS loc_state,
                l.pincode AS loc_pincode, l.country AS loc_country
         FROM payroll_entries pe
@@ -189,7 +189,7 @@ def _load_entry_context(entry_id):
                      FROM organisation LIMIT 1""") or {}
 
     branch_lines = []
-    addr_line = entry.get('loc_addr1') or entry.get('loc_addr_alt')
+    addr_line = entry.get('loc_addr1')
     if addr_line:
         # Allow embedded newlines or " | " to render as separate lines.
         for piece in str(addr_line).replace(' | ', '\n').splitlines():
@@ -337,17 +337,25 @@ def list_payslips():
     if status:
         where.append('pr.status = %s'); params.append(status)
 
+    # DISTINCT ON dedups by (employee_id, year, month) — if HR processed
+    # multiple runs for the same period (corrections, supplementary), we
+    # surface only the latest run's entry, ordered by run_date DESC.
     sql = f"""
-        SELECT pe.id AS entry_id, pe.payroll_run_id AS run_id,
-               pr.year, pr.month, pr.run_date, pr.status,
-               pe.lop_days, pe.loss_of_pay, pe.net_salary,
-               pe.employee_id, e.emp_id,
-               e.first_name||' '||e.last_name AS employee_name
-        FROM payroll_entries pe
-        JOIN payroll_runs pr ON pr.id = pe.payroll_run_id
-        JOIN employees e ON e.id = pe.employee_id
-        WHERE {' AND '.join(where)}
-        ORDER BY pr.year DESC, pr.month DESC, e.first_name
+        SELECT * FROM (
+          SELECT DISTINCT ON (pe.employee_id, pr.year, pr.month)
+                 pe.id AS entry_id, pe.payroll_run_id AS run_id,
+                 pr.year, pr.month, pr.run_date, pr.status,
+                 pe.lop_days, pe.loss_of_pay, pe.net_salary,
+                 pe.employee_id, e.emp_id,
+                 e.first_name||' '||e.last_name AS employee_name
+          FROM payroll_entries pe
+          JOIN payroll_runs pr ON pr.id = pe.payroll_run_id
+          JOIN employees e ON e.id = pe.employee_id
+          WHERE {' AND '.join(where)}
+          ORDER BY pe.employee_id, pr.year, pr.month,
+                   pr.run_date DESC NULLS LAST, pe.id DESC
+        ) latest
+        ORDER BY latest.year DESC, latest.month DESC, latest.employee_name
     """
     rows = db_rows(sql, params)
     for r in rows:
