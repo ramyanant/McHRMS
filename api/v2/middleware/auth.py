@@ -77,16 +77,26 @@ def require_auth(f):
 
 
 def require_role(*roles):
-    """Decorator: require authenticated user to have one of the given roles."""
+    """Decorator: require authenticated user to have one of the given roles.
+
+    Admin is implicitly allowed for any role-gated endpoint.
+
+    Earlier the check was:
+        if user['role'] not in roles and 'Admin' not in roles:
+            if user['role'] != 'Admin':
+                return 403
+    which short-circuited to False whenever 'Admin' appeared in the
+    decorator's `roles` tuple — silently letting Employees through
+    every endpoint decorated with @require_role('Admin', ...).
+    """
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
             user = get_current_user()
             if not user:
                 return jsonify({"success": False, "message": "Authentication required."}), 401
-            if user['role'] not in roles and 'Admin' not in roles:
-                if user['role'] != 'Admin':
-                    return jsonify({"success": False, "message": "Insufficient permissions."}), 403
+            if user['role'] != 'Admin' and user['role'] not in roles:
+                return jsonify({"success": False, "message": "Insufficient permissions."}), 403
             g.user = user
             return f(*args, **kwargs)
         return wrapper

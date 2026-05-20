@@ -133,6 +133,7 @@ def vendor_documents(vid):
 
 @vendors_bp.route('/vendors/documents/<int:did>', methods=['GET','DELETE'])
 @require_auth
+@require_role('Admin', 'Finance Manager')
 def vendor_doc_detail(did):
     if request.method == 'DELETE':
         db_execute("UPDATE vendor_documents SET is_active=0 WHERE id=%s",(did,))
