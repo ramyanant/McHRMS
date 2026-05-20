@@ -327,7 +327,10 @@ const ROLE_NAV = {
 const _collapsedSections = new Set();
 
 function buildSidebar() {
-  const role    = (_user && _user.role) || 'Employee';
+  // Bail early when _user isn't set yet — prevents a transient "Employee"
+  // fallback render flashing the wrong role/items during navigation races.
+  if (!_user) return;
+  const role    = _user.role || 'Admin';
   const navDef  = NAV['Admin'];
   const allowed = ROLE_NAV[role] || null;
   const sections = navDef.filter(function(s) { return !allowed || allowed.includes(s.section); });
@@ -388,39 +391,34 @@ function buildSidebar() {
   });
 }
 
-window._toggleSection = function(key) {
+// Section-header click: toggle the clicked section's collapsed state via
+// a class flip on the existing DOM. No full innerHTML rebuild (which was
+// causing the visible "Employee items" flicker during the brief
+// between-renders window) and no navigation. The dashPath argument is
+// kept for signature compatibility with the inline onclick but ignored;
+// users navigate via the items underneath the section header.
+window._navSection = function(key, _dashPath) {
   var allNav = [...NAV['Admin'], ...NAV['Employee']];
   var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
   if (!found) return;
   var sec = found.section;
-  var isCurrentlyOpen = !_collapsedSections.has(sec);
-  allNav.forEach(function(s) { _collapsedSections.add(s.section); });
-  if (!isCurrentlyOpen) { _collapsedSections.delete(sec); }
-  buildSidebar();
-  var cur = Router.getCurrentPath();
-  document.querySelectorAll('.nav-item').forEach(function(el) {
-    if (el.dataset.path && cur.startsWith(el.dataset.path)) el.classList.add('active');
-  });
-};
-
-window._navSection = function(key, dashPath) {
-  var allNav = [...NAV['Admin'], ...NAV['Employee']];
-  var found = allNav.find(function(s) { return s.section.replace(/[^a-zA-Z]/g,'_') === key; });
-  if (!found) return;
-  var sec = found.section;
-  var isOpen = !_collapsedSections.has(sec);
-  // Accordion: collapse all sections first
-  allNav.forEach(function(s) { _collapsedSections.add(s.section); });
-  // If it was closed, open it and navigate to its dashboard
-  if (!isOpen) {
-    _collapsedSections.delete(sec);
-    buildSidebar();
-    Router.navigate(dashPath);
+  var willCollapse = !_collapsedSections.has(sec);
+  if (willCollapse) {
+    _collapsedSections.add(sec);
   } else {
-    // If already open, just collapse it
-    buildSidebar();
+    _collapsedSections.delete(sec);
+  }
+  // Targeted DOM update — no rebuild, no flicker.
+  var secEl = document.getElementById('sec-' + key);
+  if (secEl) {
+    secEl.classList.toggle('nav-section-collapsed', willCollapse);
+    var arrow = secEl.querySelector('.nav-section-arrow');
+    if (arrow) arrow.textContent = willCollapse ? '▶' : '▾';
   }
 };
+
+// Legacy alias kept for any cached HTML still wired to _toggleSection.
+window._toggleSection = window._navSection;
 
 // Returns which section owns the given path
 function _sectionForPath(path) {
@@ -438,15 +436,31 @@ function _sectionForPath(path) {
   return null;
 }
 
-// Called after every route change to sync sidebar highlight
+// Called after every route change to sync sidebar highlight. Only does
+// a full rebuild when the collapsed-state needs to change — otherwise
+// just flips classes on the existing DOM to avoid the flicker that a
+// full innerHTML replacement caused.
 function updateSidebarActive() {
   var cur = (Router.getCurrentPath ? Router.getCurrentPath() : '') || '/';
   var activeSection = _sectionForPath(cur);
-  if (activeSection) {
-    // Auto-expand the active section
+  if (activeSection && _collapsedSections.has(activeSection)) {
     _collapsedSections.delete(activeSection);
+    // The section we just auto-expanded already exists in the DOM —
+    // flip its collapsed class instead of rebuilding the whole sidebar.
+    var key = activeSection.replace(/[^a-zA-Z]/g,'_');
+    var secEl = document.getElementById('sec-' + key);
+    if (secEl) {
+      secEl.classList.remove('nav-section-collapsed');
+      var arrow = secEl.querySelector('.nav-section-arrow');
+      if (arrow) arrow.textContent = '▾';
+    } else {
+      buildSidebar();
+    }
   }
-  buildSidebar();
+  // Update the active highlight on individual nav items.
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.classList.toggle('active', el.dataset.path && cur.startsWith(el.dataset.path));
+  });
 }
 
 
