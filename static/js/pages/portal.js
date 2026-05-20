@@ -497,6 +497,20 @@ export async function renderPayslips() {
     var monthOpts = '<option value="">All Months</option>' +
       monthNames.map(function(n,i){ return '<option value="'+(i+1)+'">'+n+'</option>'; }).join('');
 
+    // Build Employee filter from distinct names in the list. Only relevant
+    // when the list spans more than one employee (manager / admin view).
+    var nameMap = {};
+    items.forEach(function(r){
+      if (r.employee_id != null && r.employee_name) {
+        nameMap[r.employee_id] = r.employee_name;
+      }
+    });
+    var nameOpts = '<option value="">All Employees</option>' +
+      Object.keys(nameMap)
+        .sort(function(a,b){ return nameMap[a].localeCompare(nameMap[b]); })
+        .map(function(eid){ return '<option value="'+v(eid)+'">'+v(nameMap[eid])+'</option>'; })
+        .join('');
+
     var colCount = showEmp ? 6 : 5;
 
     function rowsHtml(list) {
@@ -526,6 +540,7 @@ export async function renderPayslips() {
         '<div class="list-toolbar">' +
           '<div></div>' +
           '<div style="display:flex;gap:8px">' +
+            (showEmp ? '<select id="ps-name" class="finput" onchange="window._filterPayslips()">'+nameOpts+'</select>' : '') +
             '<select id="ps-year" class="finput" onchange="window._filterPayslips()">'+yearOpts+'</select>' +
             '<select id="ps-month" class="finput" onchange="window._filterPayslips()">'+monthOpts+'</select>' +
           '</div>' +
@@ -550,9 +565,12 @@ export async function renderPayslips() {
     window._filterPayslips = function() {
       var y = document.getElementById('ps-year').value;
       var m = document.getElementById('ps-month').value;
+      var nameSel = document.getElementById('ps-name');
+      var n = nameSel ? nameSel.value : '';
       var filtered = items.filter(function(r){
         if (y && String(r.year) !== String(y)) return false;
         if (m && String(r.month) !== String(m)) return false;
+        if (n && String(r.employee_id) !== String(n)) return false;
         return true;
       });
       document.getElementById('ps-tbody').innerHTML = rowsHtml(filtered);
