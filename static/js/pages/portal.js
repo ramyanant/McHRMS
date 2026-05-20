@@ -474,7 +474,92 @@ export async function renderTeam() {
 export async function renderPayslips() {
   setPageTitle('My Payslips','');
   setBreadcrumb([{label:'My Portal',url:'/portal'},{label:'Payslips'}]);
-  setContent('<div class="page-body"><div class="empty-state"><div class="empty-icon">💰</div><div class="empty-title">Payslip module coming in Phase 3</div></div></div>');
+  showLoader();
+  try {
+    var resp = await get('/payslips/list');
+    var items = (resp && resp.items) || [];
+
+    // Year filter options from the data
+    var years = {};
+    items.forEach(function(r){ if (r.year) years[r.year] = true; });
+    var yearOpts = '<option value="">All Years</option>' +
+      Object.keys(years).sort().reverse().map(function(y){
+        return '<option value="'+v(y)+'">'+v(y)+'</option>';
+      }).join('');
+    var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var monthOpts = '<option value="">All Months</option>' +
+      monthNames.map(function(n,i){ return '<option value="'+(i+1)+'">'+n+'</option>'; }).join('');
+
+    function rowsHtml(list) {
+      if (!list.length) {
+        return '<tr><td colspan="5" class="empty-row">No payslips yet. They will appear here once a payroll run is processed.</td></tr>';
+      }
+      return list.map(function(r){
+        var lop = parseFloat(r.lop_days || 0);
+        return '<tr>' +
+          '<td class="mono">'+v(r.ym)+'</td>' +
+          '<td>'+fmt.date(r.run_date)+'</td>' +
+          '<td>'+(lop ? lop : '0')+' Day(s)</td>' +
+          '<td class="mono" style="text-align:right">'+fmt.money(r.net_salary)+'</td>' +
+          '<td style="text-align:right">' +
+            '<button class="btn btn-ghost btn-sm" onclick="window._viewPayslip('+r.entry_id+')">👁 View</button> ' +
+            '<button class="btn btn-primary btn-sm" onclick="window._downloadPayslip('+r.entry_id+')">⬇ PDF</button>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function render(list) {
+      setContent(
+        '<div class="page-body">' +
+        '<div class="card">' +
+          '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center;gap:12px">' +
+            '<h3 class="card-title">Payslip History</h3>' +
+            '<div style="display:flex;gap:8px">' +
+              '<select id="ps-year" class="form-control" onchange="window._filterPayslips()" style="width:auto">'+yearOpts+'</select>' +
+              '<select id="ps-month" class="form-control" onchange="window._filterPayslips()" style="width:auto">'+monthOpts+'</select>' +
+            '</div>' +
+          '</div>' +
+          '<div class="card-body">' +
+            '<div class="tbl-wrap"><table class="tbl">' +
+              '<thead><tr>' +
+                '<th>Period</th><th>Date of Salary</th><th>LOP</th>' +
+                '<th style="text-align:right">Net Salary</th>' +
+                '<th style="text-align:right">Actions</th>' +
+              '</tr></thead>' +
+              '<tbody id="ps-tbody">'+rowsHtml(list)+'</tbody>' +
+            '</table></div>' +
+          '</div>' +
+        '</div></div>'
+      );
+    }
+
+    render(items);
+
+    window._filterPayslips = function() {
+      var y = document.getElementById('ps-year').value;
+      var m = document.getElementById('ps-month').value;
+      var filtered = items.filter(function(r){
+        if (y && String(r.year) !== String(y)) return false;
+        if (m && String(r.month) !== String(m)) return false;
+        return true;
+      });
+      document.getElementById('ps-tbody').innerHTML = rowsHtml(filtered);
+    };
+
+    window._viewPayslip = function(eid) {
+      var token = localStorage.getItem('mch_token') || '';
+      window.open('/api/v2/payslips/'+eid+'/html?token='+encodeURIComponent(token), '_blank');
+    };
+
+    window._downloadPayslip = function(eid) {
+      var token = localStorage.getItem('mch_token') || '';
+      var link = document.createElement('a');
+      link.href = '/api/v2/payslips/'+eid+'/pdf?token='+encodeURIComponent(token);
+      link.download = '';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    };
+  } catch(e) { showError(e.message); }
 }
 
 export async function renderApprovals() {
