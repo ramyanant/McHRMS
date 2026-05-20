@@ -42,6 +42,13 @@ def list_bills():
 @bills_bp.route('/bills', methods=['POST'])
 @require_auth
 def create_bill():
+    """Submit a new bill / expense.
+
+    Intentionally NOT @require_role-gated: any authenticated employee
+    (regardless of role) should be able to submit their own expense.
+    `submitted_by` is set server-side from g.user, so the caller cannot
+    attribute a bill to someone else; that's the access guarantee.
+    """
     d = request.get_json() or {}
     try: validate(d, {'expense_type':['required'],'amount':['required'],'expense_date':['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)

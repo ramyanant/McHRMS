@@ -666,29 +666,42 @@ def create_app(config_override=None):
         from flask import redirect, request as req
         return redirect(f'/api/v2/{path}', code=308)  # 308 = permanent redirect, preserves method
 
-    @app.route('/api/v2/admin/restore-admin', methods=['GET','POST'])
+    @app.route('/api/v2/admin/restore-admin', methods=['POST'])
     def restore_admin():
-        # Require secret key to prevent unauthorized admin reset
-        from flask import request as _req
-        secret = _req.args.get('key') or (_req.json or {}).get('key') if _req.method == 'POST' else _req.args.get('key')
-        if secret != 'McRaaN-Admin-Restore-2024':
-            from flask import jsonify
+        """Emergency endpoint: restore admin user if missing.
+
+        Disabled unless the ADMIN_RESTORE_KEY env var is set (fail-secure).
+        The caller must supply the same value in the POST body as `key`.
+        We use hmac.compare_digest for constant-time comparison so the
+        endpoint can't be turned into a side-channel oracle. GET is no
+        longer accepted (was logging the secret into access logs).
+        Returns success/message only — the password is fixed by code
+        (Admin@123) and well-known, so we don't echo it.
+        """
+        import os, hmac
+        from flask import request as _req, jsonify
+        expected = os.environ.get('ADMIN_RESTORE_KEY', '')
+        if not expected:
+            return jsonify({'success': False,
+                            'error': 'Admin restore disabled. '
+                                     'Set the ADMIN_RESTORE_KEY env var on the server to enable.'}), 503
+        supplied = ((_req.get_json(silent=True) or {}).get('key') or '')
+        if not hmac.compare_digest(str(supplied), str(expected)):
             return jsonify({'success': False, 'error': 'Unauthorized'}), 401
-        """Emergency endpoint: restore admin user if missing. Safe to call anytime."""
         try:
-            import hashlib
             from .extensions import db_row1, db_execute
+            from .middleware.auth import hash_password
             existing = db_row1("SELECT id FROM users WHERE username='admin'")
             role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
             if not role:
-                # Re-seed roles first
                 for name in ['Admin','HR Manager','Finance Manager','Recruiting Manager','Account Manager','Recruiter','Employee']:
                     db_execute("INSERT INTO master_user_roles (name) VALUES (%s) ON CONFLICT DO NOTHING", (name,))
                 role = db_row1("SELECT id FROM master_user_roles WHERE name='Admin' LIMIT 1")
-            pw = hashlib.sha256("Admin@123".encode()).hexdigest()
+            # hash_password uses bcrypt if available, salted-SHA-256 otherwise.
+            pw = hash_password("Admin@123")
             if existing:
                 db_execute("UPDATE users SET password_hash=%s, is_active=1 WHERE username='admin'", (pw,))
-                msg = "Admin password reset to Admin@123"
+                msg = "Admin password reset"
             else:
                 db_execute(
                     "INSERT INTO users (username,email,password_hash,role_id,full_name,is_active) VALUES (%s,%s,%s,%s,%s,1)",
@@ -698,10 +711,9 @@ def create_app(config_override=None):
             # Clear stale sessions for admin
             try: db_execute("DELETE FROM user_sessions WHERE user_id=(SELECT id FROM users WHERE username='admin')")
             except: pass
-            from flask import jsonify
-            return jsonify({"success": True, "message": msg, "username": "admin", "password": "Admin@123"})
+            print(f"[admin-restore] {msg} via /admin/restore-admin", flush=True)
+            return jsonify({"success": True, "message": msg, "username": "admin"})
         except Exception as e:
-            from flask import jsonify
             return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route('/api/v2/health')

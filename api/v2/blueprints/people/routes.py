@@ -152,9 +152,12 @@ def create_employee():  # v1779206157
             username = f"{base_username}{suffix}"
             suffix += 1
 
-        # Default password: Employee123 (sha256 hashed)
-        import hashlib
-        pw_hash = hashlib.sha256("Employee123".encode()).hexdigest()
+        # Default password: Employee123 — hashed via the middleware helper
+        # (bcrypt when available, salted-SHA256 fallback). Earlier this used
+        # plain `hashlib.sha256("Employee123").hexdigest()` (unsalted, no
+        # work factor); the verify path keeps accepting that legacy shape
+        # so existing accounts aren't disturbed.
+        pw_hash = hash_password("Employee123")
 
         # Get Employee role id
         emp_role = db_row1("SELECT id FROM master_user_roles WHERE name='Employee' LIMIT 1")
