@@ -45,7 +45,9 @@ def verify_password(password: str, stored_hash: str) -> bool:
 
 def get_current_user():
     """Extract and validate auth token from request headers."""
-    token = request.headers.get('X-Auth-Token') or request.cookies.get('mch_token')
+    token = (request.headers.get('X-Auth-Token')
+             or request.args.get('token')
+             or request.cookies.get('mch_token'))
     if not token:
         return None
     

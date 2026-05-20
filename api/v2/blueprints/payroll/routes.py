@@ -91,10 +91,13 @@ def create_run():
 
         # INSERT payroll_runs — run_date is NOT NULL (no default)
         # Only use columns confirmed to exist in live DB
+        ca_filename_val = d.get('ca_filename') or ''
+        ca_file_data_val= d.get('ca_file_data') or ''
         cur.execute("""INSERT INTO payroll_runs
-            (run_date, month, year, status, processed_by, notes)
-            VALUES (%s,%s,%s,'New',%s,%s) RETURNING id""",
-            (rundate, month_val, year_val, user_id, notes_val))
+            (run_date, month, year, status, processed_by, notes, ca_filename, ca_file_data)
+            VALUES (%s,%s,%s,'New',%s,%s,%s,%s) RETURNING id""",
+            (rundate, month_val, year_val, user_id, notes_val,
+             ca_filename_val or None, ca_file_data_val or None))
         run_id = cur.fetchone()['id']
 
         # INSERT each payroll_entries row
@@ -333,8 +336,10 @@ def generate_cbx(rid):
         db_execute("UPDATE payroll_runs SET cbx_file_content=%s WHERE id=%s",
                   (cbx_content, rid))
         fmt_req = request.args.get('format','json')
-        month_name = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][int(run.get('month') or 1)-1]
-        filename = f"Payroll_{month_name}_{run.get('year')}.txt"
+        m_num = int(run.get('month') or 1)
+        y_num = int(run.get('year') or datetime.date.today().year)
+        ym    = f"{y_num}-{m_num:02d}"
+        filename = f"{ym}.CBX.txt"
         if fmt_req == 'txt':
             from flask import Response
             return Response(cbx_content, mimetype='text/plain',
