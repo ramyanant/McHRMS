@@ -291,7 +291,7 @@ export async function renderNew() {
     '</div>' +
     '<div class="form-actions">' +
       '<button class="btn btn-ghost" onclick="navigateTo(\'/payroll\')">Cancel</button>' +
-      '<button class="btn btn-primary" id="save-pr-btn" onclick="window._savePayrollRun()" id="save-run-btn" disabled>Save Payroll Run</button>' +
+      '<button class="btn btn-primary" id="save-pr-btn" onclick="window._savePayrollRun()" disabled>Save Payroll Run</button>' +
     '</div>' +
     '</div></div>'
   );

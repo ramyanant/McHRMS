@@ -378,6 +378,9 @@ export async function renderApproval() {
     };
     window._rejectLeave = async function(id) {
       var reason = prompt('Rejection reason:');
+      // Cancel on the prompt returns null — bail out instead of POSTing
+      // a null reason (which silently rejected the leave with no message).
+      if (!reason || !reason.trim()) return;
       await put('/my/leaves/' + id, { action: 'reject', reason: reason });
       allLV = allLV.map(function(l) { return l.id === id ? Object.assign({}, l, { status: 'Rejected' }) : l; });
       toast('Leave rejected', 'info');

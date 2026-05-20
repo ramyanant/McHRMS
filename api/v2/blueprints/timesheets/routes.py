@@ -77,13 +77,18 @@ def submit_my_timesheet():
     try: validate(d, {'week_ending': ['required', 'date']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
 
-    regular_hours  = float(d.get('regular_hours', 0) or d.get('mon', 0))
-    overtime_hours = float(d.get('overtime_hours', 0))
-    # Sum daily hours if provided
-    for day in ['mon','tue','wed','thu','fri','sat','sun']:
-        if day in d: regular_hours += float(d.get(day, 0) or 0)
-    if any(k in d for k in ['mon','tue','wed','thu','fri']):
-        regular_hours = sum(float(d.get(k,0) or 0) for k in ['mon','tue','wed','thu','fri','sat','sun'])
+    # Compute regular_hours: prefer daily breakdown when provided,
+    # otherwise fall back to the explicit `regular_hours` field.
+    # Earlier this block ran three layered assignments — set from mon,
+    # then accumulate every day, then overwrite with the sum — which
+    # left dead code on lines 1/2 and mis-counted hours when only some
+    # days were supplied.
+    DAYS = ('mon','tue','wed','thu','fri','sat','sun')
+    if any(k in d for k in DAYS):
+        regular_hours = sum(float(d.get(k, 0) or 0) for k in DAYS)
+    else:
+        regular_hours = float(d.get('regular_hours', 0) or 0)
+    overtime_hours = float(d.get('overtime_hours', 0) or 0)
 
     # Use requested status or default to 'Pending'
     requested_status = d.get('status', 'Pending')
