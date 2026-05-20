@@ -99,7 +99,7 @@ export async function renderProfile() {
     _org = org;
     // Fetch emp-id settings alongside org data
     var empIdSettings = {emp_id_prefix:'EMP-', emp_id_start:'1001', next_emp_id:'EMP-1001'};
-    try { empIdSettings = await get('/settings/emp-id'); } catch(e) {}
+    try { empIdSettings = await get('/admin/settings/emp-id'); } catch(e) {}
     renderPage(org, empIdSettings);
   } catch (e) {
     showError(e.message);
@@ -376,7 +376,7 @@ function bindActions() {
       + '<button class="btn btn-primary" onclick="window._saveEmpId()">Save Format</button>'
     );
     // Pre-fill current values
-    get('/settings/emp-id').then(function(s) {
+    get('/admin/settings/emp-id').then(function(s) {
       document.getElementById('eid-prefix').value = s.emp_id_prefix || '';
       document.getElementById('eid-start').value  = s.emp_id_start  || '1001';
     }).catch(function() {});
@@ -386,7 +386,7 @@ function bindActions() {
       if (!prefix) { toast('Prefix is required','error'); return; }
       if (start && isNaN(parseInt(start))) { toast('Starting number must be a number','error'); return; }
       try {
-        await put('/settings/emp-id', { emp_id_prefix: prefix, emp_id_start: start || '1001' });
+        await put('/admin/settings/emp-id', { emp_id_prefix: prefix, emp_id_start: start || '1001' });
         toast('Employee ID format saved — next ID will be ' + prefix + (start||'1001'), 'success');
         closeModal();
         // Refresh the page to show updated preview
