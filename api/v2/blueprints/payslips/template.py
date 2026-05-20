@@ -104,10 +104,10 @@ def _esc(s):
 
 
 _CSS = """
-@page { size: A4 portrait; margin: 1.2cm 1.4cm; }
+@page { size: A4 portrait; margin: 0.6cm 1.0cm; }
 body {
   font-family: Calibri, "Segoe UI", Helvetica, sans-serif;
-  font-size: 10pt;
+  font-size: 9.5pt;
   color: #000;
 }
 table { border-collapse: collapse; width: 100%; }
@@ -117,7 +117,7 @@ table { border-collapse: collapse; width: 100%; }
 .header-info { text-align: right; font-size: 10pt; line-height: 1.35; }
 .header-info .legal { font-weight: bold; }
 
-.title-row { text-align: center; margin-top: 14pt; }
+.title-row { text-align: center; margin-top: 8pt; }
 .title-row .title {
   font-family: "Courier New", Courier, monospace;
   font-weight: bold;
@@ -134,91 +134,100 @@ table { border-collapse: collapse; width: 100%; }
 
 .emp-grid td {
   border: 1px solid #000;
-  padding: 4pt 6pt;
-  font-size: 9.5pt;
+  padding: 2pt 5pt;
+  font-size: 9pt;
   vertical-align: middle;
 }
 .emp-grid td.lbl { background-color: #F2F2F2; font-weight: bold; }
 
-.ed { margin-top: 8pt; border: 1px solid #000; }
-.ed thead th {
+/* Earnings/Deductions: stacked 3-column tables (Earnings on top,
+   Deductions below). xhtml2pdf reliably honours colgroup percentages
+   on narrow tables; it was collapsing the right half of any wide
+   6-column table regardless of width attributes or styles. */
+.ed { margin-top: 6pt; border: 1px solid #000; }
+.ed.below { margin-top: 4pt; }
+.ed tr.hdr th {
   border-bottom: 1px solid #000;
-  padding: 5pt 6pt;
+  padding: 3pt 6pt;
   font-weight: bold;
   text-align: left;
   background-color: #FFFFFF;
+  font-size: 9pt;
 }
-.ed thead th.amt { text-align: right; }
-.ed tbody td {
-  padding: 3pt 6pt;
+.ed tr.hdr th.amt { text-align: right; }
+.ed tr.body td {
+  padding: 2pt 6pt;
   border: 0;
-  font-size: 9.5pt;
+  font-size: 9pt;
 }
-.ed tbody td.amt {
+.ed tr.body td.amt {
   text-align: right;
   font-family: "Courier New", Courier, monospace;
+  font-size: 9pt;
 }
-.ed tfoot td {
-  padding: 4pt 6pt;
+.ed tr.totals td {
+  padding: 3pt 6pt;
   border-top: 1px solid #000;
   font-weight: bold;
+  font-size: 9pt;
 }
-.ed tfoot td.amt {
+.ed tr.totals td.amt {
   text-align: right;
   font-family: "Courier New", Courier, monospace;
 }
 
-.net { margin-top: 8pt; }
+.net { margin-top: 6pt; }
 .net td {
   border: 1px solid #000;
-  padding: 4pt 6pt;
-  font-size: 9.5pt;
+  padding: 3pt 5pt;
+  font-size: 9pt;
 }
-.net td.lbl { background-color: #F2F2F2; font-weight: bold; width: 18%; }
+.net td.lbl { background-color: #F2F2F2; font-weight: bold; }
 .net td.amt {
   font-weight: bold;
   font-family: "Courier New", Courier, monospace;
 }
 .net td.words { font-weight: bold; }
-.net td.spacer { border: 0; height: 0.4cm; }
 
-.loans { margin-top: 12pt; }
-.loans th {
+.loans { margin-top: 4pt; }
+.loans tr.hdr th {
   background-color: #F2F2F2;
   font-weight: bold;
-  padding: 4pt 6pt;
+  padding: 2pt 5pt;
   border: 1px solid #000;
   text-align: left;
+  font-size: 9pt;
 }
-.loans td {
-  padding: 6pt;
+.loans tr.body td {
+  padding: 2pt 5pt;
   border: 1px solid #000;
-  height: 0.6cm;
+  height: 0.35cm;
+  font-size: 9pt;
 }
 
 .info-bar {
   background-color: #FFFFFF;
   font-weight: bold;
-  font-size: 11pt;
-  padding: 4pt 6pt;
+  font-size: 10pt;
+  padding: 2pt 5pt;
   border: 1px solid #000;
-  margin-top: 14pt;
+  margin-top: 4pt;
 }
 .info-box {
   border: 1px solid #000;
   border-top: 0;
-  height: 3.5cm;
+  height: 1.0cm;
 }
 
 .footer-notice {
   text-align: center;
   font-weight: bold;
   font-size: 9pt;
-  margin-top: 18pt;
+  margin-top: 6pt;
   letter-spacing: 0.5pt;
 }
-.stamp { text-align: right; margin-top: 6pt; }
-.stamp img { width: 3cm; }
+.stamp { text-align: right; margin-top: 2pt; }
+.stamp img { width: 2.4cm; }
 """
 
 
@@ -248,17 +257,24 @@ _HTML_TEMPLATE = Template("""<!DOCTYPE html>
 <div class="figures-inr">(Figures in INR)</div>
 
 <table class="emp-grid">
+  <colgroup>
+    <col width="13%" />
+    <col width="21%" />
+    <col width="13%" />
+    <col width="21%" />
+    <col width="10%" />
+    <col width="22%" />
+  </colgroup>
   <tr>
-    <td class="lbl" style="width:14%">Employee Code</td>
-    <td style="width:20%">$emp_id</td>
-    <td class="lbl" style="width:14%">Employee Name</td>
+    <td class="lbl">Employee Code</td>
+    <td>$emp_id</td>
+    <td class="lbl">Employee Name</td>
     <td colspan="3">$emp_name</td>
   </tr>
   <tr>
     <td class="lbl">Department</td><td>$department</td>
-    <td class="lbl">Designation</td><td style="width:20%">$designation</td>
-    <td class="lbl" style="width:10%">PAN No</td>
-    <td style="width:14%">$pan</td>
+    <td class="lbl">Designation</td><td>$designation</td>
+    <td class="lbl">PAN No</td><td>$pan</td>
   </tr>
   <tr>
     <td class="lbl">Date of Birth</td><td>$dob</td>
@@ -277,111 +293,100 @@ _HTML_TEMPLATE = Template("""<!DOCTYPE html>
 </table>
 
 <table class="ed">
-  <thead>
-    <tr>
-      <th style="width:23%">Earnings</th>
-      <th class="amt" style="width:12%">Amount</th>
-      <th class="amt" style="width:13%">Consolidation</th>
-      <th style="width:23%">Deductions</th>
-      <th class="amt" style="width:12%">Amount</th>
-      <th class="amt" style="width:13%">Consolidation</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td>BASIC</td>
-      <td class="amt">$basic</td>
-      <td class="amt">$basic_ytd</td>
-      <td>PROFESSIONAL TAX</td>
-      <td class="amt">$prof_tax</td>
-      <td class="amt">$prof_tax_ytd</td>
-    </tr>
-    <tr>
-      <td>HOUSE RENT ALLOWANCE</td>
-      <td class="amt">$hra</td>
-      <td class="amt">$hra_ytd</td>
-      <td>TAX DEDUCTED AT SOURCE</td>
-      <td class="amt">$tds</td>
-      <td class="amt">$tds_ytd</td>
-    </tr>
-    <tr>
-      <td>CONVEYANCE ALLOWANCE</td>
-      <td class="amt">$conveyance</td>
-      <td class="amt">$conveyance_ytd</td>
-      <td>INSURANCE</td>
-      <td class="amt">$insurance</td>
-      <td class="amt">$insurance_ytd</td>
-    </tr>
-    <tr>
-      <td>MEDICAL ALLOWANCE</td>
-      <td class="amt">$medical</td>
-      <td class="amt">$medical_ytd</td>
-      <td>PROVIDENT FUND</td>
-      <td class="amt">$pf</td>
-      <td class="amt">$pf_ytd</td>
-    </tr>
-    <tr>
-      <td>SPECIAL ALLOWANCE</td>
-      <td class="amt">$special</td>
-      <td class="amt">$special_ytd</td>
-      <td>OTHERS</td>
-      <td class="amt">$others_ded</td>
-      <td class="amt">$others_ded_ytd</td>
-    </tr>
-    <tr>
-      <td>INCENTIVE</td>
-      <td class="amt">$incentive</td>
-      <td class="amt">$incentive_ytd</td>
-      $esi_cells
-    </tr>
-  </tbody>
-  <tfoot>
-    <tr>
-      <td>Total Earnings</td>
-      <td class="amt">$total_earnings</td>
-      <td class="amt">$total_earnings_ytd</td>
-      <td>Total Deductions</td>
-      <td class="amt">$total_deductions</td>
-      <td class="amt">$total_deductions_ytd</td>
-    </tr>
-  </tfoot>
+  <colgroup>
+    <col width="56%" />
+    <col width="20%" />
+    <col width="24%" />
+  </colgroup>
+  <tr class="hdr">
+    <th>Earnings</th>
+    <th class="amt">Amount</th>
+    <th class="amt">Consolidation</th>
+  </tr>
+  <tr class="body"><td>BASIC</td><td class="amt">$basic</td><td class="amt">$basic_ytd</td></tr>
+  <tr class="body"><td>HOUSE RENT ALLOWANCE</td><td class="amt">$hra</td><td class="amt">$hra_ytd</td></tr>
+  <tr class="body"><td>CONVEYANCE ALLOWANCE</td><td class="amt">$conveyance</td><td class="amt">$conveyance_ytd</td></tr>
+  <tr class="body"><td>MEDICAL ALLOWANCE</td><td class="amt">$medical</td><td class="amt">$medical_ytd</td></tr>
+  <tr class="body"><td>SPECIAL ALLOWANCE</td><td class="amt">$special</td><td class="amt">$special_ytd</td></tr>
+  <tr class="body"><td>INCENTIVE</td><td class="amt">$incentive</td><td class="amt">$incentive_ytd</td></tr>
+  <tr class="totals">
+    <td>Total Earnings</td>
+    <td class="amt">$total_earnings</td>
+    <td class="amt">$total_earnings_ytd</td>
+  </tr>
+</table>
+
+<table class="ed below">
+  <colgroup>
+    <col width="56%" />
+    <col width="20%" />
+    <col width="24%" />
+  </colgroup>
+  <tr class="hdr">
+    <th>Deductions</th>
+    <th class="amt">Amount</th>
+    <th class="amt">Consolidation</th>
+  </tr>
+  <tr class="body"><td>PROFESSIONAL TAX</td><td class="amt">$prof_tax</td><td class="amt">$prof_tax_ytd</td></tr>
+  <tr class="body"><td>TAX DEDUCTED AT SOURCE</td><td class="amt">$tds</td><td class="amt">$tds_ytd</td></tr>
+  <tr class="body"><td>INSURANCE</td><td class="amt">$insurance</td><td class="amt">$insurance_ytd</td></tr>
+  <tr class="body"><td>PROVIDENT FUND</td><td class="amt">$pf</td><td class="amt">$pf_ytd</td></tr>
+  <tr class="body"><td>OTHERS</td><td class="amt">$others_ded</td><td class="amt">$others_ded_ytd</td></tr>
+  $esi_row
+  <tr class="totals">
+    <td>Total Deductions</td>
+    <td class="amt">$total_deductions</td>
+    <td class="amt">$total_deductions_ytd</td>
+  </tr>
 </table>
 
 <table class="net">
+  <colgroup>
+    <col width="18%" />
+    <col width="82%" />
+  </colgroup>
   <tr>
     <td class="lbl">Employee Net Pay</td>
-    <td class="amt" colspan="5">$net_salary</td>
+    <td class="amt">$net_salary</td>
   </tr>
   <tr>
     <td class="lbl">In Words</td>
-    <td class="words" colspan="5">$in_words</td>
+    <td class="words">$in_words</td>
   </tr>
-  <tr><td class="spacer" colspan="6"></td></tr>
 </table>
 
 <table class="loans">
-  <thead>
-    <tr>
-      <th>Loan Type</th>
-      <th>EMI</th>
-      <th>Loan Amount</th>
-      <th>Recovered Amount</th>
-      <th>Balance</th>
-      <th>For the Month</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
-    <tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>
-  </tbody>
+  <colgroup>
+    <col width="150" />
+    <col width="55" />
+    <col width="80" />
+    <col width="105" />
+    <col width="60" />
+    <col width="85" />
+  </colgroup>
+  <tr class="hdr">
+    <th>Loan Type</th>
+    <th>EMI</th>
+    <th>Loan Amount</th>
+    <th>Recovered Amount</th>
+    <th>Balance</th>
+    <th>For the Month</th>
+  </tr>
+  <tr class="body"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
+  <tr class="body"><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>
 </table>
 
 <div class="info-bar">Information</div>
-<div class="info-box">&nbsp;</div>
+<table style="border: 1px solid #000; border-top: 0;"><tr><td style="height: 0.9cm; border: 0;">&nbsp;</td></tr></table>
 
-<div class="footer-notice">::&nbsp;&nbsp;THIS IS AN ELECTRONICALLY GENERATED STATEMENT AND REQUIRES NO SIGNATURE&nbsp;&nbsp;::</div>
-
-<div class="stamp"><img src="$stamp_uri" /></div>
+<table style="width: 100%; margin-top: 6pt;"><tr>
+  <td style="text-align: center; vertical-align: middle; border: 0;">
+    <div class="footer-notice">::&nbsp;&nbsp;THIS IS AN ELECTRONICALLY GENERATED STATEMENT AND REQUIRES NO SIGNATURE&nbsp;&nbsp;::</div>
+  </td>
+  <td style="text-align: right; vertical-align: middle; border: 0; width: 2.6cm;">
+    <img src="$stamp_uri" style="width: 2.4cm;" />
+  </td>
+</tr></table>
 
 </body>
 </html>
@@ -433,13 +438,13 @@ def build_payslip_html(ctx, pdf_mode=False):
     except Exception:
         esi_now = Decimal(0)
     if esi_now != 0:
-        flat['esi_cells'] = (
-            f'<td>ESI</td>'
+        flat['esi_row'] = (
+            '<tr class="body"><td>ESI</td>'
             f'<td class="amt">{_inr(amts.get("esi", 0), prefix)}</td>'
-            f'<td class="amt">{_inr(ytd.get("esi", 0), prefix)}</td>'
+            f'<td class="amt">{_inr(ytd.get("esi", 0), prefix)}</td></tr>'
         )
     else:
-        flat['esi_cells'] = '<td></td><td></td><td></td>'
+        flat['esi_row'] = ''
 
     return _HTML_TEMPLATE.safe_substitute(**flat)
 
