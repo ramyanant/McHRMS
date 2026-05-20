@@ -2,6 +2,10 @@ flask==3.1.0
 psycopg2-binary==2.9.9
 bcrypt==4.1.2
 xhtml2pdf==0.2.17
+# svglib 1.6+ pulls rlpycairo→pycairo, which has no Linux/py3.12 wheel
+# and needs gcc + cairo headers to build from source (not in nixpacks
+# image). Pinned to 1.5.1 — we use PNG logo/stamp only, no SVG.
+svglib==1.5.1
 
 # v2 rebuild Fri May 15 08:18:45 UTC 2026
 # build Sat May 16 03:24:11 UTC 2026
