@@ -18,9 +18,26 @@ var MONTHS = ['January','February','March','April','May','June','July','August',
 var STATUSES = ['New','On Hold','Approved','Rejected','Processed'];
 
 // Indian Rupee format: 9,99,99,000.00
+// Pure JS — no toLocaleString locale dependency
 function inr(n) {
   var num = parseFloat(n) || 0;
-  return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var neg = num < 0;
+  var parts = Math.abs(num).toFixed(2).split('.');
+  var intPart = parts[0];
+  var decPart = parts[1];
+  // Indian grouping: last 3 digits, then groups of 2
+  var result = '';
+  if (intPart.length <= 3) {
+    result = intPart;
+  } else {
+    var last3 = intPart.slice(-3);
+    var rest   = intPart.slice(0, -3);
+    var groups = [];
+    while (rest.length > 2) { groups.unshift(rest.slice(-2)); rest = rest.slice(0,-2); }
+    if (rest.length > 0) groups.unshift(rest);
+    result = groups.join(',') + ',' + last3;
+  }
+  return (neg ? '-' : '') + result + '.' + decPart;
 }
 
 function kpi(l, val, icon, c) {

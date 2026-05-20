@@ -190,7 +190,22 @@ export function badge(text, type = 'gray') {
 // ── Format helpers ─────────────────────────────────────────────
 export const fmt = {
   date: (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—',
-  money: (n) => n != null ? '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—',
+  money: (n) => {
+    if (n == null) return '—';
+    var num = parseFloat(n) || 0;
+    var neg = num < 0;
+    var parts = Math.abs(num).toFixed(2).split('.');
+    var intPart = parts[0], decPart = parts[1];
+    var result = '';
+    if (intPart.length <= 3) { result = intPart; }
+    else {
+      var last3 = intPart.slice(-3), rest = intPart.slice(0,-3), groups = [];
+      while (rest.length > 2) { groups.unshift(rest.slice(-2)); rest = rest.slice(0,-2); }
+      if (rest.length > 0) groups.unshift(rest);
+      result = groups.join(',') + ',' + last3;
+    }
+    return '₹' + (neg ? '-' : '') + result + '.' + decPart;
+  },
   ini: (name) => (name||'').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   avColor: (name) => {
     const colors = ['av-green','av-blue','av-purple','av-amber','av-rose','av-teal'];
