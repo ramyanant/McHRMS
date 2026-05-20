@@ -112,11 +112,11 @@ export async function renderList() {
             : '<span style="color:var(--txt3);font-size:11px">None</span>';
           // CBX Statement — available Approved/Processed, Excel format (re-generates on click)
           var cbxBtn = (r.status === 'Approved' || r.status === 'Processed')
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCBX('+r.id+','+r.year+','+(r.month||1)+')" title="Download CBX Statement">&#128190; '+r.year+'-'+(String(r.month||1).padStart(2,\'0\'))+' CBX Statement.xlsx</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCBX('+r.id+','+r.year+','+(r.month||1)+')" title="Download CBX Statement">&#128190; '+_ym+' CBX Statement.xlsx</button>'
             : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
           // Banking File — TXT format for bank upload (available Approved/Processed)
           var bankBtn = (r.status === 'Approved' || r.status === 'Processed')
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownBank('+r.id+','+r.year+','+(r.month||1)+')">&#128196; '+r.year+'-'+(String(r.month||1).padStart(2,\'0\'))+' CBX Statement.txt</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownBank('+r.id+','+r.year+','+(r.month||1)+')">&#128196; '+_ym+' CBX Statement.txt</button>'
             : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
           return '<tr class="tbl-clickable" data-id="'+r.id+'">' +
             '<td><strong>'+mLabel+'</strong></td>' +
