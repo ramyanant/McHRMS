@@ -1,6 +1,7 @@
 /**
  * Payroll — Runs list, New Run (import spreadsheet), CBX generation, Payslips
  * Zero backticks, zero optional chaining
+ * Build: 1779268360
  */
 import { get, post, put } from '../api.js';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
