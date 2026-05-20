@@ -106,15 +106,15 @@ export async function renderList() {
           var statusColor = {New:'info',Approved:'success',Processed:'success','On Hold':'warning',Rejected:'danger'}[r.status]||'default';
           // CA Statement — direct download from stored file
           var caBtn = r.ca_filename
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCA('+r.id+')" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename).slice(-20)+'</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCA('+r.id+')" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename)+'</button>'
             : '<span style="color:var(--txt3);font-size:11px">None</span>';
           // CBX Statement — available Approved/Processed, Excel format (re-generates on click)
           var cbxBtn = (r.status === 'Approved' || r.status === 'Processed')
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCBX('+r.id+','+r.year+','+(r.month||1)+')" title="Download CBX Excel">&#128190; CBX.xlsx</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCBX('+r.id+','+r.year+','+(r.month||1)+')" title="Download CBX Statement">&#128190; '+r.year+'-'+(String(r.month||1).padStart(2,\'0\'))+' CBX Statement.xlsx</button>'
             : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
           // Banking File — TXT format for bank upload (available Approved/Processed)
           var bankBtn = (r.status === 'Approved' || r.status === 'Processed')
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownBank('+r.id+','+r.year+','+(r.month||1)+')">&#128196; Bank.txt</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownBank('+r.id+','+r.year+','+(r.month||1)+')">&#128196; '+r.year+'-'+(String(r.month||1).padStart(2,\'0\'))+' CBX Statement.txt</button>'
             : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
           return '<tr class="tbl-clickable" data-id="'+r.id+'">' +
             '<td><strong>'+mLabel+'</strong></td>' +
@@ -149,8 +149,10 @@ export async function renderList() {
         try { await put('/payroll/runs/'+id, {is_active:0}); toast('Deleted','info'); rows=rows.filter(function(r){return String(r.id)!==String(id);}); render(); }
         catch(ex){ toast(ex.message||'Failed','error'); }
       };
+      // _authToken defined at module scope in renderList for use in download fns
       window._authToken = function() {
-        return localStorage.getItem('mch_token') || sessionStorage.getItem('mch_token') || '';
+        // api.js stores token in localStorage under 'mch_token'
+        return localStorage.getItem('mch_token') || '';
       };
       window._prDownCA = async function(id) {
         try {
@@ -214,7 +216,8 @@ export async function renderList() {
           var ws2 = XL.utils.aoa_to_sheet(xlrows);
           var wb2 = XL.utils.book_new();
           XL.utils.book_append_sheet(wb2, ws2, 'Payroll');
-          XL.writeFile(wb2, 'Payroll_CBX_' + label + '.xlsx');
+          var mm = String(month).padStart(2,'0');
+          XL.writeFile(wb2, year+'-'+mm+'.CBX.xlsx');
           toast('CBX Excel downloaded', 'success');
         } catch(ex){ toast(ex.message||'Failed','error'); }
       };
@@ -291,13 +294,22 @@ export async function renderNew() {
         var rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
         // Find first row that looks like data (has an EmpID-like value in col 0)
         var dataStart = 1; // skip header row
-        // If first row col0 looks like 'EMP-' or a number, treat row 0 as data
-        if (rawRows.length > 0 && rawRows[0][0] && String(rawRows[0][0]).match(/^EMP-/i)) {
-          dataStart = 0; // no header row
+        // If first row col0 is numeric or looks like an EmpID, treat row 0 as data
+        if (rawRows.length > 0 && rawRows[0][0]) {
+          var r0c0 = String(rawRows[0][0]).trim();
+          // It's a data row if col0 has digits (emp ID) but not a pure header word
+          if (/\d/.test(r0c0)) { dataStart = 0; }
         }
+        // Skip rows where col[0] is empty, or is a header word, or is a total row
+        var SKIP_WORDS = ['emp','empid','employeeid','sl','slno','srno','s.no','name','total','grand'];
         var json = rawRows.slice(dataStart).filter(function(r) {
-          // skip blank rows and sub-total rows (col0 must look like EMP-xxxx)
-          return r && r[0] && String(r[0]).trim().match(/^EMP-/i);
+          if (!r || r[0] === null || r[0] === undefined || String(r[0]).trim() === '') return false;
+          var c0 = String(r[0]).trim().toLowerCase().replace(/[^a-z0-9]/g,'');
+          // Skip if col0 is a known header/total keyword
+          if (SKIP_WORDS.indexOf(c0) >= 0) return false;
+          // Skip if col0 is only letters (no numbers — likely a header)
+          if (/^[a-z\s\.]+$/i.test(String(r[0]).trim()) && String(r[0]).trim().length > 0 && !/\d/.test(String(r[0]))) return false;
+          return true;
         });
         entries = json.map(function(row) {
           // ── POSITIONAL COLUMN PARSER (A=0 … X=23) ──────────────────────────────
@@ -434,8 +446,10 @@ export async function renderNew() {
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
       // 1. Save to database
+      var mmPad = String(month).padStart(2,'0');
+      var caName = year+'-'+mmPad+' CA Statement.xlsx';
       var res = await post('/payroll/runs', { month, year, run_date: date, notes, entries,
-        ca_filename: window._caFileName || '', ca_file_data: window._caFileData || '' });
+        ca_filename: caName, ca_file_data: window._caFileData || '' });
       var runId = res.id;
 
       // 2. Generate Excel download (same 24-col format as input)
