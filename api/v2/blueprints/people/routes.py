@@ -81,17 +81,26 @@ def create_employee():  # v1779206157
         if existing:
             return err(f"Email {d['email']} is already registered to another employee", 409)
 
-    # Generate emp_id
-    last = db_row1("SELECT emp_id FROM employees WHERE emp_id LIKE 'EMP-%' ORDER BY id DESC LIMIT 1")
+    # Generate emp_id — reads prefix and start from app_settings
+    _prefix_row = db_row1("SELECT value FROM app_settings WHERE key='emp_id_prefix'")
+    _start_row  = db_row1("SELECT value FROM app_settings WHERE key='emp_id_start'")
+    _prefix     = (_prefix_row['value'] if _prefix_row else None) or 'EMP-'
+    _start      = int(_start_row['value']) if _start_row and str(_start_row['value']).isdigit() else 1001
+
+    # Find last emp_id with this prefix
+    last = db_row1(
+        "SELECT emp_id FROM employees WHERE emp_id LIKE %s ORDER BY id DESC LIMIT 1",
+        (_prefix + '%',)
+    )
     try:
         if last and last.get('emp_id'):
-            parts = str(last['emp_id']).split('-')
-            next_n = int(parts[1]) + 1 if len(parts) >= 2 and parts[1].isdigit() else 1001
+            suffix = str(last['emp_id'])[len(_prefix):]
+            next_n = int(suffix) + 1 if suffix.isdigit() else _start
         else:
-            next_n = 1001
+            next_n = _start
     except Exception:
-        next_n = 1001
-    emp_id = f"EMP-{next_n}"
+        next_n = _start
+    emp_id = f"{_prefix}{next_n}"
 
     try:
         conn = get_pg_conn()

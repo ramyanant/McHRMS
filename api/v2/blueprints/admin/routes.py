@@ -85,6 +85,56 @@ def update_settings():
     return ok(message="Settings saved")
 
 
+
+@admin_bp.route('/settings/emp-id', methods=['GET'])
+@require_auth
+@require_role('Admin')
+def get_emp_id_settings():
+    """Return current Employee ID prefix and starting number."""
+    rows = db_rows("SELECT key, value FROM app_settings WHERE key IN ('emp_id_prefix','emp_id_start')")
+    settings = {r['key']: r['value'] for r in rows}
+    # Preview: what would the next emp_id be?
+    prefix = settings.get('emp_id_prefix') or 'EMP-'
+    start  = int(settings.get('emp_id_start') or 1001)
+    last   = db_row1("SELECT emp_id FROM employees WHERE emp_id LIKE %s ORDER BY id DESC LIMIT 1",
+                     (prefix + '%',))
+    if last and last.get('emp_id'):
+        suffix = str(last['emp_id'])[len(prefix):]
+        next_n = int(suffix) + 1 if suffix.isdigit() else start
+    else:
+        next_n = start
+    return ok({
+        'emp_id_prefix': prefix,
+        'emp_id_start':  str(start),
+        'next_emp_id':   f"{prefix}{next_n}",
+        'example':       f"{prefix}{start}",
+    })
+
+
+@admin_bp.route('/settings/emp-id', methods=['PUT'])
+@require_auth
+@require_role('Admin')
+def update_emp_id_settings():
+    """Update Employee ID prefix and/or starting number."""
+    d = request.get_json() or {}
+    prefix = str(d.get('emp_id_prefix') or '').strip()
+    start  = str(d.get('emp_id_start')  or '').strip()
+
+    if not prefix:
+        return err("Employee ID prefix is required", 400)
+    if start and not start.isdigit():
+        return err("Starting number must be a positive integer", 400)
+
+    uid = g.user['id']
+    for key, val in [('emp_id_prefix', prefix), ('emp_id_start', start or '1001')]:
+        db_execute("""INSERT INTO app_settings (key, value, description, updated_by, updated_at)
+            VALUES (%s,%s,%s,%s,NOW())
+            ON CONFLICT(key) DO UPDATE SET value=%s, updated_by=%s, updated_at=NOW()""",
+            (key, val, f'Employee ID {key.replace("emp_id_","")}', uid, val, uid))
+
+    return ok(message=f"Employee ID format updated to {prefix}{{number}}")
+
+
 @admin_bp.route('/flush-data', methods=['POST'])
 @require_auth
 def flush_data():

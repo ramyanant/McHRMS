@@ -563,6 +563,27 @@ def _run_migrations(app):
             # candidate_documents and job_documents: not in schema.sql at all
             # Created inline in routes — just ensure columns are consistent
             # timesheets: already has project_id FK (correct) — no migration needed
+
+            # ── Employee ID format settings ────────────────────────────────────
+            """INSERT INTO app_settings (key, value, description)
+                VALUES ('emp_id_prefix', 'EMP-', 'Employee ID prefix (e.g. ISPL, EMP-)')
+                ON CONFLICT(key) DO NOTHING""",
+            """INSERT INTO app_settings (key, value, description)
+                VALUES ('emp_id_start', '1001', 'Employee ID starting number')
+                ON CONFLICT(key) DO NOTHING""",
+
+            # ── Employee ID rename: EMP-XXXX → ISPLXXXX ───────────────────────
+            # Update prefix setting to ISPL (IQuest Solutions naming convention)
+            """INSERT INTO app_settings (key, value, description)
+                VALUES ('emp_id_prefix', 'ISPL', 'Employee ID prefix')
+                ON CONFLICT(key) DO UPDATE SET value='ISPL'""",
+            """INSERT INTO app_settings (key, value, description)
+                VALUES ('emp_id_start', '1001', 'Employee ID starting number')
+                ON CONFLICT(key) DO UPDATE SET value='1001'""",
+            # Rename existing EMP-XXXX to ISPLXXXX (EMP-1001 → ISPL1001, etc.)
+            """UPDATE employees SET emp_id = 'ISPL' || SPLIT_PART(emp_id, '-', 2)
+                WHERE emp_id LIKE 'EMP-%'
+                  AND SPLIT_PART(emp_id, '-', 2) ~ '^[0-9]+$'""",
         ]
         for sql in migrations:
             try:

@@ -97,13 +97,17 @@ export async function renderProfile() {
   try {
     const org = await get('/organisation');
     _org = org;
-    renderPage(org);
+    // Fetch emp-id settings alongside org data
+    var empIdSettings = {emp_id_prefix:'EMP-', emp_id_start:'1001', next_emp_id:'EMP-1001'};
+    try { empIdSettings = await get('/settings/emp-id'); } catch(e) {}
+    renderPage(org, empIdSettings);
   } catch (e) {
     showError(e.message);
   }
 }
 
-function renderPage(org) {
+function renderPage(org, empIdSettings) {
+  empIdSettings = empIdSettings || {emp_id_prefix:'EMP-',emp_id_start:'1001',next_emp_id:'EMP-1001'};
   const pct      = calcCompletion(org);
   const pctColor = pct >= 80 ? 'green' : pct >= 50 ? 'amber' : 'red';
   const contacts = org.contacts || [];
@@ -123,6 +127,7 @@ function renderPage(org) {
     ['registrations','📋','Registrations & Licences'],
     ['banking','🏦','Banking'],
     ['documents','📄','Documents'],
+    ['empid','🪪','Employee ID Format'],
   ];
   const navHTML = navSections.map(function(s) {
     return '<div class="org-nav-item" onclick="window.orgScrollTo(\'' + s[0] + '\')">'
@@ -310,6 +315,7 @@ function renderPage(org) {
     + orgSection('registrations', '📋', 'Registrations & Licences',     regsHTML,     null)
     + orgSection('banking',       '🏦', 'Bank Accounts',                banksHTML,    null)
     + orgSection('documents',     '📄', 'Documents',                    docsHTML,     null)
+    + orgSection('empid',         '🪪', 'Employee ID Format',            buildEmpIdHTML(empIdSettings), 'window.orgEditEmpId()')
     + '</div></div>';
 
   setContent(html);
@@ -317,6 +323,17 @@ function renderPage(org) {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
+function buildEmpIdHTML(s) {
+  var prefix  = (s && s.emp_id_prefix) ? s.emp_id_prefix : 'EMP-';
+  var start   = (s && s.emp_id_start)  ? s.emp_id_start  : '1001';
+  var nextId  = (s && s.next_emp_id)   ? s.next_emp_id   : prefix + start;
+  return '<div class="field-grid field-grid-3">'
+    + '<div class="field-item"><div class="field-label">ID Prefix</div><div class="field-value fw-bold" style="font-size:18px;color:var(--primary)">' + nextId + '</div><div class="field-hint">Preview of next Employee ID</div></div>'
+    + '<div class="field-item"><div class="field-label">Prefix</div><div class="field-value">' + prefix + '</div></div>'
+    + '<div class="field-item"><div class="field-label">Starting Number</div><div class="field-value">' + start + '</div></div>'
+    + '</div>';
+}
+
 function orgSection(id, icon, title, body, editFn) {
   return '<div class="org-section card" id="org-sec-' + id + '">'
     + '<div class="org-section-header">'
@@ -344,6 +361,40 @@ function fieldItem(label, value, mono) {
 // ACTIONS
 // ═══════════════════════════════════════════════════════════════
 function bindActions() {
+  window.orgEditEmpId = function() {
+    openModal('Employee ID Format', '<div class="fg">'
+      + '<label class="flabel">Prefix <span style="color:var(--text-muted);font-size:11px">(e.g. ISPL, EMP-, HRM)</span></label>'
+      + '<input class="finput" id="eid-prefix" placeholder="ISPL" style="font-family:monospace;font-size:16px;letter-spacing:2px">'
+      + '</div><div class="fg" style="margin-top:12px">'
+      + '<label class="flabel">Starting Number <span style="color:var(--text-muted);font-size:11px">(new employees only)</span></label>'
+      + '<input class="finput" id="eid-start" type="number" min="1" placeholder="1001">'
+      + '</div>'
+      + '<div style="margin-top:12px;padding:10px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:6px;font-size:12px;color:#1e40af">'
+      + '⚠️ Changing the prefix only affects <strong>new</strong> employees. Existing employee IDs are not renamed automatically.'
+      + '</div>',
+      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'
+      + '<button class="btn btn-primary" onclick="window._saveEmpId()">Save Format</button>'
+    );
+    // Pre-fill current values
+    get('/settings/emp-id').then(function(s) {
+      document.getElementById('eid-prefix').value = s.emp_id_prefix || '';
+      document.getElementById('eid-start').value  = s.emp_id_start  || '1001';
+    }).catch(function() {});
+    window._saveEmpId = async function() {
+      var prefix = (document.getElementById('eid-prefix').value || '').trim();
+      var start  = (document.getElementById('eid-start').value  || '').trim();
+      if (!prefix) { toast('Prefix is required','error'); return; }
+      if (start && isNaN(parseInt(start))) { toast('Starting number must be a number','error'); return; }
+      try {
+        await put('/settings/emp-id', { emp_id_prefix: prefix, emp_id_start: start || '1001' });
+        toast('Employee ID format saved — next ID will be ' + prefix + (start||'1001'), 'success');
+        closeModal();
+        // Refresh the page to show updated preview
+        setTimeout(function(){ navigateTo('/organisation/profile'); }, 400);
+      } catch(e) { toast(e.message || 'Failed','error'); }
+    };
+  };
+
   window.orgScrollTo = function(id) {
     const el = document.getElementById('org-sec-' + id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
