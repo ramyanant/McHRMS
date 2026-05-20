@@ -32,7 +32,7 @@ def list_jobs():
         LEFT JOIN clients c ON c.id=j.client_id
         LEFT JOIN departments d ON d.id=j.department_id
         LEFT JOIN master_priority_levels p ON p.id=j.priority_id
-        LEFT JOIN employees e ON e.id=j.recruiter_id
+        LEFT JOIN employees e ON e.id=COALESCE(j.recruiter_id, j.raised_by)
         WHERE {clause} ORDER BY j.created_at DESC LIMIT %s OFFSET %s""",
         params + [per_page, (page-1)*per_page])
     return ok({"items": rows, "total": total, "page": page, "per_page": per_page,
@@ -45,20 +45,34 @@ def create_job():
     try: validate(d, {'title': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+    recruiter_id   = _int(d.get('recruiter_id') or g.user.get('employee_id'))
+    employment_tid = _int(d.get('employment_type_id') or d.get('engagement_type_id'))
+    comp_min       = d.get('comp_min') or d.get('min_salary')
+    comp_max       = d.get('comp_max') or d.get('max_salary')
+    target         = d.get('target_start') or d.get('target_date')
     cur.execute("""INSERT INTO job_requisitions
-        (title, client_id, engagement_type_id, department_id, recruiter_id, priority_id,
-         location, comp_min, comp_max, description, requirements, target_start, status,
-         work_mode, min_experience, max_experience, positions, budget, job_type, notice_period, assigned_to)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (d['title'], _int(d.get('client_id')), d.get('employment_type_id') or d.get('engagement_type_id'),
-         _int(d.get('department_id')), d.get('recruiter_id'), d.get('priority_id'),
-         d.get('location'), d.get('comp_min') or d.get('min_salary'),
-         d.get('comp_max') or d.get('max_salary'),
-         d.get('description'), d.get('requirements'), d.get('target_start') or d.get('target_date'),
+        (title, client_id, employment_type_id, engagement_type_id,
+         department_id, recruiter_id, raised_by, priority_id,
+         location, comp_min, min_salary, comp_max, max_salary,
+         description, requirements,
+         target_start, target_date, status,
+         work_mode, min_experience, max_experience, positions,
+         budget, job_type, notice_period, assigned_to, is_active)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id""",
+        (d['title'], _int(d.get('client_id')),
+         employment_tid, employment_tid,
+         _int(d.get('department_id')), recruiter_id, recruiter_id,
+         _int(d.get('priority_id')),
+         d.get('location'), comp_min, comp_min, comp_max, comp_max,
+         d.get('description'), d.get('requirements'),
+         target, target,
          d.get('status','Active'),
-         d.get('work_mode','On-Site'), d.get('min_experience',0), d.get('max_experience'),
-         d.get('positions',1), d.get('budget',0), d.get('job_type','Permanent'),
-         d.get('notice_period'), d.get('assigned_to')))
+         d.get('work_mode','On-Site'),
+         d.get('min_experience',0), d.get('max_experience'),
+         d.get('positions',1), d.get('budget',0),
+         d.get('job_type','Permanent'), d.get('notice_period'),
+         _int(d.get('assigned_to')), 1))
     rid = cur.fetchone()['id']; conn.close()
     write_audit_log('recruitment','CREATE','job_requisition',rid,f"Job: {d['title']}")
     return created({'id': rid})
@@ -71,13 +85,17 @@ def job_detail(rid):
         FROM job_requisitions j
         LEFT JOIN clients c ON c.id=j.client_id
         LEFT JOIN departments d ON d.id=j.department_id
-        LEFT JOIN employees e ON e.id=j.recruiter_id
+        LEFT JOIN employees e ON e.id=COALESCE(j.recruiter_id, j.raised_by)
         LEFT JOIN master_priority_levels p ON p.id=j.priority_id
         WHERE j.id=%s""", (rid,))
     if not job: return not_found("Job Requisition")
     if request.method == 'GET':
-        job['applications'] = db_rows("""SELECT a.*, c.first_name||' '||c.last_name as candidate_name,
-            c.email, c.phone, c.current_title, c.years_exp, s.name as stage_name
+        job['applications'] = db_rows("""SELECT a.*,
+            c.first_name||' '||c.last_name as candidate_name,
+            c.email, c.phone,
+            COALESCE(c.current_title, c.current_designation) as current_title,
+            COALESCE(c.years_exp, c.total_experience) as years_exp,
+            s.name as stage_name
             FROM applications a
             JOIN candidates c ON c.id=a.candidate_id
             LEFT JOIN master_application_stages s ON s.id=a.stage_id
@@ -109,7 +127,7 @@ def list_candidates():
     search = request.args.get('q','')
     where, params = ["c.is_active=1"], []
     if search:
-        where.append("(c.first_name||' '||c.last_name ILIKE %s OR c.email ILIKE %s OR c.current_title ILIKE %s)")
+        where.append("(c.first_name||' '||c.last_name ILIKE %s OR c.email ILIKE %s OR COALESCE(c.current_title,c.current_designation) ILIKE %s)")
         params += [f'%{search}%']*3
     clause = " AND ".join(where)
     total  = db_row1(f"SELECT COUNT(*) as n FROM candidates c WHERE {clause}", params)['n']
@@ -147,26 +165,36 @@ def create_candidate():
         if existing2:
             return err(f"Candidate {fname} with this phone already exists (ID: {existing2['id']})", 409)
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+    _cand_loc    = d.get('current_location') or d.get('location')
+    _designation = d.get('current_designation') or d.get('current_title')
+    _experience  = d.get('total_experience') or d.get('years_exp') or 0
+    _recruiter   = _int(d.get('recruiter_id') or g.user.get('employee_id'))
+    _rating      = d.get('rating') if isinstance(d.get('rating'), int) else None
     cur.execute("""INSERT INTO candidates
-        (first_name, middle_name, last_name, email, phone, location,
-         current_title, current_company, years_exp, current_ctc, expected_ctc,
-         notice_period, source_id, linkedin_url, resume_url, skills,
-         gender, nationality, pan, aadhaar, recruiter_id, status, rating, notes, availability)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (first_name, middle_name, last_name, email, phone,
+         current_location, location,
+         current_designation, current_title,
+         current_company,
+         total_experience, years_exp,
+         current_ctc, expected_ctc, notice_period,
+         source_id, linkedin_url, resume_url, skills,
+         gender, nationality, pan, aadhaar,
+         recruiter_id, status, rating, notes, availability, is_active)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        RETURNING id""",
         (d['first_name'], d.get('middle_name'), d.get('last_name',''),
          d.get('email'), d.get('phone'),
-         d.get('current_location') or d.get('location'),
-         d.get('current_designation') or d.get('current_title'),
+         _cand_loc, _cand_loc,
+         _designation, _designation,
          d.get('current_company'),
-         d.get('total_experience') or d.get('years_exp') or 0,
-         d.get('current_ctc'), d.get('expected_ctc'),
-         d.get('notice_period'), d.get('source_id'), d.get('linkedin_url'),
-         d.get('resume_url'), d.get('skills'),
+         _experience, _experience,
+         d.get('current_ctc'), d.get('expected_ctc'), d.get('notice_period'),
+         _int(d.get('source_id')), d.get('linkedin_url'), d.get('resume_url'), d.get('skills'),
          d.get('gender'), d.get('nationality','Indian'),
          d.get('pan'), d.get('aadhaar'),
-         d.get('recruiter_id') or g.user.get('employee_id'),
-         d.get('status','Active'), d.get('rating','Good'), d.get('notes'),
-         d.get('availability','Looking for Change')))
+         _recruiter,
+         d.get('status','Active'), _rating, d.get('notes'),
+         d.get('availability','Looking for Change'), 1))
     cid = cur.fetchone()['id']
     # Auto-create application if requisition_id provided
     req_id = d.get('requisition_id')
@@ -216,9 +244,21 @@ def candidate_detail(cid):
     updates = {}
     for k in fields:
         if k in d: updates[k] = d[k]
-    if 'current_location' in d:     updates['location']       = d['current_location']
-    if 'current_designation' in d:  updates['current_title']  = d['current_designation']
-    if 'total_experience' in d:     updates['years_exp']      = d['total_experience']
+    if 'current_location' in d:
+        updates['location'] = d['current_location']
+        updates['current_location'] = d['current_location']
+    if 'current_designation' in d:
+        updates['current_title']       = d['current_designation']
+        updates['current_designation'] = d['current_designation']
+    if 'current_title' in d:
+        updates['current_title']       = d['current_title']
+        updates['current_designation'] = d['current_title']
+    if 'total_experience' in d:
+        updates['years_exp']        = d['total_experience']
+        updates['total_experience'] = d['total_experience']
+    if 'years_exp' in d:
+        updates['years_exp']        = d['years_exp']
+        updates['total_experience'] = d['years_exp']
     if updates:
         sc = ', '.join(f"{k}=%s" for k in updates)
         db_execute(f"UPDATE candidates SET {sc},updated_at=NOW() WHERE id=%s",
@@ -345,14 +385,22 @@ def create_interview():
     fmt = db_row1("SELECT id FROM master_interview_formats WHERE name=%s LIMIT 1",
                  (d.get('format','Video Call'),))
     conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+    _round       = int(d['round']) if str(d['round']).isdigit() else 1
+    _interviewer = d.get('interviewer') or d.get('interviewer_name') or ''
+    _location    = d.get('meeting_link') or d.get('location_link') or d.get('location')
+    _format_id   = _int(d.get('format_id')) or (fmt['id'] if fmt else None)
     cur.execute("""INSERT INTO interviews
-        (application_id, round, format_id, interviewer, scheduled_at, location_link, notes)
-        VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
-        (app_id, str(d['round']),
-         d.get('format_id') or (fmt['id'] if fmt else None),
-         d.get('interviewer') or d.get('interviewer_name',''),
-         d.get('scheduled_at'), d.get('meeting_link') or d.get('location_link'),
-         d.get('notes')))
+        (application_id, round, format_id,
+         interviewer, interviewer_id,
+         scheduled_at,
+         meeting_link, location_link, location,
+         notes, status, scorecard_status, is_active)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+        (app_id, _round, _format_id,
+         _interviewer, _int(d.get('interviewer_id')),
+         d.get('scheduled_at'),
+         _location, _location, _location,
+         d.get('notes'), d.get('status','Scheduled'), 'Pending', 1))
     iid = cur.fetchone()['id']; conn.close()
     write_audit_log('recruitment','CREATE','interview',iid,"Interview scheduled")
     return created({'id': iid})
@@ -372,13 +420,27 @@ def interview_detail(iid):
     if not iv: return not_found("Interview")
     if request.method == 'GET': return ok(iv)
     d = request.get_json() or {}
-    db_execute("""UPDATE interviews SET scorecard_status=%s, decision=%s, notes=%s,
-        interviewer=%s, scheduled_at=%s WHERE id=%s""",
-        (d.get('scorecard_status', iv['scorecard_status']),
-         d.get('decision') or d.get('recommendation', iv['decision']),
-         d.get('feedback') or d.get('notes', iv['notes']),
-         d.get('interviewer', iv['interviewer']),
-         d.get('scheduled_at', iv['scheduled_at']), iid))
+    # Build update dict using both old and new column names
+    _iv_updates = {}
+    if d.get('scorecard_status') is not None: _iv_updates['scorecard_status'] = d['scorecard_status']
+    if d.get('decision') is not None:
+        _iv_updates['decision']       = d['decision']
+        _iv_updates['recommendation'] = d['decision']   # schema column
+    if d.get('recommendation') is not None:
+        _iv_updates['recommendation'] = d['recommendation']
+        _iv_updates['decision']       = d['recommendation']
+    if d.get('feedback') or d.get('notes'):
+        _iv_updates['feedback'] = d.get('feedback') or d.get('notes')
+        _iv_updates['notes']    = d.get('feedback') or d.get('notes')
+    if d.get('interviewer') is not None:    _iv_updates['interviewer']    = d['interviewer']
+    if d.get('interviewer_id') is not None: _iv_updates['interviewer_id'] = _int(d['interviewer_id'])
+    if d.get('scheduled_at') is not None:   _iv_updates['scheduled_at']   = d['scheduled_at']
+    if d.get('overall_rating') is not None: _iv_updates['overall_rating']  = d['overall_rating']
+    if d.get('status') is not None:         _iv_updates['status']          = d['status']
+    if _iv_updates:
+        _iv_sets = ', '.join(f"{k}=%s" for k in _iv_updates)
+        db_execute(f"UPDATE interviews SET {_iv_sets}, updated_at=NOW() WHERE id=%s",
+                  list(_iv_updates.values()) + [iid])
     write_audit_log('recruitment','UPDATE','interview',iid,f"Interview updated: {d.get('decision','')}")
     return ok(message="Updated")
 
@@ -396,9 +458,21 @@ def _ensure_offers():
             joining_date DATE, offered_ctc NUMERIC, offered_basic NUMERIC, offered_hra NUMERIC,
             offered_allowances NUMERIC, employment_type_id INTEGER, offer_date DATE,
             expiry_date DATE, status TEXT DEFAULT 'Draft',
+            offer_letter_url TEXT,
             offer_letter_data TEXT, offer_letter_name TEXT,
             acceptance_date DATE, rejection_date DATE, rejection_reason TEXT,
+            converted_to_emp_id INTEGER REFERENCES employees(id),
+            approved_by INTEGER,
             created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), created_by INTEGER)""")
+        # Ensure all columns exist on existing tables
+        for _sql in [
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_letter_data TEXT",
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_letter_name TEXT",
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS converted_to_emp_id INTEGER",
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS approved_by INTEGER",
+        ]:
+            try: cur.execute(_sql)
+            except: pass
         conn.close()
     except Exception as e:
         print(f"[offers] {e}", flush=True)
@@ -488,32 +562,41 @@ def create_onboarding():
     # Ensure columns exist
     try:
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        # These are also in __init__.py migrations — idempotent here as safety net
         for sql in [
-            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id)",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS start_date DATE",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
-            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS buddy_name TEXT",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS category TEXT",
+            "ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL",
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS category TEXT",
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS is_complete INTEGER DEFAULT 0",
         ]:
             try: cur.execute(sql)
             except: pass
-        # Make employee_id nullable so candidates can be onboarded
-        try: cur.execute("ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL")
-        except Exception: pass
         tpl = db_row1("SELECT id FROM master_onboarding_templates WHERE name=%s",
                      (d.get('template','Standard'),))
+        _start = d.get('start_date') or d.get('joining_date')
         cur.execute("""INSERT INTO onboarding
-            (employee_id,candidate_id,person_type,template_id,buddy_name,start_date,notes)
-            VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+            (employee_id, candidate_id, person_type, template_id,
+             buddy_name, start_date, joining_date, notes, status, progress_pct)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
             (emp_id or None, cand_id or None,
              'candidate' if cand_id else 'employee',
-             tpl['id'] if tpl else None, d.get('buddy_name'), d.get('start_date'), d.get('notes')))
+             tpl['id'] if tpl else None,
+             d.get('buddy_name'), _start, _start,
+             d.get('notes'), 'In Progress', 0))
         oid = cur.fetchone()['id']
         # Create default tasks
         tasks = [("Offer letter signed","Documents"),("Background check","Compliance"),
                  ("Equipment provisioned","IT"),("System access setup","IT"),
                  ("ID/Badge issued","Admin"),("Day 1 orientation","HR"),("30-day check-in","HR")]
         for task, cat in tasks:
-            cur.execute("INSERT INTO onboarding_tasks (onboarding_id,task_name,category) VALUES (%s,%s,%s)",
-                       (oid, task, cat))
+            cur.execute(
+                "INSERT INTO onboarding_tasks (onboarding_id, task_name, category, status, is_complete) "
+                "VALUES (%s,%s,%s,'Pending',0)",
+                (oid, task, cat))
         conn.close()
     except Exception as ex:
         return err(str(ex))
@@ -546,8 +629,10 @@ def onboarding_detail(oid):
 def toggle_task(tid):
     d = request.get_json() or {}
     done = 1 if d.get('is_complete') or d.get('status') == 'Completed' else 0
-    db_execute("UPDATE onboarding_tasks SET is_complete=%s,completed_at=%s WHERE id=%s",
-              (done, 'NOW()' if done else None, tid))
+    import datetime as _dt
+    _completed_at = _dt.datetime.utcnow() if done else None
+    db_execute("UPDATE onboarding_tasks SET is_complete=%s, status=%s, completed_at=%s WHERE id=%s",
+              (done, 'Completed' if done else 'Pending', _completed_at, tid))
     # Update progress
     r = db_row1("SELECT onboarding_id FROM onboarding_tasks WHERE id=%s",(tid,))
     if r:
@@ -571,7 +656,7 @@ def recruitment_stats():
             FROM master_application_stages s
             LEFT JOIN applications a ON a.stage_id=s.id
             GROUP BY s.id,s.name,s.sort_order ORDER BY s.sort_order"""),
-        'offers_pending':    0,
+        'offers_pending':    db_row1("SELECT COUNT(*) as n FROM offers WHERE status IN ('Sent','Pending','Draft')")['n'],
         'onboarding_pending':db_row1("SELECT COUNT(*) as n FROM onboarding WHERE status='In Progress'")['n'],
     })
 
@@ -581,6 +666,17 @@ def recruitment_stats():
 @rec_bp.route('/candidates/<int:cid>/documents', methods=['GET','POST'])
 @require_auth
 def candidate_docs(cid):
+    # Ensure candidate_documents table exists (not in schema.sql)
+    try:
+        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
+        cur.execute("""CREATE TABLE IF NOT EXISTS candidate_documents (
+            id SERIAL PRIMARY KEY, candidate_id INTEGER NOT NULL REFERENCES candidates(id),
+            doc_type TEXT, doc_name TEXT, file_name TEXT, file_url TEXT,
+            file_data TEXT, file_size TEXT, mime_type TEXT,
+            notes TEXT, uploaded_by INTEGER,
+            is_active INTEGER DEFAULT 1, uploaded_at TIMESTAMP DEFAULT NOW())""")
+        conn.close()
+    except Exception: pass
     if request.method == 'GET':
         try:
             docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,
@@ -608,6 +704,17 @@ def candidate_doc_detail(cid, did):
 @rec_bp.route('/recruitment/jobs/<int:jid>/documents', methods=['GET','POST'])
 @require_auth
 def job_docs(jid):
+    # Ensure job_documents table exists (not in schema.sql)
+    try:
+        conn2 = get_pg_conn(); conn2.autocommit = True; cur2 = conn2.cursor()
+        cur2.execute("""CREATE TABLE IF NOT EXISTS job_documents (
+            id SERIAL PRIMARY KEY, job_id INTEGER NOT NULL REFERENCES job_requisitions(id),
+            doc_type TEXT, doc_name TEXT, file_name TEXT, file_url TEXT,
+            file_data TEXT, file_size TEXT, mime_type TEXT,
+            notes TEXT, uploaded_by INTEGER,
+            is_active INTEGER DEFAULT 1, uploaded_at TIMESTAMP DEFAULT NOW())""")
+        conn2.close()
+    except Exception: pass
     if request.method == 'GET':
         try:
             docs = db_rows("""SELECT id, doc_type, doc_name, file_size, mime_type,

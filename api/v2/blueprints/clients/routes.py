@@ -78,6 +78,7 @@ def create_client():
 
 @clients_bp.route('/clients/<int:cid>', methods=['GET','PUT','DELETE'])
 @require_auth
+@require_role('Admin', 'Account Manager')
 def client_detail(cid):
     client = db_row1("""SELECT c.*,
         e.first_name||' '||e.last_name as account_manager_name,
@@ -98,10 +99,12 @@ def client_detail(cid):
 
     if request.method == 'PUT':
         d = request.get_json() or {}
-        fields = ['name','industry','contract_type_id','currency','payment_terms_id','status',
-                  'rating','primary_contact','primary_contact_designation','contact_email',
-                  'contact_phone','address_line1','city','state_id','pincode','gstin','pan',
-                  'account_manager_id','health_score','is_active']
+        fields = ['name','legal_name','industry','website','contract_type_id','currency',
+                  'payment_terms_id','status','rating','primary_contact','primary_contact_designation',
+                  'contact_email','contact_phone','billing_contact_name','billing_contact_email',
+                  'billing_contact_phone','address_line1','address_line2','city','state','state_id',
+                  'pincode','country','gstin','pan','account_manager_id','health_score','is_active',
+                  'notes','referred_by','credit_limit']
         updates = {k: d[k] for k in fields if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)
@@ -142,24 +145,6 @@ def client_documents(cid):
     except Exception as ex:
         return err(str(ex))
 
-@clients_bp.route('/clients/<int:cid>/documents', methods=['POST'])
-@require_auth
-def upload_client_doc(cid):
-    d = request.get_json() or {}
-    try:
-        conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
-        cur.execute("""CREATE TABLE IF NOT EXISTS client_documents (
-            id SERIAL PRIMARY KEY, client_id INTEGER NOT NULL REFERENCES clients(id),
-            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
-            mime_type TEXT, is_active INTEGER DEFAULT 1, uploaded_at TIMESTAMP DEFAULT NOW())""")
-        cur.execute("""INSERT INTO client_documents (client_id, doc_type, doc_name, file_data, file_size, mime_type)
-            VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
-            (cid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),
-             d.get('file_size'), d.get('mime_type')))
-        doc_id = cur.fetchone()['id']; conn.close()
-        return created({'id': doc_id})
-    except Exception as e:
-        return err(str(e))
 
 @clients_bp.route('/clients/documents/<int:did>', methods=['GET','DELETE'])
 @require_auth

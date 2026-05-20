@@ -88,16 +88,20 @@ def list_projects():
 
 @projects_bp.route('/projects', methods=['POST'])
 @require_auth
+@require_role('Admin', 'HR Manager', 'Account Manager')
 def create_project():
     _ensure_projects()
     d = request.get_json() or {}
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
     # Auto-generate project code
-    last = db_row1("SELECT project_code FROM projects WHERE project_code LIKE 'PRJ-%' ORDER BY id DESC LIMIT 1")
+    # Try project_code first (added by migration), fall back to code (schema.sql column)
+    last = db_row1("""SELECT COALESCE(project_code, code) as pcode
+        FROM projects WHERE COALESCE(project_code, code) LIKE 'PRJ-%'
+        ORDER BY id DESC LIMIT 1""")
     try:
-        if last and last.get('project_code'):
-            parts = str(last['project_code']).split('-')
+        if last and last.get('pcode'):
+            parts = str(last['pcode']).split('-')
             next_n = int(parts[1]) + 1 if len(parts) >= 2 and parts[1].isdigit() else 1
             code = f"PRJ-{next_n:04d}"
         else:
@@ -152,7 +156,7 @@ def project_detail(pid):
             s.name as status FROM timesheets t
             LEFT JOIN employees e ON e.id=t.employee_id
             LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
-            WHERE t.project=%s ORDER BY t.week_ending DESC LIMIT 20""", (proj['name'],))
+            WHERE t.project_id=%s ORDER BY t.week_ending DESC LIMIT 20""", (pid,))
         return ok(proj)
     if request.method == 'PUT':
         d = request.get_json() or {}
@@ -173,6 +177,7 @@ def project_detail(pid):
 # Resources
 @projects_bp.route('/projects/<int:pid>/resources', methods=['POST'])
 @require_auth
+@require_role('Admin', 'HR Manager', 'Account Manager')
 def add_resource(pid):
     _ensure_projects()
     d = request.get_json() or {}
@@ -201,6 +206,7 @@ def manage_resource(rid):
 # Milestones
 @projects_bp.route('/projects/<int:pid>/milestones', methods=['POST'])
 @require_auth
+@require_role('Admin', 'HR Manager', 'Account Manager')
 def add_milestone(pid):
     _ensure_projects()
     d = request.get_json() or {}
@@ -246,12 +252,11 @@ def project_documents(pid):
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS project_documents (
             id SERIAL PRIMARY KEY, project_id INTEGER NOT NULL REFERENCES projects(id),
-            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
-            mime_type TEXT, notes TEXT, is_active INTEGER DEFAULT 1,
+            doc_type TEXT, file_name TEXT, file_url TEXT,
+            doc_name TEXT, file_data TEXT, file_size TEXT,
+            mime_type TEXT, notes TEXT, uploaded_by INTEGER,
+            is_active INTEGER DEFAULT 1,
             uploaded_at TIMESTAMP DEFAULT NOW())""")
-        try:
-            cur.execute("ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS notes TEXT")
-        except Exception: pass
         cur.execute("""INSERT INTO project_documents (project_id, doc_type, doc_name, file_data, file_size, mime_type)
             VALUES (%s,%s,%s,%s,%s,%s) RETURNING id""",
             (pid, d.get('doc_type'), d.get('doc_name'), d.get('file_data'),

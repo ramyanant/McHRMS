@@ -25,8 +25,8 @@ def list_vendors():
     search = request.args.get('q','')
     where, params = ["v.is_active=1"], []
     if search:
-        where.append("(v.name ILIKE %s OR v.contact_email ILIKE %s)")
-        params += [f'%{search}%'] * 2
+        where.append("(v.name ILIKE %s OR COALESCE(v.contact_email, v.email) ILIKE %s OR v.city ILIKE %s)")
+        params += [f'%{search}%'] * 3
     clause = " AND ".join(where)
     total  = db_row1(f"SELECT COUNT(*) as n FROM vendors v WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT v.*, vc.name as category_name FROM vendors v
@@ -73,21 +73,26 @@ def create_vendor():
 
 @vendors_bp.route('/vendors/<int:vid>', methods=['GET','PUT','DELETE'])
 @require_auth
+@require_role('Admin')
 def vendor_detail(vid):
-    vendor = db_row1("""SELECT v.*, vc.name as category_name,
-        e.first_name||' '||e.last_name as account_manager_name
+    vendor = db_row1("""SELECT v.*, vc.name as category_name
         FROM vendors v
         LEFT JOIN master_vendor_categories vc ON vc.id=v.category_id
-        LEFT JOIN employees e ON e.id=v.account_manager_id
         WHERE v.id=%s""", (vid,))
+    if vendor and vendor.get('account_manager_id'):
+        am = db_row1("SELECT first_name||' '||last_name as name FROM employees WHERE id=%s",
+                     (vendor['account_manager_id'],))
+        if am: vendor['account_manager_name'] = am['name']
     if not vendor: return not_found("Vendor")
     if request.method == 'GET':
         vendor['documents'] = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_at FROM vendor_documents WHERE vendor_id=%s", (vid,))
         return ok(vendor)
     if request.method == 'PUT':
         d = request.get_json() or {}
-        fields = ['name','category_id','is_active','status','rating','primary_contact','contact_email',
-                  'contact_phone','address_line1','city','state_id','gstin','pan','sla_score']
+        fields = ['name','category_id','is_active','status','rating','primary_contact',
+                  'primary_contact_designation','contact_email','contact_phone',
+                  'address_line1','city','state','gstin','pan','notes','website',
+                  'payment_terms_id','account_manager_id','sla_score','state_id']
         updates = {k: d[k] for k in fields if k in d}
         if updates:
             set_clause = ', '.join(f"{k}=%s" for k in updates)
@@ -113,8 +118,10 @@ def vendor_documents(vid):
         conn = get_pg_conn(); conn.autocommit = True; cur = conn.cursor()
         cur.execute("""CREATE TABLE IF NOT EXISTS vendor_documents (
             id SERIAL PRIMARY KEY, vendor_id INTEGER NOT NULL REFERENCES vendors(id),
-            doc_type TEXT, doc_name TEXT NOT NULL, file_data TEXT, file_size TEXT,
-            mime_type TEXT, is_active INTEGER DEFAULT 1,
+            doc_type TEXT, doc_name TEXT, file_name TEXT, file_url TEXT,
+            file_data TEXT, file_size TEXT, mime_type TEXT,
+            notes TEXT, uploaded_by INTEGER,
+            is_active INTEGER DEFAULT 1,
             uploaded_at TIMESTAMP DEFAULT NOW())""")
         cur.execute("""INSERT INTO vendor_documents (vendor_id, doc_type, doc_name, file_data, file_size, mime_type, notes, uploaded_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
@@ -132,3 +139,10 @@ def vendor_doc_detail(did):
         return ok(message="Deleted")
     doc = db_row1("SELECT * FROM vendor_documents WHERE id=%s",(did,))
     return ok(doc) if doc else not_found("Document")
+
+
+@vendors_bp.route('/lookup/vendors')
+@require_auth
+def lookup_vendors():
+    return ok(db_rows("SELECT id, name FROM vendors WHERE is_active=1 ORDER BY name"))
+

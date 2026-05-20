@@ -439,6 +439,130 @@ def _run_migrations(app):
             "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS pf_number TEXT",
             "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS esi_number TEXT",
             "ALTER TABLE organisation ADD COLUMN IF NOT EXISTS incorporation_date DATE",
+
+            # ── Clients module ────────────────────────────────────────────────
+            # client_documents: schema has file_name/file_url, code uses doc_name/file_data/etc
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS doc_name TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS file_size TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS mime_type TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS expiry_date DATE",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE client_documents ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+
+            # ── Vendors module ────────────────────────────────────────────────
+            # schema.sql vendors missing all extended contact/status columns
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_email TEXT",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS contact_phone TEXT",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS primary_contact TEXT",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS primary_contact_designation TEXT",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS address_line1 TEXT",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS account_manager_id INTEGER",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS state_id INTEGER",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS rating INTEGER DEFAULT 0",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS sla_score INTEGER DEFAULT 0",
+            "ALTER TABLE vendors ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # vendor_documents: schema has file_name/file_url, code uses doc_name/file_data
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS doc_name TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS file_size TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS mime_type TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE vendor_documents ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+
+            # ── Projects module ────────────────────────────────────────────────
+            # schema.sql projects has: code, type, rate — code uses project_code, project_type etc
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_type TEXT DEFAULT 'T&M'",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS short_name TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS category TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'Medium'",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS account_manager_id INTEGER",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS department_id INTEGER",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS business_unit_id INTEGER",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS cost_centre_id INTEGER",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS go_live_date DATE",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS budget_currency TEXT DEFAULT 'INR'",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS estimated_revenue NUMERIC(15,2) DEFAULT 0",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS billing_cycle TEXT DEFAULT 'Monthly'",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS rate_card TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_number TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS contract_value NUMERIC(15,2) DEFAULT 0",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS sow_reference TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS health_score INTEGER DEFAULT 80",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS completion_pct INTEGER DEFAULT 0",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # project_resources: schema missing is_active
+            "ALTER TABLE project_resources ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # project_milestones: schema uses 'name', code uses 'title'; schema missing is_active
+            "ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS title TEXT",
+            "ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS description TEXT",
+            "ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS completion_date DATE",
+            "ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS deliverable TEXT",
+            "ALTER TABLE project_milestones ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # project_risks: schema uses 'description', code uses 'title'; missing is_active
+            "ALTER TABLE project_risks ADD COLUMN IF NOT EXISTS title TEXT",
+            "ALTER TABLE project_risks ADD COLUMN IF NOT EXISTS owner_id INTEGER",
+            "ALTER TABLE project_risks ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # project_documents: schema has file_name/file_url, code uses doc_name/file_data
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS doc_name TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS file_size TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS mime_type TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS file_data TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS notes TEXT",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS uploaded_at TIMESTAMP DEFAULT NOW()",
+            "ALTER TABLE project_documents ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+
+            # ── Recruitment / TA module ────────────────────────────────────────
+            # job_requisitions: schema has raised_by/min_salary/max_salary/target_date/employment_type_id
+            #                   code uses recruiter_id/comp_min/comp_max/target_start/engagement_type_id
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS recruiter_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS comp_min NUMERIC(12,2)",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS comp_max NUMERIC(12,2)",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS target_start DATE",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS engagement_type_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS work_mode TEXT DEFAULT 'On-Site'",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS job_type TEXT DEFAULT 'Permanent'",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS notice_period INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS budget NUMERIC(12,2) DEFAULT 0",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # candidates: schema has current_designation/total_experience, code uses current_title/years_exp
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_title TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS middle_name TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS years_exp NUMERIC(4,1)",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS location TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS gender TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS nationality TEXT DEFAULT 'Indian'",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS pan TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS aadhaar TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS availability TEXT DEFAULT 'Looking for Change'",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS recruiter_id INTEGER",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # applications: schema missing recruiter_id, expected_salary
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS recruiter_id INTEGER",
+            "ALTER TABLE applications ADD COLUMN IF NOT EXISTS expected_salary NUMERIC(12,2)",
+            # interviews: schema has interviewer_id FK, code uses TEXT interviewer + extra cols
+            "ALTER TABLE interviews ADD COLUMN IF NOT EXISTS interviewer TEXT",
+            "ALTER TABLE interviews ADD COLUMN IF NOT EXISTS location_link TEXT",
+            "ALTER TABLE interviews ADD COLUMN IF NOT EXISTS scorecard_status TEXT DEFAULT 'Pending'",
+            "ALTER TABLE interviews ADD COLUMN IF NOT EXISTS decision TEXT",
+            "ALTER TABLE interviews ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # offers: code uses base64 storage, schema has offer_letter_url only
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_letter_data TEXT",
+            "ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_letter_name TEXT",
+            # onboarding: schema has joining_date, code inserts start_date; missing progress/buddy
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS start_date DATE",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS buddy_name TEXT",
+            # onboarding_tasks: schema missing category, is_complete, completed_at
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS category TEXT",
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS is_complete INTEGER DEFAULT 0",
+            # candidate_documents and job_documents: not in schema.sql at all
+            # Created inline in routes — just ensure columns are consistent
+            # timesheets: already has project_id FK (correct) — no migration needed
         ]
         for sql in migrations:
             try:
