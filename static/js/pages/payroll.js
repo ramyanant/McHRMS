@@ -548,6 +548,10 @@ export async function renderDetail({ id }) {
     var status    = run.status || 'New';
     var isPending = status === 'New' || status === 'On Hold';
 
+    // Payslip View/Download buttons + bulk-select checkboxes are only shown
+    // once the run is Processed (i.e. payslips are issuable).
+    var showPayslipActions = status === 'Processed';
+
     function renderEntries() {
       if (!entries.length) return '<div class="empty-mini">No salary entries</div>';
       var cols = ['emp_id','employee_name','designation','department_name','location_name','ctc',
@@ -556,11 +560,24 @@ export async function renderDetail({ id }) {
       var labels = ['Emp ID','Name','Designation','Dept','Location','CTC',
         'LOP','a.Basic','b.HRA','c.Conv','d.Med','e.Spec','f.Inc','g.Other','Gross',
         'h.PT','i.ESI','j.TDS','k.EPF','l.MedD','m.Adv','n.OthD','Total Ded','Net Salary'];
+      var pickHeader   = showPayslipActions ? '<th style="width:24px"><input type="checkbox" onchange="window._togglePsAll(this)" title="Select all"></th>' : '';
+      var actionHeader = showPayslipActions ? '<th style="white-space:nowrap">PDF</th>' : '';
       return '<div class="tbl-wrap"><table class="data-table" style="font-size:11px"><thead><tr>' +
+        pickHeader +
         cols.map(function(c,i){ return '<th style="white-space:nowrap">'+labels[i]+'</th>'; }).join('') +
+        actionHeader +
       '</tr></thead><tbody>' +
       entries.map(function(e,idx) {
-        return '<tr>' + cols.map(function(c) {
+        var pickCell = showPayslipActions
+          ? '<td><input type="checkbox" class="ps-pick" value="'+v(e.employee_id)+'"></td>'
+          : '';
+        var actionCell = showPayslipActions
+          ? '<td style="white-space:nowrap;text-align:center">' +
+              '<a href="javascript:void(0)" onclick="window._viewPayslip('+e.id+')" title="View payslip">👁</a> ' +
+              '<a href="javascript:void(0)" onclick="window._downloadPayslipPdf('+e.id+')" title="Download PDF">⬇</a>' +
+            '</td>'
+          : '';
+        return '<tr>' + pickCell + cols.map(function(c) {
           var val = e[c];
           if (c === 'emp_id' || c === 'employee_name' || c === 'designation' || c === 'department_name' || c === 'location_name') {
             return '<td style="white-space:nowrap;font-size:11px">'+v(val,'—')+'</td>';
@@ -570,13 +587,16 @@ export async function renderDetail({ id }) {
             return '<td class="mono" contenteditable="true" onblur="window._editPayEntry('+e.id+',\''+c+'\',this.textContent)" style="text-align:right;min-width:60px;background:var(--bg)">'+num+'</td>';
           }
           return '<td class="mono" style="text-align:right">'+num+'</td>';
-        }).join('') + '</tr>';
+        }).join('') + actionCell + '</tr>';
       }).join('') +
-      '<tr style="font-weight:700;background:var(--brand-light)"><td colspan="14" style="text-align:right;font-size:11px">TOTALS →</td>' +
-      '<td class="mono" style="text-align:right">'+inr(totalGross)+'</td>' +
-      '<td colspan="7"></td>' +
-      '<td class="mono" style="text-align:right">'+inr(totalDed)+'</td>' +
-      '<td class="mono" style="text-align:right;color:var(--green)">'+inr(totalNet)+'</td>' +
+      '<tr style="font-weight:700;background:var(--brand-light)">' +
+        (showPayslipActions ? '<td></td>' : '') +
+        '<td colspan="14" style="text-align:right;font-size:11px">TOTALS →</td>' +
+        '<td class="mono" style="text-align:right">'+inr(totalGross)+'</td>' +
+        '<td colspan="7"></td>' +
+        '<td class="mono" style="text-align:right">'+inr(totalDed)+'</td>' +
+        '<td class="mono" style="text-align:right;color:var(--green)">'+inr(totalNet)+'</td>' +
+        (showPayslipActions ? '<td></td>' : '') +
       '</tr>' +
       '</tbody></table></div>';
     }
@@ -597,7 +617,7 @@ export async function renderDetail({ id }) {
             (isPending ? '<button class="btn btn-ghost btn-sm" onclick="window._holdRun()">⏸ On Hold</button>' : '') +
             (status === 'Approved' ? '<button class="btn btn-primary btn-sm" onclick="window._processRun()">⚡ Process</button>' : '') +
             (status === 'Approved' || status === 'Processed' ? '<button class="btn btn-ghost btn-sm" onclick="window._downloadCBX()">⬇ CBX File</button>' : '') +
-            (status === 'Processed' ? '<button class="btn btn-ghost btn-sm" onclick="window._downloadPayslips()">📄 Payslips</button>' : '') +
+            (status === 'Processed' ? '<button class="btn btn-ghost btn-sm" onclick="window._downloadPayslipsZip()">📦 Bulk Payslips (ZIP)</button>' : '') +
           '</div>' +
         '</div>' +
         '<div class="tbl-wrap">' + renderEntries() + '</div>' +
@@ -655,33 +675,37 @@ export async function renderDetail({ id }) {
       } catch(e) { toast(e.message, 'error'); }
     };
 
-    window._downloadPayslips = async function() {
-      try {
-        var payslips = await get('/payroll/runs/'+id+'/payslips');
-        var html = '<html><head><title>Payslips - '+monthYear+'</title>' +
-          '<style>body{font-family:Arial,sans-serif;font-size:12px} .payslip{border:1px solid #ccc;padding:20px;margin-bottom:20px;page-break-after:always} table{width:100%;border-collapse:collapse} td,th{border:1px solid #ddd;padding:6px;text-align:right} .label{text-align:left} h3{margin:0 0 8px} .header{display:flex;justify-content:space-between;margin-bottom:16px}</style></head><body>';
-        payslips.forEach(function(e) {
-          html += '<div class="payslip">' +
-            '<div class="header"><div><h3>PAYSLIP — '+monthYear+'</h3>' +
-            '<div>'+v(e.employee_name)+'</div><div>'+v(e.emp_id)+'</div><div>'+v(e.designation)+'</div><div>'+v(e.department_name)+'</div></div></div>' +
-            '<table><tr><th class="label">Earnings</th><th>Amount</th><th class="label">Deductions</th><th>Amount</th></tr>' +
-            '<tr><td class="label">Basic</td><td>'+inr(e.basic)+'</td><td class="label">Profession Tax</td><td>'+inr(e.prof_tax)+'</td></tr>' +
-            '<tr><td class="label">HRA</td><td>'+inr(e.hra)+'</td><td class="label">ESI</td><td>'+inr(e.esi)+'</td></tr>' +
-            '<tr><td class="label">Conveyance</td><td>'+inr(e.conveyance)+'</td><td class="label">TDS</td><td>'+inr(e.tds)+'</td></tr>' +
-            '<tr><td class="label">Medical</td><td>'+inr(e.medical)+'</td><td class="label">EPF</td><td>'+inr(e.epf)+'</td></tr>' +
-            '<tr><td class="label">Special</td><td>'+inr(e.special)+'</td><td class="label">Advance</td><td>'+inr(e.advance)+'</td></tr>' +
-            '<tr><td class="label">Incentive</td><td>'+inr(e.incentive)+'</td><td class="label">Other Deductions</td><td>'+inr(e.other_deductions)+'</td></tr>' +
-            '<tr><td class="label">Other</td><td>'+inr(e.other_earnings)+'</td><td></td><td></td></tr>' +
-            '<tr style="font-weight:bold"><td class="label">Gross Salary</td><td>'+inr(e.gross_salary)+'</td><td class="label">Total Deductions</td><td>'+inr(e.total_deductions)+'</td></tr>' +
-            '<tr style="font-weight:bold;font-size:14px"><td colspan="3" class="label">NET SALARY</td><td>'+inr(e.net_salary)+'</td></tr>' +
-            '</table></div>';
-        });
-        html += '</body></html>';
-        var win = window.open('', '_blank');
-        win.document.write(html);
-        win.document.close();
-        win.print();
-      } catch(e) { toast(e.message, 'error'); }
+    window._togglePsAll = function(master) {
+      document.querySelectorAll('input.ps-pick').forEach(function(cb){ cb.checked = master.checked; });
+    };
+
+    window._viewPayslip = function(eid) {
+      var token = localStorage.getItem('mch_token') || '';
+      window.open('/api/v2/payslips/'+eid+'/html?token='+encodeURIComponent(token), '_blank');
+    };
+
+    window._downloadPayslipPdf = function(eid) {
+      var token = localStorage.getItem('mch_token') || '';
+      var link = document.createElement('a');
+      link.href = '/api/v2/payslips/'+eid+'/pdf?token='+encodeURIComponent(token);
+      link.download = '';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    };
+
+    // Bulk: ZIP of selected employees' PDFs (or all if none checked).
+    window._downloadPayslipsZip = function() {
+      var checked = document.querySelectorAll('input.ps-pick:checked');
+      var ids = Array.from(checked).map(function(cb){ return cb.value; });
+      var token = localStorage.getItem('mch_token') || '';
+      var url = '/api/v2/payslips/runs/'+id+'/zip?token='+encodeURIComponent(token);
+      if (ids.length) url += '&employee_ids=' + ids.join(',');
+      var link = document.createElement('a');
+      link.href = url;
+      link.download = '';
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      toast(ids.length
+        ? 'Downloading '+ids.length+' payslip'+(ids.length===1?'':'s')+'...'
+        : 'Downloading all payslips...', 'info');
     };
 
   } catch(e) { showError(e.message); }
