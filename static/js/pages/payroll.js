@@ -30,7 +30,7 @@ export async function renderList() {
     var data = await get('/payroll/runs');
     var rows = data.items || data || [];
     var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    var q = '', filterStatus = '', sortCol = 'year', sortDir = -1, page = 1;
+    var q = '', filterStatus = '', filterMonth = 0, filterYear = 0, sortCol = 'year', sortDir = -1, page = 1;
     var PER = 25;
 
     function getF() {
@@ -39,7 +39,9 @@ export async function renderList() {
         var matchQ = !q || mLabel.toLowerCase().includes(q.toLowerCase()) ||
                      (r.status||'').toLowerCase().includes(q.toLowerCase());
         var matchS = !filterStatus || r.status === filterStatus;
-        return matchQ && matchS;
+        var matchM = !filterMonth || (r.month||0) === filterMonth;
+        var matchY = !filterYear  || (r.year||0)  === filterYear;
+        return matchQ && matchS && matchM && matchY;
       }).sort(function(a,b) {
         var av = a[sortCol], bv = b[sortCol];
         if (sortCol === 'year') { av = a.year*100+(a.month||0); bv = b.year*100+(b.month||0); }
@@ -71,10 +73,18 @@ export async function renderList() {
 
       var html = '<div class="page-body">' +
         '<div class="card">' +
-        '<div class="card-header" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<div class="card-header" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
         '<h3 class="card-title" style="flex:1">Payroll Runs</h3>' +
-        '<input class="finput" style="width:180px" placeholder="Search month/year/status…" value="'+v(q)+'" oninput="window._prQ(this.value)">' +
-        '<select class="fselect" style="width:140px" onchange="window._prStatus(this.value)">' +
+        '<select class="fselect" style="width:110px" onchange="window._prMonth(this.value)">' +
+        '<option value="">All Months</option>' +
+        ['January','February','March','April','May','June','July','August','September','October','November','December'].map(function(m,i){
+          return '<option value="'+(i+1)+'"'+(filterMonth===(i+1)?' selected':'')+'>'+m+'</option>';
+        }).join('') + '</select>' +
+        '<select class="fselect" style="width:90px" onchange="window._prYear(this.value)">' +
+        '<option value="">All Years</option>' +
+        (function(){ var opts="",y=new Date().getFullYear(); for(var i=y+1;i>=2020;i--) opts+='<option value="'+i+'"'+(filterYear===i?' selected':'')+'>'+i+'</option>'; return opts; })() +
+        '</select>' +
+        '<select class="fselect" style="width:130px" onchange="window._prStatus(this.value)">' +
         '<option value="">All Statuses</option>' +
         ['New','Approved','Processed','On Hold','Rejected'].map(function(s){
           return '<option value="'+s+'"'+(filterStatus===s?' selected':'')+'>'+s+'</option>';
@@ -94,15 +104,18 @@ export async function renderList() {
         slice.map(function(r) {
           var mLabel = MONTHS[(r.month||1)-1] + ' ' + r.year;
           var statusColor = {New:'info',Approved:'success',Processed:'success','On Hold':'warning',Rejected:'danger'}[r.status]||'default';
-          var caBtn = r.ca_filename ?
-            '<button class="btn btn-ghost btn-xs" title="'+v(r.ca_filename)+'" onclick="window._prDownCA('+r.id+')">&#128190; '+v(r.ca_filename).slice(-15)+'</button>' :
-            '<span style="color:var(--txt3);font-size:11px">None</span>';
-          var cbxBtn = (r.status === 'Approved' || r.status === 'Processed') ?
-            '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/cbx" target="_blank">&#128190; CBX</a>' :
-            '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
-          var bankBtn = r.status === 'Processed' ?
-            '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/cbx?format=txt" target="_blank">&#128196; TXT</a>' :
-            '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
+          // CA Statement — direct download from stored file
+          var caBtn = r.ca_filename
+            ? '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/ca?token='+window._authToken()+'" target="_blank" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename).slice(-20)+'</a>'
+            : '<span style="color:var(--txt3);font-size:11px">None</span>';
+          // CBX Statement — available Approved/Processed, Excel format (re-generates on click)
+          var cbxBtn = (r.status === 'Approved' || r.status === 'Processed')
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCBX('+r.id+',\''+v(r.month)+'-'+v(r.year)+'\')" title="Download CBX Excel">&#128190; CBX.xlsx</button>'
+            : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
+          // Banking File — TXT format for bank upload (available Approved/Processed)
+          var bankBtn = (r.status === 'Approved' || r.status === 'Processed')
+            ? '<a class="btn btn-ghost btn-xs" href="/api/v2/payroll/runs/'+r.id+'/cbx?format=txt" target="_blank" title="Bank upload file">&#128196; Bank.txt</a>'
+            : '<span style="color:var(--txt3);font-size:11px">&#8212;</span>';
           return '<tr class="tbl-clickable" data-id="'+r.id+'">' +
             '<td><strong>'+mLabel+'</strong></td>' +
             '<td onclick="event.stopPropagation()">'+caBtn+'</td>' +
@@ -121,18 +134,23 @@ export async function renderList() {
 
       window._prQ      = function(val){ q=val; page=1; render(); };
       window._prStatus = function(val){ filterStatus=val; page=1; render(); };
+      window._prMonth  = function(val){ filterMonth=parseInt(val)||0; page=1; render(); };
+      window._prYear   = function(val){ filterYear=parseInt(val)||0;  page=1; render(); };
       window._prSort   = function(col){ if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=-1;} render(); };
       window._prPage   = function(p){ page=p; render(); };
       // Row click navigation using data-id
       document.querySelectorAll('tr[data-id]').forEach(function(tr) {
-        tr.addEventListener('click', function() { navigateTo('payroll/'+this.dataset.id); });
+        tr.addEventListener('click', function() { navigateTo('/payroll/'+this.dataset.id); });
       });
-      window._prView = function(btn) { navigateTo('payroll/'+btn.dataset.id); };
+      window._prView = function(btn) { navigateTo('/payroll/'+btn.dataset.id); };
       window._prDelete = async function(btn) {
         var id = btn.dataset.id, label = btn.dataset.label;
         if(!confirm('Delete payroll run for '+label+'? This cannot be undone.')) return;
         try { await put('/payroll/runs/'+id, {is_active:0}); toast('Deleted','info'); rows=rows.filter(function(r){return String(r.id)!==String(id);}); render(); }
         catch(ex){ toast(ex.message||'Failed','error'); }
+      };
+      window._authToken = function() {
+        return localStorage.getItem('mch_token') || sessionStorage.getItem('mch_token') || '';
       };
       window._prDownCA = async function(id) {
         try {
@@ -143,6 +161,37 @@ export async function renderList() {
             a.download = run.ca_filename || 'ca_statement.xlsx';
             a.click();
           } else { toast('No CA statement file stored','error'); }
+        } catch(ex){ toast(ex.message||'Failed','error'); }
+      };
+      window._prDownCBX = async function(id, label) {
+        // Generate CBX Excel from payroll entries
+        try {
+          var res2 = await get('/payroll/runs/'+id);
+          var entries2 = (res2.entries || []);
+          if (!entries2.length) { toast('No entries in this run','error'); return; }
+          var mod2 = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs');
+          var XL = mod2;
+          var hdr = ['Emp ID','Name','Designation','Department','Location','CTC',
+            'LOP','Basic','HRA','Conv.','Medical','Special','Incentive','Other Earnings',
+            'Gross','PT','ESI','TDS','EPF','Med.Ded.','Advance','Other Ded.','Total Ded.','Net Salary'];
+          var xlrows = [hdr];
+          entries2.forEach(function(e) {
+            xlrows.push([
+              e.emp_id||'', e.employee_name||'', e.designation||'', e.department_name||'', e.location_name||'',
+              parseFloat(e.ctc||0), parseFloat(e.loss_of_pay||0), parseFloat(e.basic||0),
+              parseFloat(e.hra||0), parseFloat(e.conveyance||0), parseFloat(e.medical||0),
+              parseFloat(e.special||0), parseFloat(e.incentive||0), parseFloat(e.other_earnings||0),
+              parseFloat(e.gross_salary||0), parseFloat(e.prof_tax||0), parseFloat(e.esi||0),
+              parseFloat(e.tds||0), parseFloat(e.epf||0), parseFloat(e.medical_deduction||0),
+              parseFloat(e.advance||0), parseFloat(e.other_deductions||0),
+              parseFloat(e.total_deductions||0), parseFloat(e.net_salary||0)
+            ]);
+          });
+          var ws2 = XL.utils.aoa_to_sheet(xlrows);
+          var wb2 = XL.utils.book_new();
+          XL.utils.book_append_sheet(wb2, ws2, 'Payroll');
+          XL.writeFile(wb2, 'Payroll_CBX_' + label + '.xlsx');
+          toast('CBX Excel downloaded', 'success');
         } catch(ex){ toast(ex.message||'Failed','error'); }
       };
     }

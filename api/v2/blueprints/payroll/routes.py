@@ -270,6 +270,32 @@ def approve_run(rid):
         db_execute("UPDATE payroll_runs SET status='Processed' WHERE id=%s", (rid,))
     return ok(message=f"Payroll {action}d")
 
+
+
+@payroll_bp.route('/payroll/runs/<int:rid>/ca', methods=['GET'])
+@require_auth
+def download_ca(rid):
+    """Download stored CA Excel file."""
+    try:
+        run = db_row1("SELECT ca_filename, ca_file_data FROM payroll_runs WHERE id=%s", (rid,))
+        if not run or not run.get('ca_file_data'):
+            return not_found("CA file not found for this run")
+        from flask import Response
+        import base64
+        filename = run.get('ca_filename') or f'payroll_{rid}_ca.xlsx'
+        # ca_file_data stored as data URI or raw base64
+        data_str = run['ca_file_data']
+        if data_str.startswith('data:'):
+            # data:application/...;base64,<data>
+            raw = base64.b64decode(data_str.split(',',1)[1])
+        else:
+            raw = base64.b64decode(data_str)
+        return Response(raw,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+    except Exception as ex:
+        return err(str(ex))
+
 @payroll_bp.route('/payroll/runs/<int:rid>/cbx', methods=['GET'])
 @require_auth
 def generate_cbx(rid):
@@ -277,12 +303,14 @@ def generate_cbx(rid):
     try:
         run = db_row1("SELECT * FROM payroll_runs WHERE id=%s", (rid,))
         if not run: return not_found("Payroll run")
-        entries = db_rows("""SELECT pe.net_salary,
-            e.first_name||' '||e.last_name as employee_name,
-            e.bank_account_number, e.bank_ifsc, e.email as personal_email
+        entries = db_rows("""SELECT pe.net_salary, pe.employee_id,
+            e.first_name||' '||COALESCE(e.middle_name||' ','')||e.last_name as employee_name,
+            e.bank_account_number, e.bank_ifsc,
+            COALESCE(e.personal_email, e.email) as personal_email,
+            e.emp_id as emp_code
             FROM payroll_entries pe
-            JOIN employees e ON e.id = pe.employee_id
-            WHERE pe.payroll_run_id = %s AND pe.is_approved = 1""", (rid,))
+            LEFT JOIN employees e ON e.id = pe.employee_id
+            WHERE pe.payroll_run_id = %s""", (rid,))
 
         run_date = run.get('run_date') or datetime.date.today()
         if isinstance(run_date, str):
@@ -302,9 +330,16 @@ def generate_cbx(rid):
 
         cbx_content = '\n'.join(lines)
         # Save to run
-        db_execute("UPDATE payroll_runs SET cbx_file_content=%s, status='Processed' WHERE id=%s",
+        db_execute("UPDATE payroll_runs SET cbx_file_content=%s WHERE id=%s",
                   (cbx_content, rid))
-        return ok({'content': cbx_content, 'filename': f"payroll_{run.get('month')}_{run.get('year')}.txt"})
+        fmt_req = request.args.get('format','json')
+        month_name = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][int(run.get('month') or 1)-1]
+        filename = f"Payroll_{month_name}_{run.get('year')}.txt"
+        if fmt_req == 'txt':
+            from flask import Response
+            return Response(cbx_content, mimetype='text/plain',
+                headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+        return ok({'content': cbx_content, 'filename': filename})
     except Exception as ex:
         return err(str(ex))
 
