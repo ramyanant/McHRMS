@@ -94,10 +94,12 @@ def create_project():
     d = request.get_json() or {}
     try: validate(d, {'name': ['required']})
     except ValidationError as e: return err("Validation failed", 400, e.errors)
-    # Auto-generate project code
-    # Try project_code first (added by migration), fall back to code (schema.sql column)
-    last = db_row1("""SELECT COALESCE(project_code, code) as pcode
-        FROM projects WHERE COALESCE(project_code, code) LIKE 'PRJ-%'
+    # Auto-generate project code. schema.sql declares projects.code but
+    # the live DB only got project_code (via _ensure_projects); a
+    # COALESCE here would fail at parse time because PostgreSQL requires
+    # every referenced column to exist.
+    last = db_row1("""SELECT project_code as pcode
+        FROM projects WHERE project_code LIKE 'PRJ-%'
         ORDER BY id DESC LIMIT 1""")
     try:
         if last and last.get('pcode'):
