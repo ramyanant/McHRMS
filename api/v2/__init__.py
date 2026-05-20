@@ -636,10 +636,11 @@ def create_app(config_override=None):
     from .blueprints.projects.routes     import projects_bp
     from .blueprints.bills.routes        import bills_bp
     from .blueprints.payroll.routes      import payroll_bp
+    from .blueprints.payslips.routes     import payslips_bp
 
     for bp in [auth_bp, org_bp, people_bp, ts_bp, rec_bp,
                inv_bp, clients_bp, vendors_bp, reports_bp, admin_bp,
-               portal_bp, projects_bp, bills_bp, payroll_bp]:
+               portal_bp, projects_bp, bills_bp, payroll_bp, payslips_bp]:
         app.register_blueprint(bp)
 
     @app.after_request

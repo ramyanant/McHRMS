@@ -4,7 +4,7 @@ nixPkgs = ["python312", "postgresql"]
 [phases.install]
 cmds = [
   "python3 -m venv /app/.venv",
-  "/app/.venv/bin/pip install flask==3.1.0 psycopg2-binary==2.9.9"
+  "/app/.venv/bin/pip install flask==3.1.0 psycopg2-binary==2.9.9 xhtml2pdf==0.2.17"
 ]
 
 [start]
