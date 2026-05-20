@@ -167,7 +167,11 @@ export async function renderJobs() {
     window._jSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('jobs-content').innerHTML = renderTable(); };
 
     window._deleteJob = async (id) => {
-      if (!confirm('Delete job "' + title + '"?')) return;
+      // Look up the title from the loaded rows — earlier this referenced
+      // an undeclared `title` variable, so users saw "Delete job 'undefined'?"
+      const job = rows.find(r => r.id === id);
+      const jobTitle = (job && job.title) || 'this job';
+      if (!confirm('Delete job "' + jobTitle + '"?')) return;
       await put('/recruitment/jobs/' + id, { is_active: 0, status: 'Cancelled' });
       toast('Job deleted', 'info');
       document.getElementById('jobs-content').innerHTML = renderTable();
