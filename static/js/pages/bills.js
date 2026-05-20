@@ -190,7 +190,14 @@ export async function renderDetail({ id }) {
         '<div class="field-item"><div class="field-label">Cost Centre</div><div class="field-value">' + v(bill.cost_centre_name, '—') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Submitted By</div><div class="field-value">' + v(bill.submitted_by_name, '—') + '</div></div>' +
         '<div class="field-item"><div class="field-label">Description</div><div class="field-value">' + v(bill.description, '—') + '</div></div>' +
-      '</div></div></div></div></div>'
+      '</div></div></div>' +
+      // Documents tab — container needs to exist before renderDocsTab
+      // populates it; mirrors the pattern used in invoices.js detail.
+      '<div class="card" style="margin-top:16px">' +
+        '<div class="card-header"><h3 class="card-title">📄 Documents</h3></div>' +
+        '<div class="card-body">' + docsTabHtml('bill-docs-' + id) + '</div>' +
+      '</div>' +
+      '</div></div>'
     );
 
     window._editBill = async function() {

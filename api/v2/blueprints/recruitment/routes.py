@@ -7,6 +7,17 @@ from ...utils.responses import ok, err, created, not_found
 from ...utils.validators import validate, ValidationError
 from ...utils.pagination import get_page_params
 
+
+def _int(v):
+    """Safely convert form values to int or None. Mirrors the helper used
+    in every other blueprint — was missing here, causing NameError on
+    POST /recruitment/jobs and POST /candidates."""
+    try:
+        return int(v) if v not in (None, '', 'null', 'undefined') else None
+    except (ValueError, TypeError):
+        return None
+
+
 rec_bp = Blueprint('recruitment', __name__, url_prefix='/api/v2')
 
 # ═══════════════════════════════════════════════════════════════
@@ -32,7 +43,7 @@ def list_jobs():
         LEFT JOIN clients c ON c.id=j.client_id
         LEFT JOIN departments d ON d.id=j.department_id
         LEFT JOIN master_priority_levels p ON p.id=j.priority_id
-        LEFT JOIN employees e ON e.id=COALESCE(j.recruiter_id, j.raised_by)
+        LEFT JOIN employees e ON e.id=j.recruiter_id
         WHERE {clause} ORDER BY j.created_at DESC LIMIT %s OFFSET %s""",
         params + [per_page, (page-1)*per_page])
     return ok({"items": rows, "total": total, "page": page, "per_page": per_page,
@@ -50,19 +61,21 @@ def create_job():
     comp_min       = d.get('comp_min') or d.get('min_salary')
     comp_max       = d.get('comp_max') or d.get('max_salary')
     target         = d.get('target_start') or d.get('target_date')
+    # schema.sql defines job_requisitions.raised_by but the live DB only
+    # got recruiter_id via migration — dropping raised_by from the INSERT.
     cur.execute("""INSERT INTO job_requisitions
         (title, client_id, employment_type_id, engagement_type_id,
-         department_id, recruiter_id, raised_by, priority_id,
+         department_id, recruiter_id, priority_id,
          location, comp_min, min_salary, comp_max, max_salary,
          description, requirements,
          target_start, target_date, status,
          work_mode, min_experience, max_experience, positions,
          budget, job_type, notice_period, assigned_to, is_active)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         RETURNING id""",
         (d['title'], _int(d.get('client_id')),
          employment_tid, employment_tid,
-         _int(d.get('department_id')), recruiter_id, recruiter_id,
+         _int(d.get('department_id')), recruiter_id,
          _int(d.get('priority_id')),
          d.get('location'), comp_min, comp_min, comp_max, comp_max,
          d.get('description'), d.get('requirements'),
@@ -85,7 +98,7 @@ def job_detail(rid):
         FROM job_requisitions j
         LEFT JOIN clients c ON c.id=j.client_id
         LEFT JOIN departments d ON d.id=j.department_id
-        LEFT JOIN employees e ON e.id=COALESCE(j.recruiter_id, j.raised_by)
+        LEFT JOIN employees e ON e.id=j.recruiter_id
         LEFT JOIN master_priority_levels p ON p.id=j.priority_id
         WHERE j.id=%s""", (rid,))
     if not job: return not_found("Job Requisition")

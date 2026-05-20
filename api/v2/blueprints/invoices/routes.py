@@ -72,15 +72,21 @@ def create_invoice():
     conn = get_pg_conn()
     conn.autocommit = True
     cur = conn.cursor()
+    # The new-invoice form on the frontend (static/js/pages/invoices.js)
+    # base64-encodes an attached PDF and sends invoice_file_data +
+    # invoice_file_name. Persist them here so /invoices/<id> can render
+    # the Download button. Columns are added by migrations in api/v2/__init__.py.
     cur.execute("""INSERT INTO invoices
         (invoice_number, client_id, contract_type_id, period_start, period_end,
          amount, tax_amount, due_date, notes, po_number,
-         cost_centre_id, description, status_id)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
+         cost_centre_id, description, status_id,
+         invoice_file_data, invoice_file_name)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id""",
         (inv_no, d['client_id'], d.get('contract_type_id'),
          d.get('period_start'), d.get('period_end'),
          subtotal, tax_amount, d.get('due_date'), d.get('notes'),
-         d.get('po_number'), _int(d.get('cost_centre_id')), d.get('description'), status_id))
+         d.get('po_number'), _int(d.get('cost_centre_id')), d.get('description'), status_id,
+         d.get('invoice_file_data'), d.get('invoice_file_name')))
     iid = cur.fetchone()['id']
     conn.close()
 
