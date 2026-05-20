@@ -529,6 +529,27 @@ def _run_migrations(app):
             "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS notice_period INTEGER",
             "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS budget NUMERIC(12,2) DEFAULT 0",
             "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS is_active INTEGER DEFAULT 1",
+            # job_requisitions: base-schema columns the live DB may be missing
+            # (older deployments were created from a schema.sql that had these,
+            # but never re-created — so an ADD COLUMN backfill is required).
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS client_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS employment_type_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS department_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS priority_id INTEGER",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS location TEXT",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS description TEXT",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Open'",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS target_date DATE",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS min_salary NUMERIC(12,2)",
+            "ALTER TABLE job_requisitions ADD COLUMN IF NOT EXISTS max_salary NUMERIC(12,2)",
+            # candidates: base-schema columns the live DB may be missing
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_location TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_designation TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS total_experience NUMERIC(4,1)",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS source_id INTEGER",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS linkedin_url TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_url TEXT",
+            "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS skills TEXT",
             # candidates: schema has current_designation/total_experience, code uses current_title/years_exp
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_title TEXT",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS middle_name TEXT",
