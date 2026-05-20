@@ -191,7 +191,7 @@ def run_detail(rid):
         if not run: return not_found("Payroll run")
         entries = db_rows("""SELECT pe.*,
             e.first_name||' '||e.last_name as employee_name,
-            e.emp_id, e.designation, e.email as personal_email,
+            e.emp_id, COALESCE(e.designation, e.job_title) as designation, e.email as personal_email,
             d.name as department_name, l.name as location_name,
             e.bank_account_number, e.bank_ifsc
             FROM payroll_entries pe
@@ -359,7 +359,7 @@ def generate_payslips(rid):
     try:
         entries = db_rows("""SELECT pe.*,
             e.first_name||' '||e.last_name as employee_name, e.emp_id,
-            e.designation, e.email, d.name as department_name
+            COALESCE(e.designation, e.job_title) as designation, e.email, d.name as department_name
             FROM payroll_entries pe
             JOIN employees e ON e.id = pe.employee_id
             LEFT JOIN departments d ON d.id = e.department_id

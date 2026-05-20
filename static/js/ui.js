@@ -190,7 +190,7 @@ export function badge(text, type = 'gray') {
 // ── Format helpers ─────────────────────────────────────────────
 export const fmt = {
   date: (d) => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—',
-  money: (n) => n != null ? '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : '—',
+  money: (n) => n != null ? '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—',
   ini: (name) => (name||'').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
   avColor: (name) => {
     const colors = ['av-green','av-blue','av-purple','av-amber','av-rose','av-teal'];

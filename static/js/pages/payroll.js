@@ -17,6 +17,12 @@ function v(val, fb) {
 var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 var STATUSES = ['New','On Hold','Approved','Rejected','Processed'];
 
+// Indian Rupee format: 9,99,99,000.00
+function inr(n) {
+  var num = parseFloat(n) || 0;
+  return num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function kpi(l, val, icon, c) {
   return '<div class="kpi-card kpi-'+c+'"><div class="kpi-icon">'+icon+'</div>' +
     '<div class="kpi-body"><div class="kpi-value">'+val+'</div><div class="kpi-label">'+l+'</div></div></div>';
@@ -423,7 +429,7 @@ export async function renderNew() {
           if (c === 'emp_id' || c === 'name' || c === 'designation' || c === 'department' || c === 'location') {
             return '<td style="white-space:nowrap">'+v(val)+'</td>';
           }
-          return '<td class="mono" contenteditable="true" onblur="window._editCell('+idx+',\''+c+'\',this.textContent)" style="text-align:right;min-width:60px">'+parseFloat(val||0).toFixed(2)+'</td>';
+          return '<td class="mono" contenteditable="true" onblur="window._editCell('+idx+',\''+c+'\',this.textContent)" style="text-align:right;min-width:60px">'+inr(val)+'</td>';
         }).join('') + '</tr>';
       }).join('') +
       '</tbody></table></div></div>';
@@ -542,7 +548,7 @@ export async function renderDetail({ id }) {
           if (c === 'emp_id' || c === 'employee_name' || c === 'designation' || c === 'department_name' || c === 'location_name') {
             return '<td style="white-space:nowrap;font-size:11px">'+v(val,'—')+'</td>';
           }
-          var num = parseFloat(val||0).toFixed(2);
+          var num = inr(val);
           if (isPending) {
             return '<td class="mono" contenteditable="true" onblur="window._editPayEntry('+e.id+',\''+c+'\',this.textContent)" style="text-align:right;min-width:60px;background:var(--bg)">'+num+'</td>';
           }
@@ -550,10 +556,10 @@ export async function renderDetail({ id }) {
         }).join('') + '</tr>';
       }).join('') +
       '<tr style="font-weight:700;background:var(--brand-light)"><td colspan="14" style="text-align:right;font-size:11px">TOTALS →</td>' +
-      '<td class="mono" style="text-align:right">'+totalGross.toFixed(2)+'</td>' +
+      '<td class="mono" style="text-align:right">'+inr(totalGross)+'</td>' +
       '<td colspan="7"></td>' +
-      '<td class="mono" style="text-align:right">'+totalDed.toFixed(2)+'</td>' +
-      '<td class="mono" style="text-align:right;color:var(--green)">'+totalNet.toFixed(2)+'</td>' +
+      '<td class="mono" style="text-align:right">'+inr(totalDed)+'</td>' +
+      '<td class="mono" style="text-align:right;color:var(--green)">'+inr(totalNet)+'</td>' +
       '</tr>' +
       '</tbody></table></div>';
     }
@@ -642,15 +648,15 @@ export async function renderDetail({ id }) {
             '<div class="header"><div><h3>PAYSLIP — '+monthYear+'</h3>' +
             '<div>'+v(e.employee_name)+'</div><div>'+v(e.emp_id)+'</div><div>'+v(e.designation)+'</div><div>'+v(e.department_name)+'</div></div></div>' +
             '<table><tr><th class="label">Earnings</th><th>Amount</th><th class="label">Deductions</th><th>Amount</th></tr>' +
-            '<tr><td class="label">Basic</td><td>'+parseFloat(e.basic||0).toFixed(2)+'</td><td class="label">Profession Tax</td><td>'+parseFloat(e.prof_tax||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">HRA</td><td>'+parseFloat(e.hra||0).toFixed(2)+'</td><td class="label">ESI</td><td>'+parseFloat(e.esi||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">Conveyance</td><td>'+parseFloat(e.conveyance||0).toFixed(2)+'</td><td class="label">TDS</td><td>'+parseFloat(e.tds||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">Medical</td><td>'+parseFloat(e.medical||0).toFixed(2)+'</td><td class="label">EPF</td><td>'+parseFloat(e.epf||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">Special</td><td>'+parseFloat(e.special||0).toFixed(2)+'</td><td class="label">Advance</td><td>'+parseFloat(e.advance||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">Incentive</td><td>'+parseFloat(e.incentive||0).toFixed(2)+'</td><td class="label">Other Deductions</td><td>'+parseFloat(e.other_deductions||0).toFixed(2)+'</td></tr>' +
-            '<tr><td class="label">Other</td><td>'+parseFloat(e.other_earnings||0).toFixed(2)+'</td><td></td><td></td></tr>' +
-            '<tr style="font-weight:bold"><td class="label">Gross Salary</td><td>'+parseFloat(e.gross_salary||0).toFixed(2)+'</td><td class="label">Total Deductions</td><td>'+parseFloat(e.total_deductions||0).toFixed(2)+'</td></tr>' +
-            '<tr style="font-weight:bold;font-size:14px"><td colspan="3" class="label">NET SALARY</td><td>'+parseFloat(e.net_salary||0).toFixed(2)+'</td></tr>' +
+            '<tr><td class="label">Basic</td><td>'+inr(e.basic)+'</td><td class="label">Profession Tax</td><td>'+inr(e.prof_tax)+'</td></tr>' +
+            '<tr><td class="label">HRA</td><td>'+inr(e.hra)+'</td><td class="label">ESI</td><td>'+inr(e.esi)+'</td></tr>' +
+            '<tr><td class="label">Conveyance</td><td>'+inr(e.conveyance)+'</td><td class="label">TDS</td><td>'+inr(e.tds)+'</td></tr>' +
+            '<tr><td class="label">Medical</td><td>'+inr(e.medical)+'</td><td class="label">EPF</td><td>'+inr(e.epf)+'</td></tr>' +
+            '<tr><td class="label">Special</td><td>'+inr(e.special)+'</td><td class="label">Advance</td><td>'+inr(e.advance)+'</td></tr>' +
+            '<tr><td class="label">Incentive</td><td>'+inr(e.incentive)+'</td><td class="label">Other Deductions</td><td>'+inr(e.other_deductions)+'</td></tr>' +
+            '<tr><td class="label">Other</td><td>'+inr(e.other_earnings)+'</td><td></td><td></td></tr>' +
+            '<tr style="font-weight:bold"><td class="label">Gross Salary</td><td>'+inr(e.gross_salary)+'</td><td class="label">Total Deductions</td><td>'+inr(e.total_deductions)+'</td></tr>' +
+            '<tr style="font-weight:bold;font-size:14px"><td colspan="3" class="label">NET SALARY</td><td>'+inr(e.net_salary)+'</td></tr>' +
             '</table></div>';
         });
         html += '</body></html>';
