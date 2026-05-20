@@ -645,8 +645,12 @@ def dept_detail(did):
 @org_bp.route('/cost-centres', methods=['GET'])
 @require_auth
 def list_cost_centres():
+    # The schema.sql defines both c.bu_id and c.business_unit_id, but the
+    # live DB only has business_unit_id (added via migration); bu_id never
+    # made it to prod. A COALESCE here would fail at parse time because
+    # PostgreSQL requires every referenced column to exist.
     return ok(db_rows("""SELECT c.*, b.name as bu_name FROM cost_centres c
-        LEFT JOIN business_units b ON b.id=COALESCE(c.business_unit_id, c.bu_id)
+        LEFT JOIN business_units b ON b.id=c.business_unit_id
         WHERE c.is_active=1 ORDER BY c.name"""))
 
 @org_bp.route('/cost-centres', methods=['POST'])
