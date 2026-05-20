@@ -1,3 +1,4 @@
+// deploy-1779270191
 /**
  * McHR&TA v2 — Main Application Entry Point
  * Boots the router, handles auth state, builds sidebar.
@@ -506,7 +507,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import('./pages/' + mod + '.js?v=1779269900');
+    const m = await import('./pages/' + mod + '.js?v=1779270191');
     await m[fn](params);
     if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active
