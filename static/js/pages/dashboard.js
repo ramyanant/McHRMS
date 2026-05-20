@@ -13,6 +13,14 @@ function kpi(label, value, icon, color, href) {
 }
 
 export async function render() {
+  // Employee role should use the portal, not admin dashboard
+  const { getUser } = await import('../app.js');
+  const u = getUser && getUser();
+  if (u && u.role === 'Employee') {
+    const { navigate } = await import('../router.js');
+    navigate('/portal');
+    return;
+  }
   setPageTitle('Dashboard', 'Welcome back');
   setBreadcrumb([{ label: 'Dashboard' }]);
   showLoader();

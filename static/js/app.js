@@ -23,6 +23,11 @@ async function tryAutoLogin() {
     const user = await API.me();
     _user = user;
     API.setAuth(token, user);
+    // If Employee lands on /dashboard, redirect to /portal
+    var curHash = location.hash.slice(1) || '/dashboard';
+    if (_user && _user.role === 'Employee' && (curHash === '/dashboard' || curHash === '/login' || curHash === '')) {
+      location.hash = '/portal';
+    }
     showApp();
   } catch {
     API.clearAuth();
@@ -70,6 +75,9 @@ function showLogin() {
       const data = await API.login(u, p);
       API.setAuth(data.token, data.user);
       _user = data.user;
+      // Route Employee role to portal, all others to dashboard
+      var defaultPath = (_user && _user.role === 'Employee') ? '/portal' : '/dashboard';
+      location.hash = defaultPath;
       showApp();
     } catch (e) {
       errEl.textContent = e.message || 'Login failed';
@@ -507,7 +515,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import('./pages/' + mod + '.js?v=1779272996');
+    const m = await import('./pages/' + mod + '.js?v=1779276045');
     await m[fn](params);
     if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active
