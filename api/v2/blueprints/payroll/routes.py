@@ -280,12 +280,16 @@ def approve_run(rid):
 def download_ca(rid):
     """Download stored CA Excel file."""
     try:
-        run = db_row1("SELECT ca_filename, ca_file_data FROM payroll_runs WHERE id=%s", (rid,))
+        run = db_row1("SELECT ca_filename, ca_file_data, month, year FROM payroll_runs WHERE id=%s", (rid,))
         if not run or not run.get('ca_file_data'):
             return not_found("CA file not found for this run")
         from flask import Response
         import base64
-        filename = run.get('ca_filename') or f'payroll_{rid}_ca.xlsx'
+        # Normalize filename to YYYY-MM CA Statement.xlsx
+        stored_name = run.get('ca_filename') or ''
+        m_num = run.get('month') or 1
+        y_num = run.get('year') or ''
+        filename = f"{y_num}-{int(m_num):02d} CA Statement.xlsx" 
         # ca_file_data stored as data URI or raw base64
         data_str = run['ca_file_data']
         if data_str.startswith('data:'):

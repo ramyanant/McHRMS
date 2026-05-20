@@ -105,8 +105,9 @@ export async function renderList() {
           var mLabel = MONTHS[(r.month||1)-1] + ' ' + r.year;
           var statusColor = {New:'info',Approved:'success',Processed:'success','On Hold':'warning',Rejected:'danger'}[r.status]||'default';
           // CA Statement — direct download from stored file
+          var _ym = r.year+'-'+(String(r.month||1).padStart(2,'0'));
           var caBtn = r.ca_filename
-            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCA('+r.id+')" title="'+v(r.ca_filename)+'">&#128190; '+v(r.ca_filename)+'</button>'
+            ? '<button class="btn btn-ghost btn-xs" onclick="window._prDownCA('+r.id+')" title="'+v(r.ca_filename)+'">&#128190; '+_ym+' CA Statement.xlsx</button>'
             : '<span style="color:var(--txt3);font-size:11px">None</span>';
           // CBX Statement — available Approved/Processed, Excel format (re-generates on click)
           var cbxBtn = (r.status === 'Approved' || r.status === 'Processed')
