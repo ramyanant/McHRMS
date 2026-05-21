@@ -147,10 +147,15 @@ input, select, textarea { font: inherit; }
 /* ── Tables ──────────────────────────────────────── */
 .tbl-wrap { overflow-x: auto; }
 .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.data-table th { text-align: left; padding: 10px 16px; background: var(--bg);
-  color: var(--txt3); font-weight: 600; font-size: 11px; text-transform: uppercase;
-  letter-spacing: .05em; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.data-table thead { background: #eef2f7; }
+.data-table th { text-align: left; padding: 11px 16px; background: #eef2f7;
+  color: var(--txt2); font-weight: 600; font-size: 11px; text-transform: uppercase;
+  letter-spacing: .05em; border-bottom: 2px solid #d8dee6; white-space: nowrap; }
+.data-table th:first-child { border-top-left-radius: 8px; }
+.data-table th:last-child  { border-top-right-radius: 8px; }
 .data-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--txt2); vertical-align: middle; }
+.data-table tbody tr { transition: background .12s; }
+.data-table tbody tr:hover td { background: #f7f9fb; }
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table .tbl-clickable { cursor: pointer; }
 .data-table .tbl-clickable:hover td { background: var(--bg); }
@@ -177,11 +182,13 @@ input, select, textarea { font: inherit; }
   transition: background .15s, opacity .15s; border: 1px solid transparent; }
 .btn-primary { background: var(--brand); color: #fff; }
 .btn-primary:hover { background: var(--brand-d); }
-.btn-ghost { background: transparent; border-color: var(--border); color: var(--txt2); }
-.btn-ghost:hover { background: var(--bg); }
+.btn-ghost { background: var(--surface); border-color: var(--border); color: var(--txt2); }
+.btn-ghost:hover { background: var(--bg); border-color: var(--txt4); color: var(--txt); }
 .btn-danger { background: var(--red); color: #fff; }
 .btn-danger:hover { opacity: .9; }
-.btn-sm { padding: 5px 10px; font-size: 12px; }
+.btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
+/* Compact table-action buttons — consistent size/shape across every list */
+.tbl-actions .btn, .tbl-actions .btn-xs { font-weight: 500; }
 .btn-full { width: 100%; justify-content: center; }
 .btn-icon { background: none; border: none; padding: 4px 8px; color: rgba(255,255,255,.6);
   border-radius: 4px; font-size: 16px; }
@@ -530,7 +537,7 @@ input, select, textarea { font: inherit; }
 .multi-card-header { display: flex; justify-content: space-between; align-items: flex-start;
   margin-bottom: 8px; }
 .multi-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
-.btn-xs { padding: 2px 8px; font-size: 11px; border-radius: 4px; }
+.btn-xs { padding: 4px 10px; font-size: 11px; border-radius: 6px; font-weight: 500; }
 
 /* Address card */
 .addr-body { font-size: 13px; line-height: 1.5; }
@@ -579,10 +586,12 @@ input, select, textarea { font: inherit; }
 /* Toolbar with summary stats */
 .struct-toolbar { display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 20px; gap: 16px; }
-.struct-summary { display: flex; gap: 24px; }
-.struct-stat { font-size: 22px; font-weight: 800; color: var(--brand); line-height: 1; }
-.struct-stat span { display: block; font-size: 11px; font-weight: 500;
-  color: var(--txt3); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+.struct-summary { display: flex; gap: 10px; flex-wrap: wrap; }
+.struct-stat { display: inline-flex; align-items: baseline; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  padding: 6px 14px; font-size: 16px; font-weight: 700; color: var(--brand); line-height: 1; }
+.struct-stat span { font-size: 11px; font-weight: 500; color: var(--txt3);
+  text-transform: uppercase; letter-spacing: .04em; }
 
 /* Card grid for BUs and Locations */
 .struct-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
@@ -682,10 +691,12 @@ input, select, textarea { font: inherit; }
 
 /* Sortable table headers */
 .data-table th.sortable { cursor: pointer; user-select: none; }
-.data-table th.sortable:hover { background: var(--border); }
-.sort-icon { margin-left: 4px; opacity: .5; font-size: 10px; }
-.sort-asc .sort-icon::after  { content: '▲'; }
-.sort-desc .sort-icon::after { content: '▼'; }
+.data-table th.sortable:hover { background: #e3e9f1; color: var(--brand); }
+/* Single clean indicator: only the active sort column shows an arrow
+   (set as textContent in buildListPage). Unsorted columns show a faint
+   ↕ on hover so the column still reads as sortable. */
+.sort-icon { margin-left: 5px; font-size: 11px; font-weight: 700; color: var(--brand); }
+.data-table th.sortable:hover .sort-icon:empty::after { content: '↕'; color: var(--txt4); font-weight: 400; }
 
 /* Row click cursor */
 .data-table tbody tr.tbl-clickable { cursor: pointer; }

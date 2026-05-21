@@ -111,7 +111,10 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
     // Update sort icons
     columns.forEach(c => {
       const el = document.getElementById('sort-' + c.key);
-      if (el) el.textContent = sortCol === c.key ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      // Active sort column shows a single clean arrow; unsorted columns
+      // show nothing (a faint ↕ appears on hover via CSS) — replaces the
+      // noisy persistent ⇅ on every header.
+      if (el) el.textContent = sortCol === c.key ? (sortDir === 1 ? '↑' : '↓') : '';
     });
   }
 
@@ -372,7 +375,11 @@ export async function renderDepts() {
       const cols = ['name','bu_name','head_name','cost_centre_name','location','headcount','is_active'];
       const labels = ['Department','Business Unit','Manager','Cost Centre','Location','Headcount','Status'];
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
-        labels.map((l,i) => '<th class="sortable" onclick="window._deptSort(\'' + cols[i] + '\')">' + l + '<span id="dsort-' + cols[i] + '"> ⇅</span></th>').join('') +
+        labels.map((l,i) => {
+          var ic = sortCol === cols[i] ? (sortDir === 1 ? '↑' : '↓') : '';
+          return '<th class="sortable" onclick="window._deptSort(\'' + cols[i] + '\')">' + l +
+            '<span class="sort-icon" id="dsort-' + cols[i] + '">' + ic + '</span></th>';
+        }).join('') +
         '<th>Actions</th></tr></thead><tbody>' +
         data.map(d =>
           '<tr class="tbl-clickable" onclick="navigateTo(\'/organisation/departments/' + d.id + '\')">' +
