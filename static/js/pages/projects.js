@@ -4,7 +4,7 @@
  */
 import { get, post, put } from '../api.js';
 import { renderDocsTab, docsTabHtml } from '../docs.js?v=20260521a';
-import { logoUploaderHtml } from '../logoup.js?v=20260521g';
+import { logoUploaderHtml } from '../logoup.js?v=20260521h';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -52,7 +52,7 @@ export async function renderList() {
               '<td><strong>'+v(p.name)+'</strong><div class="cell-sub">'+v(p.short_name||'')+'</div></td>'+
               '<td>'+v(p.client_name||'—')+'</td>'+
               '<td>'+v(p.project_type||'T&M')+'</td>'+
-              '<td>'+v(p.pm_name||'—')+'</td>'+
+              '<td>'+(p.pm_name?'<div style="display:flex;align-items:center;gap:6px">'+fmt.avatar(p.pm_name, p.pm_photo_url, 'av-xs')+'<span>'+v(p.pm_name)+'</span></div>':'—')+'</td>'+
               '<td class="mono">'+fmt.date(p.start_date)+'</td>'+
               '<td class="mono">'+fmt.money(p.budget)+'</td>'+
               '<td><div style="display:flex;align-items:center;gap:6px">'+
@@ -290,7 +290,7 @@ export async function renderDetail({ id }) {
         '</div>'+
         '<div class="profile-meta">'+
           '<div class="meta-row"><span>Client</span><strong>'+v(proj.client_name,'—')+'</strong></div>'+
-          '<div class="meta-row"><span>PM</span><strong>'+v(proj.pm_name,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>PM</span><strong>'+(proj.pm_name?'<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">'+fmt.avatar(proj.pm_name, proj.pm_photo_url, 'av-xs')+v(proj.pm_name)+'</span>':'—')+'</strong></div>'+
           '<div class="meta-row"><span>Budget</span><strong>'+fmt.money(proj.budget)+'</strong></div>'+
           '<div class="meta-row"><span>Health</span><strong>'+(proj.health_score||80)+'%</strong></div>'+
           '<div class="meta-row"><span>Completion</span>'+

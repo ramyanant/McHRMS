@@ -78,12 +78,12 @@ def team():
     if not emp_id: return err("No employee profile linked", 400)
     emp = db_row1("SELECT reporting_manager_id FROM employees WHERE id=%s", (emp_id,))
     mgr_id = emp['reporting_manager_id'] if emp else None
-    manager   = db_row1("""SELECT id, first_name, last_name, job_title, email, department_id
+    manager   = db_row1("""SELECT id, first_name, last_name, job_title, email, department_id, photo_url
         FROM employees WHERE id=%s""", (mgr_id,)) if mgr_id else None
     reportees = db_rows("""SELECT id, first_name, last_name, job_title, email,
-        department_id FROM employees
+        department_id, photo_url FROM employees
         WHERE reporting_manager_id=%s AND is_active=1""", (emp_id,))
-    peers     = db_rows("""SELECT id, first_name, last_name, job_title, email
+    peers     = db_rows("""SELECT id, first_name, last_name, job_title, email, photo_url
         FROM employees WHERE reporting_manager_id=%s AND id!=%s AND is_active=1""",
         (mgr_id, emp_id)) if mgr_id else []
     return ok({"manager": manager, "reportees": reportees, "peers": peers})

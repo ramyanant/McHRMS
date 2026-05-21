@@ -41,10 +41,11 @@ def list_employees():
     clause = " AND ".join(where)
     total  = db_row1(f"SELECT COUNT(*) as n FROM employees e WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT e.id, e.emp_id, e.first_name, e.last_name, e.email, e.phone,
-        e.job_title, e.status, e.start_date, e.location, e.is_active,
+        e.job_title, e.status, e.start_date, e.location, e.is_active, e.photo_url,
         d.name as department_name, et.name as employment_type,
         c.name as client_name,
-        rm.first_name||' '||rm.last_name as reporting_manager_name
+        rm.first_name||' '||rm.last_name as reporting_manager_name,
+        rm.photo_url as reporting_manager_photo_url
         FROM employees e
         LEFT JOIN departments d ON d.id=e.department_id
         LEFT JOIN master_employment_types et ON et.id=e.employment_type_id
@@ -206,6 +207,7 @@ def employee_detail(eid):
         et.name as employment_type,
         c.name as client_name,
         rm.first_name||' '||rm.last_name as reporting_manager_name,
+        rm.photo_url as reporting_manager_photo_url,
         b.name as business_unit_name,
         u.username as login_username,
         u.must_change_pwd as must_change_pwd
@@ -334,7 +336,8 @@ def emp_leaves(eid):
 def list_users():
     rows = db_rows("""SELECT u.id, u.username, u.email, u.full_name, u.is_active,
         u.last_login, u.employee_id, r.name as role,
-        e.first_name||' '||e.last_name as employee_name
+        e.first_name||' '||e.last_name as employee_name,
+        e.photo_url as employee_photo_url
         FROM users u
         JOIN master_user_roles r ON r.id=u.role_id
         LEFT JOIN employees e ON e.id=u.employee_id
@@ -369,8 +372,12 @@ def create_user():
 @require_auth
 @require_role('Admin')
 def user_detail(uid):
-    user = db_row1("""SELECT u.*, r.name as role FROM users u
-        JOIN master_user_roles r ON r.id=u.role_id WHERE u.id=%s""", (uid,))
+    user = db_row1("""SELECT u.*, r.name as role,
+        e.first_name||' '||e.last_name as employee_name,
+        e.photo_url as employee_photo_url
+        FROM users u
+        JOIN master_user_roles r ON r.id=u.role_id
+        LEFT JOIN employees e ON e.id=u.employee_id WHERE u.id=%s""", (uid,))
     if not user: return not_found("User")
     if request.method == 'GET': return ok(user)
     if request.method == 'PUT':

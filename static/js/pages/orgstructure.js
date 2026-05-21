@@ -206,7 +206,7 @@ export async function renderBUs() {
       columns: [
         { label:'Name',       key:'name',      render: r => '<strong>' + v(r.name) + '</strong>' + (r.code ? '<div class="cell-sub mono">' + v(r.code) + '</div>' : '') },
         { label:'Description',key:'description',render: r => v(r.description,'—') },
-        { label:'Head',       key:'head_name', render: r => v(r.head_name,'—') },
+        { label:'Head',       key:'head_name', render: r => r.head_name ? '<div style="display:flex;align-items:center;gap:6px">' + fmt.avatar(r.head_name, r.head_photo_url, 'av-xs') + '<span>' + v(r.head_name) + '</span></div>' : '—' },
         { label:'Departments',key:'dept_count', render: r => r.dept_count || 0 },
         { label:'Headcount',  key:'headcount',  render: r => r.headcount || 0 },
         { label:'Status',     key:'is_active',  render: r => badge(r.is_active ? 'Active' : 'Inactive') },
@@ -220,7 +220,7 @@ export async function renderBUs() {
         '<div class="struct-card-title">' + v(r.name) + '</div>' +
         (r.code ? '<div class="struct-card-code">' + v(r.code) + '</div>' : '') +
         (r.description ? '<div class="struct-card-desc">' + v(r.description) + '</div>' : '') +
-        (r.head_name   ? '<div class="struct-card-meta">👤 ' + v(r.head_name) + '</div>' : '') +
+        (r.head_name   ? '<div class="struct-card-meta" style="display:flex;align-items:center;gap:6px">' + fmt.avatar(r.head_name, r.head_photo_url, 'av-xs') + '<span>' + v(r.head_name) + '</span></div>' : '') +
         '<div class="struct-card-stats">' +
           '<div class="struct-mini-stat"><span class="struct-mini-val">' + (r.dept_count||0) + '</span><span class="struct-mini-label">Depts</span></div>' +
           '<div class="struct-mini-stat"><span class="struct-mini-val">' + (r.headcount||0) + '</span><span class="struct-mini-label">People</span></div>' +
@@ -385,7 +385,7 @@ export async function renderDepts() {
           '<tr class="tbl-clickable" onclick="navigateTo(\'/organisation/departments/' + d.id + '\')">' +
           '<td><strong>' + v(d.name) + '</strong></td>' +
           '<td>' + v(d.bu_name||d.business_unit,'—') + '</td>' +
-          '<td>' + v(d.head_name,'—') + '</td>' +
+          '<td>' + (d.head_name ? '<div style="display:flex;align-items:center;gap:6px">' + fmt.avatar(d.head_name, d.head_photo_url, 'av-xs') + '<span>' + v(d.head_name) + '</span></div>' : '—') + '</td>' +
           '<td>' + v(d.cost_centre_name,'—') + '</td>' +
           '<td>' + v(d.location,'—') + '</td>' +
           '<td>' + (d.headcount||0) + '</td>' +

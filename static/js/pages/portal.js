@@ -426,7 +426,7 @@ export async function renderTeam() {
     function memberCard(m, role_label, color) {
       var name = (m.first_name||'') + ' ' + (m.last_name||'');
       return '<div class="struct-card" onclick="navigateTo(&apos;/employees/&apos;+' + m.id + '+&apos;&apos;)" style="cursor:pointer">' +
-        '<div class="av av-lg av-'+color+'" style="margin:0 auto 8px">'+fmt.ini(name)+'</div>' +
+        '<div style="display:flex;justify-content:center;margin:0 auto 8px">'+fmt.avatar(name, m.photo_url, 'av-lg', 'av-'+color)+'</div>' +
         '<div class="struct-card-title">'+v(name)+'</div>' +
         '<div class="struct-card-desc">'+v(m.job_title,'—')+'</div>' +
         '<div style="margin-top:4px"><span class="badge badge-gray">'+role_label+'</span></div>' +

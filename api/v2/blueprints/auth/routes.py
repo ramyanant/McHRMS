@@ -156,12 +156,15 @@ def me():
     if not user:
         return err("Not authenticated", 401)
     emp = None
+    photo_url = None
     if user.get('employee_id'):
-        emp = db_row1("SELECT emp_id, reporting_manager_id FROM employees WHERE id=%s", (user['employee_id'],))
+        emp = db_row1("SELECT emp_id, reporting_manager_id, photo_url FROM employees WHERE id=%s", (user['employee_id'],))
+        if emp:
+            photo_url = emp.get('photo_url')
     return ok({
         "id": user['id'], "username": user['username'], "email": user['email'],
         "full_name": user['full_name'], "role": user['role'], "role_id": user['role_id'],
-        "employee_id": user['employee_id'], "emp": emp,
+        "employee_id": user['employee_id'], "emp": emp, "photo_url": photo_url,
     })
 
 

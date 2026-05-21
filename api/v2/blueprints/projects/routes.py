@@ -75,6 +75,7 @@ def list_projects():
     total  = db_row1(f"SELECT COUNT(*) as n FROM projects p WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT p.*, c.name as client_name,
         pm.first_name||' '||pm.last_name as pm_name,
+        pm.photo_url as pm_photo_url,
         am.first_name||' '||am.last_name as am_name,
         (SELECT COUNT(*) FROM project_resources pr WHERE pr.project_id=p.id AND pr.is_active=1) as resource_count
         FROM projects p
@@ -138,6 +139,7 @@ def project_detail(pid):
     _ensure_projects()
     proj = db_row1("""SELECT p.*, c.name as client_name,
         pm.first_name||' '||pm.last_name as pm_name,
+        pm.photo_url as pm_photo_url,
         am.first_name||' '||am.last_name as am_name,
         d.name as department_name, b.name as bu_name
         FROM projects p

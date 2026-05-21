@@ -212,6 +212,20 @@ export const fmt = {
     let h = 0; for (const c of (name||'')) h = c.charCodeAt(0) + ((h << 5) - h);
     return colors[Math.abs(h) % colors.length];
   },
+  // Avatar: profile photo if photoUrl present, else colored initials.
+  // Falls back to initials div if the image fails to load.
+  avatar: (name, photoUrl, sizeClass, colorClass) => {
+    const sz = sizeClass || 'av-sm';
+    const col = colorClass || fmt.avColor(name);
+    const ini = fmt.ini(name) || '?';
+    if (photoUrl) {
+      const fb = '<div class=\'av ' + sz + ' ' + col + '\'>' + ini + '</div>';
+      return '<img class="av ' + sz + '" src="' + photoUrl + '" alt="' + ini + '" ' +
+        'style="object-fit:cover" ' +
+        'onerror="this.onerror=null;this.outerHTML=' + JSON.stringify(fb).replace(/"/g, '&quot;') + '">';
+    }
+    return '<div class="av ' + sz + ' ' + col + '">' + ini + '</div>';
+  },
 };
 
 // ── Sidebar active state ───────────────────────────────────────

@@ -149,7 +149,7 @@ def list_timesheets():
     total  = db_row1(f"""SELECT COUNT(*) as n FROM timesheets t
         LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id WHERE {clause}""", params)['n']
     rows   = db_rows(f"""SELECT t.*, s.name as status,
-        e.first_name||' '||e.last_name as employee_name, e.emp_id,
+        e.first_name||' '||e.last_name as employee_name, e.emp_id, e.photo_url as employee_photo_url,
         c.name as client_name
         FROM timesheets t
         LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
@@ -230,7 +230,8 @@ def pending_approvals():
     pending_id = _get_status_id('Pending')
 
     ts = db_rows(f"""SELECT t.*, s.name as status,
-        e.first_name||' '||e.last_name as employee_name, e.emp_id, c.name as client_name
+        e.first_name||' '||e.last_name as employee_name, e.emp_id, e.photo_url as employee_photo_url,
+        c.name as client_name
         FROM timesheets t
         LEFT JOIN master_timesheet_statuses s ON s.id=t.status_id
         LEFT JOIN employees e ON e.id=t.employee_id
@@ -238,7 +239,8 @@ def pending_approvals():
         WHERE t.employee_id IN ({ph}) AND t.status_id=%s
         ORDER BY t.submitted_at""", team_ids + [pending_id])
 
-    leaves = db_rows(f"""SELECT l.*, e.first_name||' '||e.last_name as employee_name, e.emp_id
+    leaves = db_rows(f"""SELECT l.*, e.first_name||' '||e.last_name as employee_name, e.emp_id,
+        e.photo_url as employee_photo_url
         FROM employee_leaves l
         JOIN employees e ON e.id=l.employee_id
         WHERE l.employee_id IN ({ph}) AND l.status='Pending'
@@ -353,6 +355,7 @@ def list_all_leaves():
     clause = " AND ".join(where)
     total  = db_row1(f"SELECT COUNT(*) as n FROM employee_leaves l WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT l.*, e.first_name||' '||e.last_name as employee_name, e.emp_id,
+        e.photo_url as employee_photo_url,
         a.first_name||' '||a.last_name as approved_by_name
         FROM employee_leaves l
         JOIN employees e ON e.id=l.employee_id

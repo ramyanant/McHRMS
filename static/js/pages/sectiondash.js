@@ -124,7 +124,7 @@ export async function renderPeopleDash() {
             ? '<div style="display:flex;flex-direction:column;gap:8px">' +
               newJoins.map(function(e) {
                 return '<div style="display:flex;align-items:center;gap:10px;cursor:pointer" onclick="navigateTo(\'/employees/'+e.id+'\')">' +
-                  '<div class="av av-sm av-green">' + fmt.ini((e.first_name||'') + ' ' + (e.last_name||'')) + '</div>' +
+                  fmt.avatar((e.first_name||'') + ' ' + (e.last_name||''), e.photo_url, 'av-sm') +
                   '<div><div class="fw-bold">' + v(e.first_name) + ' ' + v(e.last_name) + '</div>' +
                   '<div class="text-muted" style="font-size:11px">' + v(e.job_title||'—') + '</div></div>' +
                   '</div>';

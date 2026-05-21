@@ -141,7 +141,7 @@ export async function renderJobs() {
         '<td>' + v(j.location, '—') + '</td>' +
         '<td>' + (j.notice_period ? v(j.notice_period) + ' days' : '—') + '</td>' +
         '<td class="fw-bold">' + (j.positions || 1) + '</td>' +
-        '<td>' + v(j.assigned_to_name || j.recruiter_name, '—') + '</td>' +
+        '<td>' + (j.recruiter_name ? '<div style="display:flex;align-items:center;gap:6px">' + fmt.avatar(j.recruiter_name, j.recruiter_photo_url, 'av-xs') + '<span>' + v(j.assigned_to_name || j.recruiter_name) + '</span></div>' : '—') + '</td>' +
         '<td>' + badge(j.status || 'Active') + '</td>' +
         '<td class="tbl-actions" onclick="event.stopPropagation()">' +
           '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/recruitment/jobs/&apos;+' + j.id + '+&apos;&apos;)">View</button>' +
@@ -297,7 +297,7 @@ export async function renderJobDetail({ id }) {
           '<div class="meta-row"><span>Experience</span><strong>'+v(job.min_experience||0)+'–'+v(job.max_experience||'any')+' yrs</strong></div>'+
           '<div class="meta-row"><span>CTC Range</span><strong>'+(job.comp_min?'₹'+Math.round(job.comp_min/100000)+'L – ₹'+Math.round((job.comp_max||0)/100000)+'L':'TBD')+'</strong></div>'+
           '<div class="meta-row"><span>Location</span><strong>'+v(job.location,'—')+'</strong></div>'+
-          '<div class="meta-row"><span>Recruiter</span><strong>'+v(job.recruiter_name,'—')+'</strong></div>'+
+          '<div class="meta-row"><span>Recruiter</span><strong>'+(job.recruiter_name?'<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">'+fmt.avatar(job.recruiter_name, job.recruiter_photo_url, 'av-xs')+v(job.recruiter_name)+'</span>':'—')+'</strong></div>'+
           '<div class="meta-row"><span>Applications</span><strong>'+apps.length+'</strong></div>'+
         '</div>'+
         '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+
@@ -513,7 +513,7 @@ export async function renderCandidates() {
           '<td>' + availBadge(c.availability) + '</td>' +
           '<td>' + ratingBadge(c.rating) + '</td>' +
           '<td>' + badge(c.status || 'Active') + '</td>' +
-          '<td>' + v(c.recruiter_name, '—') + '</td>' +
+          '<td>' + (c.recruiter_name ? '<div style="display:flex;align-items:center;gap:6px">' + fmt.avatar(c.recruiter_name, c.recruiter_photo_url, 'av-xs') + '<span>' + v(c.recruiter_name) + '</span></div>' : '—') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
             '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/candidates/' + c.id + '&apos;)">View</button>' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editCandidateRow(' + c.id + ')">✏ Edit</button>' +

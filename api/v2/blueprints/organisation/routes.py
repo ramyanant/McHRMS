@@ -523,10 +523,12 @@ def lookup_states():
 def list_business_units():
     rows = db_rows("""SELECT b.*,
         COUNT(DISTINCT d.id) as dept_count,
-        COUNT(DISTINCT e.id) as headcount
+        COUNT(DISTINCT e.id) as headcount,
+        MAX(he.photo_url) as head_photo_url
         FROM business_units b
         LEFT JOIN departments d ON d.business_unit_id=b.id AND d.is_active=1
         LEFT JOIN employees e ON e.business_unit_id=b.id AND e.is_active=1
+        LEFT JOIN employees he ON he.id=b.head_emp_id
         WHERE b.is_active=1
         GROUP BY b.id ORDER BY b.name""")
     return ok(rows)
@@ -589,10 +591,12 @@ def business_unit_detail(bid):
 @require_auth
 def list_departments():
     rows = db_rows("""SELECT d.*, b.name as bu_name,
-        COUNT(e.id) as headcount
+        COUNT(e.id) as headcount,
+        MAX(me.photo_url) as head_photo_url
         FROM departments d
         LEFT JOIN business_units b ON b.id=d.business_unit_id
         LEFT JOIN employees e ON e.department_id=d.id AND e.is_active=1
+        LEFT JOIN employees me ON me.id=d.manager_id
         WHERE d.is_active=1
         GROUP BY d.id, b.name ORDER BY d.name""")
     return ok(rows)

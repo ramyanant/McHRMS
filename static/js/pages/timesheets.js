@@ -176,7 +176,7 @@ export async function renderApproval() {
         var status = t.status || 'Pending';
         return '<tr class="tbl-clickable" onclick="window._openTS(' + t.id + ')">' +
           '<td><div class="cell-person">' +
-            '<div class="av av-sm av-blue">' + fmt.ini(t.employee_name || '?') + '</div>' +
+            fmt.avatar(t.employee_name || '?', t.employee_photo_url, 'av-sm') +
             '<div><div class="fw-bold">' + v(t.employee_name, '—') + '</div>' +
             '<div class="cell-sub mono">' + v(t.emp_id, '') + '</div></div>' +
           '</div></td>' +
@@ -207,7 +207,7 @@ export async function renderApproval() {
         var status = l.status || 'Pending';
         return '<tr class="tbl-clickable" onclick="window._openLV(' + l.id + ')">' +
           '<td><div class="cell-person">' +
-            '<div class="av av-sm av-green">' + fmt.ini(l.employee_name || '?') + '</div>' +
+            fmt.avatar(l.employee_name || '?', l.employee_photo_url, 'av-sm') +
             '<div class="fw-bold">' + v(l.employee_name, '—') + '</div>' +
           '</div></td>' +
           '<td><span class="badge badge-purple">' + v(l.leave_type, '—') + '</span></td>' +

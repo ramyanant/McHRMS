@@ -47,7 +47,7 @@ export async function renderList() {
         }).join('')+
         '</tr></thead><tbody>'+
         d.map(e=>'<tr class="tbl-clickable" onclick="navigateTo(\'/employees/'+e.id+'\')">' +
-          '<td><div class="cell-person"><div class="av av-sm av-green">'+fmt.ini(e.first_name+' '+e.last_name)+'</div>' +
+          '<td><div class="cell-person">'+fmt.avatar(e.first_name+' '+e.last_name, e.photo_url, 'av-sm')+
           '<div><div class="cell-name">'+v(e.first_name)+' '+v(e.last_name)+'</div><div class="cell-sub">'+v(e.email||'')+'</div></div></div></td>'+
           '<td class="mono">'+v(e.emp_id,'—')+'</td>'+
           '<td>'+v(e.job_title,'—')+'</td>'+
@@ -130,7 +130,7 @@ function renderEmployeeDetail(emp, masters) {
       '<div class="profile-meta">'+
         '<div class="meta-row"><span>Employee ID</span><strong class="mono">'+v(emp.emp_id,'—')+'</strong></div>'+
         '<div class="meta-row"><span>Department</span><strong>'+v(emp.department_name,'—')+'</strong></div>'+
-        '<div class="meta-row"><span>Reporting To</span><strong>'+v(emp.reporting_manager_name,'—')+'</strong></div>'+
+        '<div class="meta-row"><span>Reporting To</span><strong>'+(emp.reporting_manager_name?'<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">'+fmt.avatar(emp.reporting_manager_name, emp.reporting_manager_photo_url, 'av-xs')+v(emp.reporting_manager_name)+'</span>':'—')+'</strong></div>'+
         '<div class="meta-row"><span>Client</span><strong>'+v(emp.client_name,'—')+'</strong></div>'+
         '<div class="meta-row"><span>Start Date</span><strong>'+fmt.date(emp.start_date)+'</strong></div>'+
         '<div class="meta-row"><span>Location</span><strong>'+v(emp.location,'—')+'</strong></div>'+

@@ -17,14 +17,18 @@ def audit_logs():
     entity_type = request.args.get('entity_type','')
     user_id     = request.args.get('user_id','')
     where, params = ["1=1"], []
-    if module:      where.append("module=%s");      params.append(module)
-    if action:      where.append("action=%s");      params.append(action)
-    if entity_type: where.append("entity_type=%s"); params.append(entity_type)
-    if user_id:     where.append("user_id=%s");     params.append(user_id)
+    if module:      where.append("al.module=%s");      params.append(module)
+    if action:      where.append("al.action=%s");      params.append(action)
+    if entity_type: where.append("al.entity_type=%s"); params.append(entity_type)
+    if user_id:     where.append("al.user_id=%s");     params.append(user_id)
     clause = " AND ".join(where)
-    total  = db_row1(f"SELECT COUNT(*) as n FROM audit_log WHERE {clause}", params)['n']
-    rows   = db_rows(f"""SELECT * FROM audit_log WHERE {clause}
-        ORDER BY created_at DESC LIMIT %s OFFSET %s""",
+    total  = db_row1(f"SELECT COUNT(*) as n FROM audit_log al WHERE {clause}", params)['n']
+    rows   = db_rows(f"""SELECT al.*, e.photo_url as user_photo_url
+        FROM audit_log al
+        LEFT JOIN users u ON u.id=al.user_id
+        LEFT JOIN employees e ON e.id=u.employee_id
+        WHERE {clause}
+        ORDER BY al.created_at DESC LIMIT %s OFFSET %s""",
         params + [per_page, (page-1)*per_page])
     return ok({"items": rows, "total": total, "page": page, "per_page": per_page,
                "pages": (total+per_page-1)//per_page})

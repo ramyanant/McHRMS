@@ -156,6 +156,16 @@ def seed_demo(target=100):
              pick(['HDFC', 'ICIC', 'SBIN', 'UTIB', 'KKBK']) + '0' + str(random.randint(100000, 999999))))
     result['employees'] = _count('employees')
 
+    # Deterministic demo profile photos (DiceBear) for any demo employee
+    # missing one, so avatars render across the app instead of initials.
+    try:
+        cur.execute(
+            "UPDATE employees SET photo_url = "
+            "'https://api.dicebear.com/7.x/avataaars/svg?seed=' || emp_id "
+            "WHERE emp_id LIKE 'DMO%' AND (photo_url IS NULL OR photo_url = '')")
+    except Exception:
+        pass
+
     emp_ids = _ids('employees')
 
     # ── 5b. User logins for demo employees ───────────────────────

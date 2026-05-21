@@ -83,7 +83,7 @@ export async function renderHome() {
       slice.map(function(r) {
         return '<tr>' +
           '<td class="mono" style="white-space:nowrap;font-size:11px">' + fmtDT(r.created_at) + '</td>' +
-          '<td><strong>' + v(r.username,'—') + '</strong></td>' +
+          '<td>' + (r.username ? '<div style="display:flex;align-items:center;gap:6px"><strong>' + fmt.avatar(r.username, r.user_photo_url, 'av-xs') + '</strong><strong>' + v(r.username) + '</strong></div>' : '—') + '</td>' +
           '<td><span class="badge badge-gray">' + v(r.module,'—') + '</span></td>' +
           '<td><span class="badge badge-' + actionColor(r.action) + '">' + v(r.action,'—') + '</span></td>' +
           '<td>' + v(r.entity_type,'—') + (r.entity_id ? ' #' + r.entity_id : '') + '</td>' +

@@ -38,6 +38,7 @@ def list_jobs():
     total  = db_row1(f"SELECT COUNT(*) as n FROM job_requisitions j WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT j.*, c.name as client_name, d.name as department_name,
         p.name as priority_name, e.first_name||' '||e.last_name as recruiter_name,
+        e.photo_url as recruiter_photo_url,
         (SELECT COUNT(*) FROM applications a WHERE a.requisition_id=j.id) as application_count
         FROM job_requisitions j
         LEFT JOIN clients c ON c.id=j.client_id
@@ -94,7 +95,8 @@ def create_job():
 @require_auth
 def job_detail(rid):
     job = db_row1("""SELECT j.*, c.name as client_name, d.name as department_name,
-        e.first_name||' '||e.last_name as recruiter_name, p.name as priority_name
+        e.first_name||' '||e.last_name as recruiter_name,
+        e.photo_url as recruiter_photo_url, p.name as priority_name
         FROM job_requisitions j
         LEFT JOIN clients c ON c.id=j.client_id
         LEFT JOIN departments d ON d.id=j.department_id
@@ -146,6 +148,7 @@ def list_candidates():
     total  = db_row1(f"SELECT COUNT(*) as n FROM candidates c WHERE {clause}", params)['n']
     rows   = db_rows(f"""SELECT c.*, s.name as source_name,
         e.first_name||' '||e.last_name as recruiter_name,
+        MAX(e.photo_url) as recruiter_photo_url,
         COUNT(DISTINCT a.id) as application_count,
         MAX(st.name) as latest_stage
         FROM candidates c
@@ -225,7 +228,8 @@ def create_candidate():
 @require_auth
 def candidate_detail(cid):
     cand = db_row1("""SELECT c.*, s.name as source_name,
-        e.first_name||' '||e.last_name as recruiter_name
+        e.first_name||' '||e.last_name as recruiter_name,
+        e.photo_url as recruiter_photo_url
         FROM candidates c
         LEFT JOIN master_candidate_sources s ON s.id=c.source_id
         LEFT JOIN employees e ON e.id=c.recruiter_id

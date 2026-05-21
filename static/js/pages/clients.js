@@ -2,7 +2,7 @@
  * Clients — Full LinkedIn-style, no backticks, row click → detail, inline edit, Documents tab
  */
 import { get, post, put } from '../api.js';
-import { logoUploaderHtml } from '../logoup.js?v=20260521g';
+import { logoUploaderHtml } from '../logoup.js?v=20260521h';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -62,7 +62,7 @@ export async function renderList() {
           '<td><div>'+v(c.primary_contact,'—')+'</div>'+
             (c.contact_email?'<div class="cell-sub">'+v(c.contact_email)+'</div>':'')+
           '</td>'+
-          '<td>'+v(c.account_manager_name,'—')+'</td>'+
+          '<td>'+(c.account_manager_name?'<div style="display:flex;align-items:center;gap:6px">'+fmt.avatar(c.account_manager_name, c.account_manager_photo_url, 'av-xs')+'<span>'+v(c.account_manager_name)+'</span></div>':'—')+'</td>'+
           '<td><div style="display:flex;align-items:center;gap:6px">'+
             '<div style="width:40px;height:6px;background:var(--bg);border-radius:3px;overflow:hidden">'+
               '<div style="width:'+(c.health_score||80)+'%;height:100%;background:'+(c.health_score>=70?'var(--green)':'var(--amber)')+'"></div>'+
@@ -172,7 +172,8 @@ function renderClientDetail(client, masters) {
         '<div class="card" style="margin-bottom:12px"><div class="card-header"><h3 class="card-title">Company Info</h3></div><div class="card-body"><div class="field-grid">'+
         fld('Industry',client.industry)+fld('Currency',client.currency)+
         fld('Payment Terms',client.payment_terms)+fld('Website',client.website)+
-        fld('Referred By',client.referred_by)+fld('Account Manager',client.account_manager_name)+
+        fld('Referred By',client.referred_by)+
+        '<div class="field-item"><div class="field-label">Account Manager</div><div class="field-value'+(client.account_manager_name?'':' empty')+'">'+(client.account_manager_name?'<span style="display:inline-flex;align-items:center;gap:6px">'+fmt.avatar(client.account_manager_name, client.account_manager_photo_url, 'av-xs')+v(client.account_manager_name)+'</span>':'—')+'</div></div>'+
         '</div></div></div>'+
         '<div class="card"><div class="card-header"><h3 class="card-title">Address</h3></div><div class="card-body"><div class="field-grid">'+
         fld('Address',client.address_line1)+fld('City',client.city)+

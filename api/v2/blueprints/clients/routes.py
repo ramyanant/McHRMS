@@ -33,6 +33,7 @@ def list_clients():
         c.contact_email, c.contact_phone, c.city, c.gstin, c.pan, c.is_active,
         c.health_score, c.account_manager_id,
         e.first_name||' '||e.last_name as account_manager_name,
+        e.photo_url as account_manager_photo_url,
         ct.name as contract_type,
         (SELECT COUNT(*) FROM invoices i WHERE i.client_id=c.id) as invoice_count
         FROM clients c
@@ -82,6 +83,7 @@ def create_client():
 def client_detail(cid):
     client = db_row1("""SELECT c.*,
         e.first_name||' '||e.last_name as account_manager_name,
+        e.photo_url as account_manager_photo_url,
         ct.name as contract_type, pt.name as payment_terms
         FROM clients c
         LEFT JOIN employees e ON e.id=c.account_manager_id

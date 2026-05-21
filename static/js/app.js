@@ -43,7 +43,7 @@ function showLogin() {
   login.innerHTML =
     '<div class="login-card">' +
       '<div class="login-logo">' +
-        '<img src="/static/img/logo.png?v=20260521g" alt="McHR&amp;TA" ' +
+        '<img src="/static/img/logo.png?v=20260521h" alt="McHR&amp;TA" ' +
           'style="max-width:280px;width:100%;height:auto;display:block;margin:0 auto" ' +
           'onerror="this.style.display=\'none\';document.getElementById(\'login-logo-fallback\').style.display=\'block\'">' +
         '<div id="login-logo-fallback" style="display:none">' +
@@ -368,7 +368,7 @@ function buildSidebar() {
 
   document.getElementById('sidebar').innerHTML =
     '<div class="sidebar-logo" onclick="navigateTo(&apos;/dashboard&apos;)">' +
-      '<img src="/static/img/logo.png?v=20260521g" alt="McHR&amp;TA" ' +
+      '<img src="/static/img/logo.png?v=20260521h" alt="McHR&amp;TA" ' +
         'style="width:100%;max-width:180px;height:auto;background:#fff;border-radius:8px;padding:6px;box-sizing:border-box" ' +
         'onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">' +
       '<div style="display:none;align-items:center;gap:8px">' +
@@ -381,7 +381,9 @@ function buildSidebar() {
     '</div>' +
     '<nav class="sidebar-nav">' + sectionsHtml + '</nav>' +
     '<div class="sidebar-user">' +
-      '<div class="user-av ' + getUserAvColor() + '">' + ini + '</div>' +
+      ((_user && _user.photo_url)
+        ? '<img class="user-av" src="' + _user.photo_url + '" alt="' + ini + '" style="object-fit:cover" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;user-av ' + getUserAvColor() + '&quot;>' + ini + '</div>\'">'
+        : '<div class="user-av ' + getUserAvColor() + '">' + ini + '</div>') +
       '<div class="user-info">' +
         '<div class="user-name">' + uname + '</div>' +
         '<div class="user-role">' + urole + '</div>' +
@@ -539,7 +541,7 @@ function getUserAvColor() {
 async function registerRoutes() {
   // Lazy-load page modules
   const load = (mod, fn) => async (params) => {
-    const m = await import('./pages/' + mod + '.js?v=20260521g');
+    const m = await import('./pages/' + mod + '.js?v=20260521h');
     await m[fn](params);
     if (typeof updateSidebarActive === 'function') { try { updateSidebarActive(); } catch(e){} }
     // Update sidebar active
