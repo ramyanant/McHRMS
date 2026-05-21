@@ -741,6 +741,30 @@ def create_app(config_override=None):
         except Exception as e:
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/v2/admin/seed-demo', methods=['POST'])
+    def seed_demo_endpoint():
+        """Admin-only: top each major table up to ~target rows with demo
+        data for testing. Idempotent — tables already at target are skipped.
+        Trigger from the browser console while logged in as admin:
+          fetch('/api/v2/admin/seed-demo',{method:'POST',
+            headers:{'X-Auth-Token':localStorage.getItem('mch_token'),
+                     'Content-Type':'application/json'},
+            body:'{"target":100}'}).then(r=>r.json()).then(console.log)
+        """
+        from flask import request as _req, jsonify
+        from .middleware.auth import get_current_user
+        user = get_current_user()
+        if not user or user.get('role') != 'Admin':
+            return jsonify({"success": False, "error": "Admin only"}), 403
+        try:
+            from .seed_demo import seed_demo
+            target = int((_req.get_json(silent=True) or {}).get('target', 100))
+            target = max(1, min(target, 500))
+            counts = seed_demo(target)
+            return jsonify({"success": True, "target": target, "counts": counts})
+        except Exception as e:
+            return jsonify({"success": False, "error": str(e)}), 500
+
     @app.route('/api/v2/health')
     def health():
         try:
