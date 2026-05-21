@@ -122,7 +122,7 @@ function renderEmployeeDetail(emp, masters) {
   function sidebar() {
     return '<div class="detail-sidebar"><div class="card">'+
       '<div class="profile-hero" style="background:linear-gradient(135deg,#1a5c2e,#144825)">'+
-        '<div style="margin:0 auto 10px">'+(emp.photo_url?'<img src="'+emp.photo_url+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.4)" alt="Photo">':'<div class="av av-xl av-green">'+fmt.ini(emp.first_name+' '+emp.last_name)+'</div>')+'</div>'+
+        '<div style="margin:0 auto 10px">'+'<img src="'+(emp.photo_url || ('https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(String((emp.first_name||'')+' '+(emp.last_name||'')).trim().toLowerCase())))+'" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.4)" alt="Photo" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl av-green&quot;>'+fmt.ini(emp.first_name+' '+emp.last_name)+'</div>\'">'+'</div>'+
         '<div class="profile-name">'+v(emp.first_name)+' '+v(emp.middle_name?emp.middle_name+' ':'')+v(emp.last_name)+'</div>'+
         '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(emp.job_title||'Employee')+'</div>'+
         '<div style="margin-top:8px">'+badge(emp.status||'Active')+'</div>'+

@@ -212,19 +212,20 @@ export const fmt = {
     let h = 0; for (const c of (name||'')) h = c.charCodeAt(0) + ((h << 5) - h);
     return colors[Math.abs(h) % colors.length];
   },
-  // Avatar: profile photo if photoUrl present, else colored initials.
-  // Falls back to initials div if the image fails to load.
+  // Avatar: shows the real uploaded photo when present; otherwise a
+  // deterministic generated avatar (so faces appear even before anyone
+  // uploads a photo). Final fallback is colored initials if the image
+  // fails to load (e.g. offline / image host blocked).
   avatar: (name, photoUrl, sizeClass, colorClass) => {
     const sz = sizeClass || 'av-sm';
     const col = colorClass || fmt.avColor(name);
     const ini = fmt.ini(name) || '?';
-    if (photoUrl) {
-      const fb = '<div class=\'av ' + sz + ' ' + col + '\'>' + ini + '</div>';
-      return '<img class="av ' + sz + '" src="' + photoUrl + '" alt="' + ini + '" ' +
-        'style="object-fit:cover" ' +
-        'onerror="this.onerror=null;this.outerHTML=' + JSON.stringify(fb).replace(/"/g, '&quot;') + '">';
-    }
-    return '<div class="av ' + sz + ' ' + col + '">' + ini + '</div>';
+    const seed = encodeURIComponent(String(name || 'user').trim().toLowerCase() || 'user');
+    const src = photoUrl || ('https://api.dicebear.com/7.x/avataaars/svg?seed=' + seed);
+    const fb = '<div class=\'av ' + sz + ' ' + col + '\'>' + ini + '</div>';
+    return '<img class="av ' + sz + '" src="' + src + '" alt="' + ini + '" ' +
+      'style="object-fit:cover" ' +
+      'onerror="this.onerror=null;this.outerHTML=' + JSON.stringify(fb).replace(/"/g, '&quot;') + '">';
   },
 };
 

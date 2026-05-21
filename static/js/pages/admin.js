@@ -168,9 +168,7 @@ export async function renderUserDetail({ id }) {
       '<div class="detail-layout">'+
       '<div class="detail-sidebar"><div class="card">'+
         '<div class="profile-hero" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">'+
-          (user.employee_photo_url
-            ? '<img src="'+user.employee_photo_url+'" alt="Photo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.5);margin:0 auto 10px;display:block" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl&quot; style=&quot;background:#fff;color:#7c3aed;margin:0 auto 10px&quot;>'+fmt.ini(user.full_name||user.username)+'</div>\'">'
-            : '<div class="av av-xl" style="background:#fff;color:#7c3aed;margin:0 auto 10px">'+fmt.ini(user.full_name||user.username)+'</div>')+
+          '<img src="'+(user.employee_photo_url || ('https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(String(user.full_name||user.username||'user').trim().toLowerCase())))+'" alt="Photo" style="width:72px;height:72px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,0.5);margin:0 auto 10px;display:block" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl&quot; style=&quot;background:#fff;color:#7c3aed;margin:0 auto 10px&quot;>'+fmt.ini(user.full_name||user.username)+'</div>\'">'+
           '<div class="profile-name">'+v(user.full_name||user.username)+'</div>'+
           '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(user.username)+'</div>'+
           '<div style="margin-top:8px"><span class="badge badge-'+(user.role==='Admin'?'red':'blue')+'">'+v(user.role)+'</span></div>'+

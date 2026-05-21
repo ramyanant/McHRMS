@@ -197,7 +197,7 @@ function renderPage(org, empIdSettings) {
     return '<div class="multi-card' + (c.is_primary ? ' multi-card-primary' : '') + '">'
       + '<div class="multi-card-header">'
       + '<div class="contact-av-row">'
-      + '<div class="av av-sm av-green">' + fmt.ini(c.name) + '</div>'
+      + fmt.avatar(c.name, c.photo_url, 'av-sm')
       + '<div><div class="fw-bold">' + v(c.name)
       + (c.is_primary ? '<span class="badge badge-green" style="margin-left:4px;font-size:9px">Primary</span>' : '')
       + '</div><div class="text-muted" style="font-size:11px">' + v(c.designation || '') + (c.department ? ' · ' + v(c.department) : '') + '</div>'

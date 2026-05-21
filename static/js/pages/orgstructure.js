@@ -285,7 +285,7 @@ export async function renderBUDetail({ id }) {
         '<div class="profile-meta">' +
           '<div class="meta-row"><span>Departments</span><strong>' + myDepts.length + '</strong></div>' +
           '<div class="meta-row"><span>Headcount</span><strong>' + (bu.headcount||0) + '</strong></div>' +
-          (bu.head_name ? '<div class="meta-row"><span>Head</span><strong>' + v(bu.head_name) + '</strong></div>' : '') +
+          (bu.head_name ? '<div class="meta-row"><span>Head</span><strong><span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">' + fmt.avatar(bu.head_name, bu.head_photo_url, 'av-xs') + v(bu.head_name) + '</span></strong></div>' : '') +
         '</div>' +
         '<div style="padding:0 16px 16px"><button class="btn btn-primary btn-full" onclick="window._editBU()">✏ Edit</button></div>' +
       '</div></div>' +
@@ -296,7 +296,7 @@ export async function renderBUDetail({ id }) {
           '<div class="tbl-wrap"><table class="data-table"><thead><tr><th>Department</th><th>Manager</th><th>Headcount</th><th>Status</th></tr></thead><tbody>' +
           myDepts.map(d =>
             '<tr class="tbl-clickable" onclick="navigateTo(\'/organisation/departments/' + d.id + '\')">' +
-            '<td><strong>' + v(d.name) + '</strong></td><td>' + v(d.head_name,'—') + '</td><td>' + (d.headcount||0) + '</td>' +
+            '<td><strong>' + v(d.name) + '</strong></td><td>' + (d.head_name ? '<div style="display:flex;align-items:center;gap:6px">' + fmt.avatar(d.head_name, d.head_photo_url, 'av-xs') + '<span>' + v(d.head_name) + '</span></div>' : '—') + '</td><td>' + (d.headcount||0) + '</td>' +
             '<td>' + badge(d.is_active ? 'Active' : 'Inactive') + '</td></tr>'
           ).join('') +
           '</tbody></table></div>' : '<div class="empty-mini">No departments yet</div>'
@@ -503,7 +503,7 @@ export async function renderDeptDetail({ id }) {
           '<div style="margin-top:8px">' + badge(dept.is_active ? 'Active' : 'Inactive') + '</div>' +
         '</div>' +
         '<div class="profile-meta">' +
-          '<div class="meta-row"><span>Manager</span><strong>' + v(dept.head_name,'—') + '</strong></div>' +
+          '<div class="meta-row"><span>Manager</span><strong>' + (dept.head_name ? '<span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">' + fmt.avatar(dept.head_name, dept.head_photo_url, 'av-xs') + v(dept.head_name) + '</span>' : '—') + '</strong></div>' +
           '<div class="meta-row"><span>Budget</span><strong>' + fmt.money(dept.budget) + '</strong></div>' +
           '<div class="meta-row"><span>Cost Centre</span><strong>' + v(dept.cost_centre_name,'—') + '</strong></div>' +
           '<div class="meta-row"><span>Location</span><strong>' + v(dept.location,'—') + '</strong></div>' +

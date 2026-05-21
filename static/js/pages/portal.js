@@ -21,8 +21,7 @@ export async function renderDashboard() {
     var e = await get('/portal/dashboard');
     var bal = await get('/my/leave-balance').catch(function(){return{total:18,taken:0,balance:18,pending:0};});
     var name = (e.first_name||'') + ' ' + (e.last_name||'');
-    var photo = e.photo_url ? '<img src="'+v(e.photo_url)+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover">' :
-      '<div class="av av-xl av-green" style="margin:0 auto">'+fmt.ini(name)+'</div>';
+    var photo = '<img src="'+(e.photo_url || ('https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(String(name).trim().toLowerCase())))+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl av-green&quot; style=&quot;margin:0 auto&quot;>'+fmt.ini(name)+'</div>\'">';
     setContent(
       '<div class="page-body">'+
       '<div class="detail-layout">'+
@@ -77,8 +76,7 @@ export async function renderProfile() {
     var tabs = ['overview','personal','employment','documents','security'];
     var tabLabels = {overview:'📋 Overview',personal:'👤 Personal',employment:'💼 Employment',documents:'📄 Documents',security:'🔐 Security'};
     var activeTab = 'overview';
-    var photo = e.photo_url ? '<img src="'+v(e.photo_url)+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.3)">' :
-      '<div class="av av-xl av-green" style="margin:0 auto">'+fmt.ini(name)+'</div>';
+    var photo = '<img src="'+(e.photo_url || ('https://api.dicebear.com/7.x/avataaars/svg?seed='+encodeURIComponent(String(name).trim().toLowerCase())))+'" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.3)" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl av-green&quot; style=&quot;margin:0 auto&quot;>'+fmt.ini(name)+'</div>\'">';
 
     function tabContent(tab) {
       switch(tab) {
