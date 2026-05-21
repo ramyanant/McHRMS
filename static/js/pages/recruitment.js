@@ -484,6 +484,7 @@ export async function renderCandidates() {
         thSort('availability','Availability') +
         thSort('rating','Rating') +
         thSort('status','Status') +
+        thSort('recruiter_name','Recruiter') +
         '<th>Actions</th>' +
       '</tr></thead><tbody>' +
       d.map(function(cand) {
@@ -501,6 +502,7 @@ export async function renderCandidates() {
           '<td>' + availBadge(c.availability) + '</td>' +
           '<td>' + ratingBadge(c.rating) + '</td>' +
           '<td>' + badge(c.status || 'Active') + '</td>' +
+          '<td>' + v(c.recruiter_name, '—') + '</td>' +
           '<td class="tbl-actions" onclick="event.stopPropagation()">' +
             '<button class="btn btn-ghost btn-xs" onclick="navigateTo(&apos;/candidates/' + c.id + '&apos;)">View</button>' +
             '<button class="btn btn-ghost btn-xs" onclick="window._editCandidateRow(' + c.id + ')">✏ Edit</button>' +

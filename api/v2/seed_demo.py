@@ -158,6 +158,41 @@ def seed_demo(target=100):
 
     emp_ids = _ids('employees')
 
+    # ── 5b. User logins for demo employees ───────────────────────
+    # The create-employee route auto-makes a user account; the direct
+    # INSERTs above bypass that, so demo employees had no login. Create
+    # an Employee-role user for each demo employee (emp_id LIKE 'DMO%')
+    # that doesn't already have one. Password: Employee123.
+    try:
+        from .middleware.auth import hash_password
+        pw = hash_password('Employee123')
+    except Exception:
+        pw = None
+    erole = db_row1("SELECT id FROM master_user_roles WHERE name='Employee' LIMIT 1")
+    erole_id = erole['id'] if erole else None
+    made = 0
+    if pw and erole_id:
+        try:
+            demo_emps = db_rows("SELECT id, first_name, last_name, email FROM employees WHERE emp_id LIKE 'DMO%'")
+        except Exception:
+            demo_emps = []
+        for e in demo_emps:
+            try:
+                if db_row1("SELECT id FROM users WHERE employee_id=%s", (e['id'],)):
+                    continue
+            except Exception:
+                pass
+            email = e.get('email') or ('demo' + str(e['id']) + '@demo-mchrta.com')
+            uname = email.split('@')[0] + str(e['id'])
+            full = ((e.get('first_name') or '') + ' ' + (e.get('last_name') or '')).strip()
+            if ins('users',
+                   "INSERT INTO users (username, email, password_hash, role_id, full_name, employee_id, is_active) "
+                   "VALUES (%s,%s,%s,%s,%s,%s,1)",
+                   (uname, email, pw, erole_id, full, e['id'])):
+                made += 1
+    result['demo_users_created'] = made
+    result['users'] = _count('users')
+
     # ── 6. Clients ───────────────────────────────────────────────
     start = _count('clients')
     for i in range(start, target):
