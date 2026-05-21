@@ -32,7 +32,7 @@ export async function renderList() {
   try {
     var data = await get('/timesheets?per_page=100');
     var rows = data.items || [];
-    var filterStatus = '', sortCol = 'week_ending', sortDir = -1, tsPage = 1;
+    var filterStatus = '', sortCol = 'week_ending', sortDir = -1, tsPage = 1, q = '';
     var TS_PER = 25;
 
     function sorted(arr) {
@@ -43,6 +43,9 @@ export async function renderList() {
     }
     function getF() {
       var d = rows;
+      if (q) { var ql = q.toLowerCase(); d = d.filter(function(r) {
+        return ((r.employee_name||'')+' '+(r.emp_id||'')+' '+(r.project||'')+' '+(r.client_name||'')+' '+(r.status||'')).toLowerCase().includes(ql);
+      }); }
       if (filterStatus) d = d.filter(function(r) { return r.status === filterStatus; });
       return sorted(d);
     }
@@ -90,13 +93,17 @@ export async function renderList() {
     setContent(
       '<div class="page-body">' +
       '<div class="struct-toolbar">' +
-        '<div class="filter-group">' + statusBtns + '</div>' +
-        '<button class="btn btn-primary" onclick="window._submitTS()">+ Submit Timesheet</button>' +
+        '<input class="search-input" placeholder="Search employee, project, client…" oninput="window._tsQ(this.value)" style="width:240px">' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<div class="filter-group">' + statusBtns + '</div>' +
+          '<button class="btn btn-primary" onclick="window._submitTS()">+ Submit Timesheet</button>' +
+        '</div>' +
       '</div>' +
       '<div id="ts-list">' + renderRows() + '</div>' +
       '</div>'
     );
 
+    window._tsQ = function(val) { q=val; tsPage=1; document.getElementById('ts-list').innerHTML = renderRows(); };
     window._tsPg = function(p) { tsPage=p; document.getElementById('ts-list').innerHTML = renderRows(); };
     window._tsFilter = function(status, el) {
       filterStatus = status === 'All' ? '' : status;

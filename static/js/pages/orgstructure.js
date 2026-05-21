@@ -44,7 +44,13 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
     if (searchQ) {
       const q = searchQ.toLowerCase();
       data = data.filter(r =>
-        Object.values(r).some(v => v && String(v).toLowerCase().includes(q))
+        Object.keys(r).some(k => {
+          // Skip noisy keys (ids, photo urls, flags) so a search for "1"
+          // doesn't match every active row, etc.
+          if (/(_id$|^id$|_url$|is_active|_count$|headcount)/.test(k)) return false;
+          const val = r[k];
+          return val && String(val).toLowerCase().includes(q);
+        })
       );
     }
     if (filterStatus !== '') {
@@ -128,7 +134,7 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
     '<div class="struct-toolbar">' +
       statsHtml +
       '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-        '<input class="finput" style="width:200px" placeholder="Search..." oninput="window._orgSearch(this.value)" id="org-search-input">' +
+        '<input class="search-input" style="width:200px" placeholder="Search…" oninput="window._orgSearch(this.value)" id="org-search-input">' +
         '<select class="fselect" style="width:130px" onchange="window._orgFilter(this.value)">' +
           '<option value="">All Status</option>' +
           '<option value="active">Active</option>' +
@@ -172,7 +178,9 @@ function buildListPage({ title, subtitle, breadcrumb, rows, columns, cardRender,
     document.getElementById('btn-table').classList.toggle('active', v2 === 'table');
     render();
   };
-  window._orgFilter = function(val) { filterStatus = val; render(); };
+  window._orgFilter = function(val) { filterStatus = val; page = 1; render(); };
+  window._orgSearch = function(val) { searchQ = val; page = 1; render(); };
+  window._orgPage   = function(p)   { page = p; render(); };
   window._orgSort   = function(col) {
     if (sortCol === col) sortDir *= -1;
     else { sortCol = col; sortDir = 1; }
@@ -308,7 +316,7 @@ export async function renderDepts() {
   showLoader();
   try {
     const [rows, masters] = await Promise.all([get('/departments'), getMasters()]);
-    let view = 'table', filterStatus = '', sortCol = null, sortDir = 1;
+    let view = 'table', filterStatus = '', sortCol = null, sortDir = 1, searchQ = '';
 
     // Group by BU for tree
     const byBU = {};
@@ -321,6 +329,12 @@ export async function renderDepts() {
 
     function getFiltered() {
       let data = [...rows];
+      if (searchQ) {
+        const q = searchQ.toLowerCase();
+        data = data.filter(d =>
+          ((d.name||'')+' '+(d.bu_name||d.business_unit||'')+' '+(d.head_name||'')+' '+
+           (d.cost_centre_name||'')+' '+(d.location||'')).toLowerCase().includes(q));
+      }
       if (filterStatus === 'active')   data = data.filter(d => d.is_active == 1);
       if (filterStatus === 'inactive') data = data.filter(d => d.is_active == 0);
       if (sortCol) data.sort((a, b) => String(a[sortCol]||'').localeCompare(String(b[sortCol]||'')) * sortDir);
@@ -410,7 +424,8 @@ export async function renderDepts() {
           '<div class="struct-stat">' + rows.length + ' <span>Departments</span></div>' +
           '<div class="struct-stat" id="dept-count">' + rows.length + ' <span>Showing</span></div>' +
         '</div>' +
-        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+          '<input class="search-input" style="width:200px" placeholder="Search departments…" oninput="window._deptSearch(this.value)">' +
           '<select class="fselect" style="width:130px" onchange="window._deptFilter(this.value)">' +
             '<option value="">All Status</option><option value="active">Active</option><option value="inactive">Inactive</option>' +
           '</select>' +
@@ -427,6 +442,7 @@ export async function renderDepts() {
     render();
     window._deptView   = v2 => { view = v2; document.getElementById('btn-tree').classList.toggle('active',v2==='tree'); document.getElementById('btn-table').classList.toggle('active',v2==='table'); render(); };
     window._deptFilter = val => { filterStatus = val; render(); };
+    window._deptSearch = val => { searchQ = val; render(); };
     window._deptSort   = col => { sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1); render(); };
     window._addDept    = () => deptModal(null, masters);
     window._deleteDept = async (id, name) => {
