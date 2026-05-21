@@ -576,6 +576,9 @@ def _run_migrations(app):
             "ALTER TABLE offers ADD COLUMN IF NOT EXISTS offer_letter_name TEXT",
             # onboarding: schema has joining_date, code inserts start_date; missing progress/buddy
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS start_date DATE",
+            # joining_date is in schema.sql and the INSERT writes it, but the
+            # live DB was created without it — backfill so create-onboarding works.
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS joining_date DATE",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS buddy_name TEXT",
