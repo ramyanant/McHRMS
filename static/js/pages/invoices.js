@@ -131,10 +131,12 @@ export async function renderList() {
 
     window._deleteInv = async function(id) {
       if (!confirm('Delete this invoice?')) return;
-      await put('/invoices/' + id, { is_active: 0 });
-      toast('Invoice deleted', 'info');
-      rows.splice(rows.findIndex(function(r) { return r.id === id; }), 1);
-      document.getElementById('inv-content').innerHTML = render();
+      try {
+        await put('/invoices/' + id, { is_active: 0 });
+        toast('Invoice deleted', 'info');
+        rows.splice(rows.findIndex(function(r) { return r.id === id; }), 1);
+        document.getElementById('inv-content').innerHTML = render();
+      } catch(e) { toast(e.message || 'Delete failed', 'error'); }
     };
 
     window._editInvRow = async function(id) {

@@ -102,10 +102,12 @@ export async function renderList() {
     window._cFilter = val=>{filterStatus=val;render();};
     window._cSort   = col=>{sortCol===col?sortDir*=-1:(sortCol=col,sortDir=1);render();};
     window._deleteClient = async (id) => {
-      if(!confirm('Delete this client? This cannot be undone.')) return;
-      await put('/clients/'+id, {is_active:0});
-      toast('Client deleted','info');
-      renderList();
+      if(!confirm('Deactivate this client?')) return;
+      try {
+        await put('/clients/'+id, {is_active:0});
+        toast('Client deactivated','info');
+        renderList();
+      } catch(e) { toast(e.message || 'Delete failed','error'); }
     };
   } catch(e) { showError(e.message); }
 }
@@ -212,10 +214,12 @@ function renderClientDetail(client, masters) {
   };
   window._editClient = () => renderClientForm(client, masters);
   window._deleteThisClient = async () => {
-    if(!confirm('Delete client "'+client.name+'"?')) return;
-    await put('/clients/'+client.id, {is_active:0});
-    toast('Client deleted','info');
-    navigate('/clients');
+    if(!confirm('Deactivate client "'+client.name+'"?')) return;
+    try {
+      await put('/clients/'+client.id, {is_active:0});
+      toast('Client deactivated','info');
+      navigate('/clients');
+    } catch(e) { toast(e.message || 'Delete failed','error'); }
   };
 }
 
