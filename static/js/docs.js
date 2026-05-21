@@ -24,6 +24,12 @@ function fileIcon(mime) {
 
 export function renderDocsTab(containerId, apiPath, docTypes) {
   var types = docTypes || DEFAULT_TYPES;
+  // containerId often contains hyphens (e.g. "inv-docs-4"). Hyphens are
+  // valid in element ids and in window['...'] bracket keys, but NOT in a
+  // dot-notation reference inside an onclick attribute — "window._docsUpload_inv-docs-4()"
+  // parses as subtraction and silently fails. Use a sanitized key for the
+  // global function NAMES so the onclick references resolve.
+  var fnKey = String(containerId).replace(/[^a-zA-Z0-9_]/g, '_');
 
   function refresh() {
     var el = document.getElementById(containerId);
@@ -35,7 +41,7 @@ export function renderDocsTab(containerId, apiPath, docTypes) {
       el.innerHTML =
         '<div class="card"><div class="card-header">' +
           '<h3 class="card-title">📄 Documents</h3>' +
-          '<button class="btn btn-primary btn-sm" onclick="window._docsUpload_' + containerId + '()">+ Upload</button>' +
+          '<button class="btn btn-primary btn-sm" onclick="window._docsUpload_' + fnKey + '()">+ Upload</button>' +
         '</div>' +
         (items.length
           ? '<div class="card-body"><div class="doc-grid">' +
@@ -69,7 +75,7 @@ export function renderDocsTab(containerId, apiPath, docTypes) {
   }
 
   // Upload handler
-  window['_docsUpload_' + containerId] = function() {
+  window['_docsUpload_' + fnKey] = function() {
     // Create inline upload form
     var el = document.getElementById(containerId);
     if (!el) return;
@@ -98,13 +104,13 @@ export function renderDocsTab(containerId, apiPath, docTypes) {
       '</div>' +
       '<div class="form-actions" style="padding-top:8px">' +
         '<button class="btn btn-ghost" onclick="document.getElementById(\'docs-upload-form-' + containerId + '\').remove()">Cancel</button>' +
-        '<button class="btn btn-primary" id="dupl-submit-' + containerId + '" onclick="window._docsSubmit_' + containerId + '()">Upload</button>' +
+        '<button class="btn btn-primary" id="dupl-submit-' + containerId + '" onclick="window._docsSubmit_' + fnKey + '()">Upload</button>' +
       '</div></div>';
 
     el.parentNode.insertBefore(form, el.nextSibling);
   };
 
-  window['_docsSubmit_' + containerId] = async function() {
+  window['_docsSubmit_' + fnKey] = async function() {
     var typeEl  = document.getElementById('dupl-type-' + containerId);
     var nameEl  = document.getElementById('dupl-name-' + containerId);
     var fileEl  = document.getElementById('dupl-file-' + containerId);

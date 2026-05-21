@@ -487,10 +487,36 @@ export async function renderDeptDetail({ id }) {
         '</div>' +
         '<div style="padding:0 16px 16px"><button class="btn btn-primary btn-full" onclick="window._editD()">✏ Edit</button></div>' +
       '</div></div>' +
-      '<div class="detail-main"><div class="card"><div class="card-header"><h3 class="card-title">Team Members</h3></div><div class="empty-mini">Loading…</div></div></div>' +
+      '<div class="detail-main"><div class="card"><div class="card-header"><h3 class="card-title">Team Members</h3></div><div id="dept-members"><div class="empty-mini" style="padding:16px">Loading…</div></div></div></div>' +
       '</div>'
     );
     window._editD = () => deptModal(dept, masters);
+
+    // The Team Members panel previously showed a static "Loading…" with no
+    // fetch ever wired up — so it spun forever. Load the department's
+    // employees and render them.
+    get('/employees?department_id=' + id).then(function(resp) {
+      var emps = (resp && resp.items) || (Array.isArray(resp) ? resp : []);
+      var el = document.getElementById('dept-members');
+      if (!el) return;
+      if (!emps.length) {
+        el.innerHTML = '<div class="empty-mini" style="padding:16px">No team members in this department yet.</div>';
+        return;
+      }
+      el.innerHTML = '<div class="tbl-wrap"><table class="data-table"><thead><tr>' +
+          '<th>Name</th><th>Designation</th><th>Email</th></tr></thead><tbody>' +
+        emps.map(function(e) {
+          var nm = ((e.first_name||'') + ' ' + (e.last_name||'')).trim();
+          return '<tr style="cursor:pointer" onclick="navigateTo(\'/employees/' + e.id + '\')">' +
+            '<td><strong>' + v(nm) + '</strong> <span class="text-muted mono" style="font-size:11px">' + v(e.emp_id,'') + '</span></td>' +
+            '<td>' + v(e.designation || e.job_title, '—') + '</td>' +
+            '<td>' + v(e.email, '—') + '</td>' +
+          '</tr>';
+        }).join('') + '</tbody></table></div>';
+    }).catch(function() {
+      var el = document.getElementById('dept-members');
+      if (el) el.innerHTML = '<div class="empty-mini text-muted" style="padding:16px">Could not load team members.</div>';
+    });
   } catch(e) { showError(e.message); }
 }
 

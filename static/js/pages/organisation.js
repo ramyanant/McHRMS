@@ -362,37 +362,38 @@ function fieldItem(label, value, mono) {
 // ═══════════════════════════════════════════════════════════════
 function bindActions() {
   window.orgEditEmpId = function() {
-    openModal('Employee ID Format', '<div class="fg">'
-      + '<label class="flabel">Prefix <span style="color:var(--text-muted);font-size:11px">(e.g. ISPL, EMP-, HRM)</span></label>'
-      + '<input class="finput" id="eid-prefix" placeholder="ISPL" style="font-family:monospace;font-size:16px;letter-spacing:2px">'
-      + '</div><div class="fg" style="margin-top:12px">'
-      + '<label class="flabel">Starting Number <span style="color:var(--text-muted);font-size:11px">(new employees only)</span></label>'
-      + '<input class="finput" id="eid-start" type="number" min="1" placeholder="1001">'
-      + '</div>'
-      + '<div style="margin-top:12px;padding:10px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:6px;font-size:12px;color:#1e40af">'
-      + '⚠️ Changing the prefix only affects <strong>new</strong> employees. Existing employee IDs are not renamed automatically.'
-      + '</div>',
-      '<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>'
-      + '<button class="btn btn-primary" onclick="window._saveEmpId()">Save Format</button>'
-    );
-    // Pre-fill current values
-    get('/admin/settings/emp-id').then(function(s) {
-      document.getElementById('eid-prefix').value = s.emp_id_prefix || '';
-      document.getElementById('eid-start').value  = s.emp_id_start  || '1001';
-    }).catch(function() {});
-    window._saveEmpId = async function() {
-      var prefix = (document.getElementById('eid-prefix').value || '').trim();
-      var start  = (document.getElementById('eid-start').value  || '').trim();
-      if (!prefix) { toast('Prefix is required','error'); return; }
-      if (start && isNaN(parseInt(start))) { toast('Starting number must be a number','error'); return; }
-      try {
+    // openModal takes a SINGLE options object — calling it positionally
+    // (title, body, footer) made `title` undefined ("Undefined" in the
+    // header) and dropped the body entirely, so the form never rendered.
+    openModal({
+      title: 'Employee ID Format',
+      submitLabel: 'Save Format',
+      body: '<div class="fg">'
+        + '<label class="flabel">Prefix <span style="color:var(--text-muted);font-size:11px">(e.g. ISPL, EMP-, HRM)</span></label>'
+        + '<input class="finput" id="eid-prefix" placeholder="ISPL" style="font-family:monospace;font-size:16px;letter-spacing:2px">'
+        + '</div><div class="fg" style="margin-top:12px">'
+        + '<label class="flabel">Starting Number <span style="color:var(--text-muted);font-size:11px">(new employees only)</span></label>'
+        + '<input class="finput" id="eid-start" type="number" min="1" placeholder="1001">'
+        + '</div>'
+        + '<div style="margin-top:12px;padding:10px 12px;background:var(--blue-l);border:1px solid var(--blue);border-radius:6px;font-size:12px;color:#1e40af">'
+        + '⚠️ Changing the prefix only affects <strong>new</strong> employees. Existing employee IDs are not renamed automatically.'
+        + '</div>',
+      onSubmit: async function() {
+        var prefix = (document.getElementById('eid-prefix').value || '').trim();
+        var start  = (document.getElementById('eid-start').value  || '').trim();
+        if (!prefix) { toast('Prefix is required','error'); return false; }
+        if (start && isNaN(parseInt(start))) { toast('Starting number must be a number','error'); return false; }
         await put('/admin/settings/emp-id', { emp_id_prefix: prefix, emp_id_start: start || '1001' });
         toast('Employee ID format saved — next ID will be ' + prefix + (start||'1001'), 'success');
-        closeModal();
-        // Refresh the page to show updated preview
+        // Modal auto-closes on success; refresh to show the updated preview.
         setTimeout(function(){ navigateTo('/organisation/profile'); }, 400);
-      } catch(e) { toast(e.message || 'Failed','error'); }
-    };
+      }
+    });
+    // Pre-fill current values — body is rendered synchronously by openModal.
+    get('/admin/settings/emp-id').then(function(s) {
+      var p = document.getElementById('eid-prefix'); if (p) p.value = s.emp_id_prefix || '';
+      var st = document.getElementById('eid-start'); if (st) st.value = s.emp_id_start || '1001';
+    }).catch(function() {});
   };
 
   window.orgScrollTo = function(id) {
