@@ -130,8 +130,13 @@ def invoice_detail(iid):
             set_clause = ', '.join(f"{k}=%s" for k in updates)
             db_execute(f"UPDATE invoices SET {set_clause}, updated_at=NOW() WHERE id=%s",
                       list(updates.values()) + [iid])
-    # Handle general field updates
-    allowed = ['invoice_number','description','period_start','period_end',
+    # Invoice number is immutable after creation (audit / accounting
+    # integrity). Reject an attempt to change it, but allow resubmitting
+    # the same value (idempotent edits don't break).
+    if 'invoice_number' in d and str(d.get('invoice_number') or '') != str(inv.get('invoice_number') or ''):
+        return err("Invoice number cannot be changed after creation.", 400)
+    # Handle general field updates (invoice_number intentionally excluded)
+    allowed = ['description','period_start','period_end',
                'due_date','po_number','notes','invoice_file_data','invoice_file_name']
     gen_updates = {k: d[k] for k in allowed if k in d}
     if gen_updates:

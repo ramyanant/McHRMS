@@ -173,6 +173,15 @@ def project_detail(pid):
             db_execute(f"UPDATE projects SET {sc}, updated_at=NOW() WHERE id=%s", list(updates.values())+[pid])
         write_audit_log('projects','UPDATE','project',pid,f"Project updated: {proj['name']}")
         return ok(message="Updated")
+    # Guard: refuse to soft-delete a project that still has timesheets
+    # logged against it — would orphan time/financial records.
+    # Fail-open if the count query errors.
+    try:
+        n = db_row1("SELECT COUNT(*) AS n FROM timesheets WHERE project_id=%s", (pid,))['n']
+    except Exception:
+        n = 0
+    if n:
+        return err(f"Cannot delete: project has {n} timesheet(s) logged against it. Reassign them first.", 409)
     db_execute("UPDATE projects SET is_active=0, updated_at=NOW() WHERE id=%s", (pid,))
     return ok(message="Deleted")
 

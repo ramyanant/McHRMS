@@ -99,6 +99,14 @@ def vendor_detail(vid):
             db_execute(f"UPDATE vendors SET {set_clause}, updated_at=NOW() WHERE id=%s",
                       list(updates.values()) + [vid])
         return ok(message="Updated")
+    # Guard: refuse to soft-delete a vendor that still has active
+    # bills/expenses pointing at it. Fail-open if the count query errors.
+    try:
+        n = db_row1("SELECT COUNT(*) AS n FROM bills_expenses WHERE vendor_id=%s AND is_active=1", (vid,))['n']
+    except Exception:
+        n = 0
+    if n:
+        return err(f"Cannot delete: vendor has {n} active bill(s)/expense(s). Deactivate them first.", 409)
     db_execute("UPDATE vendors SET is_active=0, updated_at=NOW() WHERE id=%s", (vid,))
     return ok(message="Deleted")
 

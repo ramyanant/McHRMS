@@ -113,6 +113,15 @@ def client_detail(cid):
         write_audit_log('clients', 'UPDATE', 'client', cid, f"Client updated: {client['name']}")
         return ok(message="Updated")
 
+    # Guard: refuse to soft-delete a client that still has active invoices
+    # — would orphan financial records. Fail-open if the count query errors
+    # (e.g. invoices table shape differs) so we never turn a delete into a 500.
+    try:
+        n = db_row1("SELECT COUNT(*) AS n FROM invoices WHERE client_id=%s AND is_active=1", (cid,))['n']
+    except Exception:
+        n = 0
+    if n:
+        return err(f"Cannot delete: client has {n} active invoice(s). Deactivate or reassign them first.", 409)
     db_execute("UPDATE clients SET is_active=0, updated_at=NOW() WHERE id=%s", (cid,))
     return ok(message="Deleted")
 
