@@ -578,6 +578,7 @@ def create_onboarding():
         # These are also in __init__.py migrations — idempotent here as safety net
         for sql in [
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS start_date DATE",
+            "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS joining_date DATE",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS person_type TEXT DEFAULT 'employee'",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0",
             "ALTER TABLE onboarding ADD COLUMN IF NOT EXISTS buddy_name TEXT",
@@ -585,6 +586,7 @@ def create_onboarding():
             "ALTER TABLE onboarding ALTER COLUMN employee_id DROP NOT NULL",
             "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS category TEXT",
             "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS is_complete INTEGER DEFAULT 0",
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending'",
         ]:
             try: cur.execute(sql)
             except: pass

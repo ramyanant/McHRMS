@@ -585,6 +585,7 @@ def _run_migrations(app):
             # onboarding_tasks: schema missing category, is_complete, completed_at
             "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS category TEXT",
             "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS is_complete INTEGER DEFAULT 0",
+            "ALTER TABLE onboarding_tasks ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending'",
             # candidate_documents and job_documents: not in schema.sql at all
             # Created inline in routes — just ensure columns are consistent
             # timesheets: already has project_id FK (correct) — no migration needed
