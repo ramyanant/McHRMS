@@ -3,7 +3,7 @@
  * LinkedIn-style detail with Resources, Milestones, Timesheets, Documents
  */
 import { get, post, put } from '../api.js';
-import { renderDocsTab, docsTabHtml } from '../docs.js';
+import { renderDocsTab, docsTabHtml } from '../docs.js?v=20260521a';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
