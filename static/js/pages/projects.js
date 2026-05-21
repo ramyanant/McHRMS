@@ -4,6 +4,7 @@
  */
 import { get, post, put } from '../api.js';
 import { renderDocsTab, docsTabHtml } from '../docs.js?v=20260521a';
+import { logoUploaderHtml } from '../logoup.js?v=20260521g';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -310,6 +311,7 @@ export async function renderDetail({ id }) {
     setContent('<div class="detail-layout">'+
       sidebar()+
       '<div class="detail-main">'+
+        '<div class="card" style="padding:14px;margin-bottom:12px">'+logoUploaderHtml('projects', proj.id)+'</div>'+
         '<div class="tab-bar">'+tabs.map(t=>'<button class="tab'+(t===activeTab?' active':'')+'" onclick="window._projTab(\''+t+'\',this)">'+tabLabels[t]+'</button>').join('')+'</div>'+
         '<div id="proj-tab">'+tabContent(activeTab)+'</div>'+
       '</div>'+

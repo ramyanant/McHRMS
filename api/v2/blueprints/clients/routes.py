@@ -163,3 +163,27 @@ def client_document_detail(did):
         return ok(message="Deleted")
     doc = db_row1("SELECT * FROM client_documents WHERE id=%s", (did,))
     return ok(doc) if doc else not_found("Document")
+
+
+# -- Logo upload / serve (base64) --------------------------------
+@clients_bp.route('/clients/<int:cid>/logo', methods=['POST'])
+@require_auth
+def upload_clients_logo(cid):
+    d = request.get_json() or {}
+    if not d.get('file_data'):
+        return err("No file data provided")
+    db_execute("UPDATE clients SET logo_data=%s, logo_mime=%s WHERE id=%s",
+               (d['file_data'], d.get('mime_type', 'image/png'), cid))
+    return ok(message="Logo uploaded")
+
+@clients_bp.route('/clients/<int:cid>/logo', methods=['GET'])
+def get_clients_logo(cid):
+    from flask import make_response
+    import base64
+    row = db_row1("SELECT logo_data, logo_mime FROM clients WHERE id=%s", (cid,))
+    if not row or not row.get('logo_data'):
+        return err("No logo", 404)
+    resp = make_response(base64.b64decode(row['logo_data']))
+    resp.headers['Content-Type'] = row.get('logo_mime') or 'image/png'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp

@@ -2,6 +2,7 @@
  * Clients — Full LinkedIn-style, no backticks, row click → detail, inline edit, Documents tab
  */
 import { get, post, put } from '../api.js';
+import { logoUploaderHtml } from '../logoup.js?v=20260521g';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -195,6 +196,7 @@ function renderClientDetail(client, masters) {
   setContent(
     '<div class="detail-layout">'+sidebar()+
     '<div class="detail-main">'+
+      '<div class="card" style="padding:14px;margin-bottom:12px">'+logoUploaderHtml('clients', client.id)+'</div>'+
       '<div class="tab-bar">'+tabs.map(t=>'<button class="tab'+(t===activeTab?' active':'')+'" onclick="window._cTab(\''+t+'\',this)">'+tabLabels[t]+'</button>').join('')+'</div>'+
       '<div id="client-tab">'+tabContent(activeTab)+'</div>'+
     '</div></div>'

@@ -283,3 +283,27 @@ def project_doc_detail(did):
         db_execute("UPDATE project_documents SET is_active=0 WHERE id=%s",(did,)); return ok(message="Deleted")
     doc = db_row1("SELECT * FROM project_documents WHERE id=%s",(did,))
     return ok(doc) if doc else not_found("Document")
+
+
+# -- Logo upload / serve (base64) --------------------------------
+@projects_bp.route('/projects/<int:pid>/logo', methods=['POST'])
+@require_auth
+def upload_projects_logo(pid):
+    d = request.get_json() or {}
+    if not d.get('file_data'):
+        return err("No file data provided")
+    db_execute("UPDATE projects SET logo_data=%s, logo_mime=%s WHERE id=%s",
+               (d['file_data'], d.get('mime_type', 'image/png'), pid))
+    return ok(message="Logo uploaded")
+
+@projects_bp.route('/projects/<int:pid>/logo', methods=['GET'])
+def get_projects_logo(pid):
+    from flask import make_response
+    import base64
+    row = db_row1("SELECT logo_data, logo_mime FROM projects WHERE id=%s", (pid,))
+    if not row or not row.get('logo_data'):
+        return err("No logo", 404)
+    resp = make_response(base64.b64decode(row['logo_data']))
+    resp.headers['Content-Type'] = row.get('logo_mime') or 'image/png'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp

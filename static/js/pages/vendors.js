@@ -3,6 +3,7 @@
  */
 import { get, post, put } from '../api.js';
 import { renderDocsTab, docsTabHtml } from '../docs.js?v=20260521a';
+import { logoUploaderHtml } from '../logoup.js?v=20260521g';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -217,6 +218,7 @@ function renderVendorDetail(vendor, masters) {
       '</div>'+
     '</div></div>'+
     '<div class="detail-main">'+
+      '<div class="card" style="padding:14px;margin-bottom:12px">'+logoUploaderHtml('vendors', vendor.id)+'</div>'+
       '<div class="tab-bar">'+tabs.map(t=>'<button class="tab'+(t===activeTab?' active':'')+'" onclick="window._vTab(\''+t+'\',this)">'+tabLabels[t]+'</button>').join('')+'</div>'+
       '<div id="vendor-tab">'+tabContent(activeTab)+'</div>'+
     '</div></div>'

@@ -155,3 +155,26 @@ def vendor_doc_detail(did):
 def lookup_vendors():
     return ok(db_rows("SELECT id, name FROM vendors WHERE is_active=1 ORDER BY name"))
 
+
+# -- Logo upload / serve (base64) --------------------------------
+@vendors_bp.route('/vendors/<int:vid>/logo', methods=['POST'])
+@require_auth
+def upload_vendors_logo(vid):
+    d = request.get_json() or {}
+    if not d.get('file_data'):
+        return err("No file data provided")
+    db_execute("UPDATE vendors SET logo_data=%s, logo_mime=%s WHERE id=%s",
+               (d['file_data'], d.get('mime_type', 'image/png'), vid))
+    return ok(message="Logo uploaded")
+
+@vendors_bp.route('/vendors/<int:vid>/logo', methods=['GET'])
+def get_vendors_logo(vid):
+    from flask import make_response
+    import base64
+    row = db_row1("SELECT logo_data, logo_mime FROM vendors WHERE id=%s", (vid,))
+    if not row or not row.get('logo_data'):
+        return err("No logo", 404)
+    resp = make_response(base64.b64decode(row['logo_data']))
+    resp.headers['Content-Type'] = row.get('logo_mime') or 'image/png'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp

@@ -550,6 +550,13 @@ def _run_migrations(app):
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS linkedin_url TEXT",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS resume_url TEXT",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS skills TEXT",
+            # Logo storage (base64) for clients / vendors / projects
+            "ALTER TABLE clients  ADD COLUMN IF NOT EXISTS logo_data TEXT",
+            "ALTER TABLE clients  ADD COLUMN IF NOT EXISTS logo_mime TEXT",
+            "ALTER TABLE vendors  ADD COLUMN IF NOT EXISTS logo_data TEXT",
+            "ALTER TABLE vendors  ADD COLUMN IF NOT EXISTS logo_mime TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS logo_data TEXT",
+            "ALTER TABLE projects ADD COLUMN IF NOT EXISTS logo_mime TEXT",
             # candidates: schema has current_designation/total_experience, code uses current_title/years_exp
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS current_title TEXT",
             "ALTER TABLE candidates ADD COLUMN IF NOT EXISTS middle_name TEXT",
