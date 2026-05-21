@@ -2,7 +2,7 @@
  * Clients — Full LinkedIn-style, no backticks, row click → detail, inline edit, Documents tab
  */
 import { get, post, put } from '../api.js';
-import { logoUploaderHtml } from '../logoup.js?v=20260521j';
+import { logoUploaderHtml } from '../logoup.js?v=20260521k';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -54,7 +54,9 @@ export async function renderList() {
         d.map(c=>
           '<tr class="tbl-clickable" onclick="navigateTo(\'/clients/'+c.id+'\')">' +
           '<td><div class="cell-person">'+
-            '<div class="av av-sm av-blue">'+fmt.ini(c.name)+'</div>'+
+            (c.has_logo
+              ? '<img class="av av-sm" src="/api/v2/clients/'+c.id+'/logo" alt="" style="object-fit:contain;background:#fff" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-sm av-blue&quot;>'+fmt.ini(c.name)+'</div>\'">'
+              : '<div class="av av-sm av-blue">'+fmt.ini(c.name)+'</div>')+
             '<div><div class="cell-name">'+v(c.name)+'</div>'+
             '<div class="cell-sub mono">'+v(c.gstin||c.city||'')+'</div></div>'+
           '</div></td>'+
@@ -145,7 +147,7 @@ function renderClientDetail(client, masters) {
   function sidebar() {
     return '<div class="detail-sidebar"><div class="card">'+
       '<div class="profile-hero" style="background:linear-gradient(135deg,#1d4ed8,#1e40af)">'+
-        '<div class="av av-xl av-blue" style="margin:0 auto 10px">'+fmt.ini(client.name)+'</div>'+
+        '<img src="/api/v2/clients/'+client.id+'/logo" alt="" style="width:72px;height:72px;border-radius:14px;object-fit:contain;background:#fff;margin:0 auto 10px;display:block;padding:6px;box-sizing:border-box" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl av-blue&quot; style=&quot;margin:0 auto 10px&quot;>'+fmt.ini(client.name)+'</div>\'">'+
         '<div class="profile-name">'+v(client.name)+'</div>'+
         '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(client.industry||'Client')+'</div>'+
         '<div style="margin-top:8px">'+badge(client.status||'Active')+'</div>'+

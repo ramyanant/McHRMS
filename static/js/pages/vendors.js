@@ -3,7 +3,7 @@
  */
 import { get, post, put } from '../api.js';
 import { renderDocsTab, docsTabHtml } from '../docs.js?v=20260521a';
-import { logoUploaderHtml } from '../logoup.js?v=20260521j';
+import { logoUploaderHtml } from '../logoup.js?v=20260521k';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
@@ -55,7 +55,9 @@ export async function renderList() {
         d.map(ven=>
           '<tr class="tbl-clickable" onclick="navigateTo(\'/vendors/'+ven.id+'\')">' +
           '<td><div class="cell-person">'+
-            '<div class="av av-sm av-purple">'+fmt.ini(ven.name)+'</div>'+
+            (ven.has_logo
+              ? '<img class="av av-sm" src="/api/v2/vendors/'+ven.id+'/logo" alt="" style="object-fit:contain;background:#fff" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-sm av-purple&quot;>'+fmt.ini(ven.name)+'</div>\'">'
+              : '<div class="av av-sm av-purple">'+fmt.ini(ven.name)+'</div>')+
             '<div><div class="cell-name">'+v(ven.name)+'</div>'+
             '<div class="cell-sub mono">'+v(ven.gstin||ven.pan||'')+'</div></div>'+
           '</div></td>'+
@@ -200,7 +202,7 @@ function renderVendorDetail(vendor, masters) {
     '<div class="detail-layout">'+
     '<div class="detail-sidebar"><div class="card">'+
       '<div class="profile-hero" style="background:linear-gradient(135deg,#7c3aed,#5b21b6)">'+
-        '<div class="av av-xl av-purple" style="margin:0 auto 10px">'+fmt.ini(vendor.name)+'</div>'+
+        '<img src="/api/v2/vendors/'+vendor.id+'/logo" alt="" style="width:72px;height:72px;border-radius:14px;object-fit:contain;background:#fff;margin:0 auto 10px;display:block;padding:6px;box-sizing:border-box" onerror="this.onerror=null;this.outerHTML=\'<div class=&quot;av av-xl av-purple&quot; style=&quot;margin:0 auto 10px&quot;>'+fmt.ini(vendor.name)+'</div>\'">'+
         '<div class="profile-name">'+v(vendor.name)+'</div>'+
         '<div class="profile-title" style="color:rgba(255,255,255,.75)">'+v(vendor.category_name||'Vendor')+'</div>'+
         '<div style="margin-top:8px">'+badge(vendor.status||'Active')+'</div>'+
@@ -210,6 +212,7 @@ function renderVendorDetail(vendor, masters) {
         '<div class="meta-row"><span>Email</span><strong>'+v(vendor.contact_email,'—')+'</strong></div>'+
         '<div class="meta-row"><span>Phone</span><strong>'+v(vendor.contact_phone,'—')+'</strong></div>'+
         '<div class="meta-row"><span>GSTIN</span><strong class="mono">'+v(vendor.gstin,'—')+'</strong></div>'+
+        (vendor.account_manager_name?'<div class="meta-row"><span>Account Manager</span><strong><span style="display:inline-flex;align-items:center;gap:6px;vertical-align:middle">'+fmt.avatar(vendor.account_manager_name, vendor.account_manager_photo_url, 'av-xs')+v(vendor.account_manager_name)+'</span></strong></div>':'')+
         '<div class="meta-row"><span>SLA Score</span><strong>'+(vendor.sla_score||90)+'%</strong></div>'+
       '</div>'+
       '<div style="padding:0 16px 16px;display:flex;flex-direction:column;gap:8px">'+

@@ -32,6 +32,7 @@ def list_clients():
     rows   = db_rows(f"""SELECT c.id, c.name, c.industry, c.status, c.rating,
         c.contact_email, c.contact_phone, c.city, c.gstin, c.pan, c.is_active,
         c.health_score, c.account_manager_id,
+        (c.logo_data IS NOT NULL) as has_logo,
         e.first_name||' '||e.last_name as account_manager_name,
         e.photo_url as account_manager_photo_url,
         ct.name as contract_type,

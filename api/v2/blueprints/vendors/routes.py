@@ -29,7 +29,8 @@ def list_vendors():
         params += [f'%{search}%'] * 3
     clause = " AND ".join(where)
     total  = db_row1(f"SELECT COUNT(*) as n FROM vendors v WHERE {clause}", params)['n']
-    rows   = db_rows(f"""SELECT v.*, vc.name as category_name FROM vendors v
+    rows   = db_rows(f"""SELECT v.*, vc.name as category_name,
+        (v.logo_data IS NOT NULL) as has_logo FROM vendors v
         LEFT JOIN master_vendor_categories vc ON vc.id=v.category_id
         WHERE {clause} ORDER BY v.name LIMIT %s OFFSET %s""",
         params + [per_page, (page-1)*per_page])
@@ -80,9 +81,11 @@ def vendor_detail(vid):
         LEFT JOIN master_vendor_categories vc ON vc.id=v.category_id
         WHERE v.id=%s""", (vid,))
     if vendor and vendor.get('account_manager_id'):
-        am = db_row1("SELECT first_name||' '||last_name as name FROM employees WHERE id=%s",
+        am = db_row1("SELECT first_name||' '||last_name as name, photo_url FROM employees WHERE id=%s",
                      (vendor['account_manager_id'],))
-        if am: vendor['account_manager_name'] = am['name']
+        if am:
+            vendor['account_manager_name'] = am['name']
+            vendor['account_manager_photo_url'] = am.get('photo_url')
     if not vendor: return not_found("Vendor")
     if request.method == 'GET':
         vendor['documents'] = db_rows("SELECT id, doc_type, doc_name, file_size, mime_type, file_data, notes, uploaded_at FROM vendor_documents WHERE vendor_id=%s", (vid,))
