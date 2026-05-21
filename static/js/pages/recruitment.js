@@ -15,6 +15,17 @@ function opts(arr,sel,vk,lk){return arr.map(item=>{const val=typeof item==='stri
 function fg(label,input,hint){return '<div class="fg"><label class="flabel">'+label+'</label>'+input+(hint?'<div class="field-hint">'+hint+'</div>':'')+'</div>';}
 function fi(label,name,val,type,ph,extra){return fg(label,'<input class="finput" type="'+(type||'text')+'" name="'+name+'" value="'+v(val)+'"'+(ph?' placeholder="'+ph+'"':'')+(extra||'')+'>');}
 function fsl(label,name,options,selected){return fg(label,'<select class="fselect" name="'+name+'"><option value="">Select…</option>'+opts(options,selected)+'</select>');}
+// Shared pager bar for the recruitment sub-pages (interviews/offers/
+// onboarding/pipeline) which previously rendered all rows unpaginated.
+function pgBarHtml(page, pages, total, label, fn) {
+  if (pages <= 1) return '';
+  var b = [];
+  if (page > 1) b.push('<button class="pg-btn" onclick="window.'+fn+'('+(page-1)+')">‹</button>');
+  for (var p = Math.max(1, page-2); p <= Math.min(pages, page+2); p++)
+    b.push('<button class="pg-btn'+(p===page?' active':'')+'" onclick="window.'+fn+'('+p+')">'+p+'</button>');
+  if (page < pages) b.push('<button class="pg-btn" onclick="window.'+fn+'('+(page+1)+')">›</button>');
+  return '<div class="pg-bar">'+b.join('')+'<span class="pg-info"> '+total+' '+label+'</span></div>';
+}
 
 const WORK_MODES   = ['On-Site','Hybrid','Remote','Flexible'];
 const JOB_TYPES    = ['Permanent','Contract','Contract to Hire','Temporary','Internship','Freelance'];
@@ -905,7 +916,7 @@ export async function renderInterviews() {
     const rows = data.items || data || [];
 
     let q = '', filterStatus = '', filterClient = '';
-    let sortCol = 'scheduled_at', sortDir = -1;
+    let sortCol = 'scheduled_at', sortDir = -1, ivPage = 1; const IV_PER = 25;
 
     const statuses = [...new Set(rows.map(r => r.status).filter(Boolean))];
     const clients  = [...new Set(rows.map(r => r.client_name).filter(Boolean))];
@@ -926,8 +937,10 @@ export async function renderInterviews() {
     }
 
     function renderTable() {
-      const d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">🎙</div><div class="empty-title">No interviews scheduled</div></div>';
+      const all = getF(), total = all.length, pages = Math.max(1, Math.ceil(total/IV_PER));
+      ivPage = Math.min(Math.max(1, ivPage), pages);
+      const d = all.slice((ivPage-1)*IV_PER, ivPage*IV_PER);
+      if (!total) return '<div class="empty-state"><div class="empty-icon">🎙</div><div class="empty-title">No interviews scheduled</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('candidate_name','Candidate') +
         thSort('job_title','Position') +
@@ -948,7 +961,7 @@ export async function renderInterviews() {
         '<td>' + badge(i.status || 'Scheduled') + '</td>' +
         '<td class="tbl-actions"><button class="btn btn-ghost btn-xs" onclick="window._updateIV(' + i.id + ')">Update</button></td>' +
       '</tr>').join('') +
-      '</tbody></table></div></div>';
+      '</tbody></table></div>' + pgBarHtml(ivPage, pages, total, 'interviews', '_ivPg') + '</div>';
     }
 
     setContent(
@@ -973,6 +986,7 @@ export async function renderInterviews() {
     window._ivStat   = val => { filterStatus = val; document.getElementById('iv-content').innerHTML = renderTable(); };
     window._ivClient = val => { filterClient = val; document.getElementById('iv-content').innerHTML = renderTable(); };
     window._ivSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('iv-content').innerHTML = renderTable(); };
+    window._ivPg     = p => { ivPage = p; document.getElementById('iv-content').innerHTML = renderTable(); };
 
     window._schedGeneral = () => scheduleInterviewModal(null, '', null);
     window._updateIV = (id) => {
@@ -1033,10 +1047,13 @@ export async function renderOffers() {
       const arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._ofSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
+    let ofPage = 1; const OF_PER = 25;
 
     function renderTable() {
-      const d = getF();
-      if (!d.length) return '<div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">No offers yet</div></div>';
+      const all = getF(), total = all.length, pages = Math.max(1, Math.ceil(total/OF_PER));
+      ofPage = Math.min(Math.max(1, ofPage), pages);
+      const d = all.slice((ofPage-1)*OF_PER, ofPage*OF_PER);
+      if (!total) return '<div class="empty-state"><div class="empty-icon">📨</div><div class="empty-title">No offers yet</div></div>';
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
         thSort('candidate_name','Candidate') +
         thSort('job_title','Position') +
@@ -1056,7 +1073,7 @@ export async function renderOffers() {
         '<td class="tbl-actions">' +
           '<button class="btn btn-ghost btn-xs" onclick="window._updateOffer(' + o.id + ')">Update</button>' +
         '</td></tr>'
-      ).join('') + '</tbody></table></div></div>';
+      ).join('') + '</tbody></table></div>' + pgBarHtml(ofPage, pages, total, 'offers', '_ofPg') + '</div>';
     }
 
     setContent(
@@ -1078,6 +1095,7 @@ export async function renderOffers() {
     );
 
     window._ofQ      = val => { q = val; document.getElementById('of-content').innerHTML = renderTable(); };
+    window._ofPg     = p => { ofPage = p; document.getElementById('of-content').innerHTML = renderTable(); };
     window._ofStat   = val => { filterStatus = val; document.getElementById('of-content').innerHTML = renderTable(); };
     window._ofClient = val => { filterClient = val; document.getElementById('of-content').innerHTML = renderTable(); };
     window._ofSort   = col => { sortCol === col ? sortDir *= -1 : (sortCol = col, sortDir = 1); document.getElementById('of-content').innerHTML = renderTable(); };
@@ -1183,7 +1201,7 @@ export async function renderOnboarding() {
   try {
     const res  = await get('/onboarding');
     const rows = Array.isArray(res) ? res : (res.items || []);
-    let q='', filterStatus='', obSort='start_date', obDir=-1;
+    let q='', filterStatus='', obSort='start_date', obDir=-1, obPage=1; const OB_PER=25;
 
     function getOb() {
       let d=[...rows];
@@ -1194,9 +1212,10 @@ export async function renderOnboarding() {
     function thOb(col,label){const arr=obSort===col?(obDir===1?' ↑':' ↓'):'';return '<th class="sortable" onclick="window._obSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
 
     function renderOb() {
-      const d=getOb();
-      const statuses=[...new Set(rows.map(r=>r.status).filter(Boolean))];
-      document.getElementById('ob-content').innerHTML = d.length
+      const allOb=getOb(), total=allOb.length, pages=Math.max(1,Math.ceil(total/OB_PER));
+      obPage=Math.min(Math.max(1,obPage),pages);
+      const d=allOb.slice((obPage-1)*OB_PER, obPage*OB_PER);
+      document.getElementById('ob-content').innerHTML = total
         ? '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
             thOb('employee_name','Person')+thOb('person_type','Type')+thOb('start_date','Start Date')+
             thOb('status','Status')+'<th>IT</th><th>HR</th><th>Mgr</th><th>Actions</th>'+
@@ -1213,7 +1232,7 @@ export async function renderOnboarding() {
               '<button class="btn btn-ghost btn-xs" onclick="navigateTo(\'/onboarding/'+o.id+'\')">View</button>'+
               '<button class="btn btn-danger btn-xs" onclick="window._delOb('+o.id+')">Delete</button>'+
             '</td></tr>'
-          ).join('')+'</tbody></table></div></div>'
+          ).join('')+'</tbody></table></div>'+pgBarHtml(obPage,pages,total,'onboarding','_obPg')+'</div>'
         : '<div class="empty-state"><div class="empty-icon">🚀</div><div class="empty-title">No onboarding in progress</div></div>';
     }
 
@@ -1234,6 +1253,7 @@ export async function renderOnboarding() {
     window._obQ      = val=>{q=val;renderOb();};
     window._obStatus = val=>{filterStatus=val;renderOb();};
     window._obSort   = col=>{obSort===col?obDir*=-1:(obSort=col,obDir=1);renderOb();};
+    window._obPg     = p=>{obPage=p;renderOb();};
     window._delOb    = async id=>{if(!confirm('Remove this onboarding record?'))return;await put('/onboarding/'+id,{status:'Cancelled'});toast('Removed','info');rows.splice(rows.findIndex(r=>r.id===id),1);renderOb();};
     window._startOnboarding = () => { try {
       openModal({
