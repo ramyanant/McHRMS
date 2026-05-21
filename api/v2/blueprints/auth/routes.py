@@ -117,8 +117,11 @@ def login():
 
     # Employee info
     emp = None
+    photo_url = None
     if user['employee_id']:
-        emp = db_row1("SELECT emp_id, reporting_manager_id FROM employees WHERE id=%s", (user['employee_id'],))
+        emp = db_row1("SELECT emp_id, reporting_manager_id, photo_url FROM employees WHERE id=%s", (user['employee_id'],))
+        if emp:
+            photo_url = emp.get('photo_url')
 
     write_audit_log('auth', 'LOGIN', 'user', user['id'], f"Login: {username}")
 
@@ -134,6 +137,7 @@ def login():
             "employee_id":    user['employee_id'],
             "must_change_pwd": bool(user.get('must_change_pwd')),
             "emp":            emp,
+            "photo_url":      photo_url,
         }
     })
 

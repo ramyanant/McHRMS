@@ -2,7 +2,7 @@
  * Clients — Full LinkedIn-style, no backticks, row click → detail, inline edit, Documents tab
  */
 import { get, post, put } from '../api.js';
-import { logoUploaderHtml } from '../logoup.js?v=20260521k';
+import { logoUploaderHtml } from '../logoup.js?v=20260521l';
 import { setPageTitle, setBreadcrumb, setContent, showLoader, showError,
          openModal, toast, badge, fmt } from '../ui.js';
 import { navigate } from '../router.js';
