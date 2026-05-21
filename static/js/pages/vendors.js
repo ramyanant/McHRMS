@@ -43,12 +43,12 @@ export async function renderList() {
       if(!total){document.getElementById('vendors-content').innerHTML='<div class="empty-state"><div class="empty-icon">🏭</div><div class="empty-title">No vendors found</div></div>';return;}
       document.getElementById('vendors-content').innerHTML =
         '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-          '<th class="sortable" onclick="window._vSort(\'name\')">Vendor ⇅</th>'+
-          '<th class="sortable" onclick="window._vSort(\'category_name\')">Category ⇅</th>'+
+          '<th class="sortable" onclick="window._vSort(\'name\')">Vendor <span class="sort-icon">'+(sortCol==='name'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
+          '<th class="sortable" onclick="window._vSort(\'category_name\')">Category <span class="sort-icon">'+(sortCol==='category_name'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>Contact</th>'+
-          '<th class="sortable" onclick="window._vSort(\'city\')">City ⇅</th>'+
+          '<th class="sortable" onclick="window._vSort(\'city\')">City <span class="sort-icon">'+(sortCol==='city'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>SLA Score</th>'+
-          '<th class="sortable" onclick="window._vSort(\'status\')">Status ⇅</th>'+
+          '<th class="sortable" onclick="window._vSort(\'status\')">Status <span class="sort-icon">'+(sortCol==='status'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>Actions</th>'+
         '</tr></thead><tbody>'+
         d.map(ven=>

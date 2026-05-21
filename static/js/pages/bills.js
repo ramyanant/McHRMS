@@ -68,7 +68,7 @@ export async function renderList() {
       } else {
         tableHTML = '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>' +
           (function(){
-            function th(col,label){var arr=billSort===col?(billDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._billSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+            function th(col,label){var arr=billSort===col?(billDir===1?' ↑':' ↓'):'';return '<th class="sortable" onclick="window._billSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
             return th('expense_type','Type')+th('bill_number','Bill #')+th('description','Description')+th('vendor_name','Vendor')+th('expense_date','Date')+th('total_amount','Amount')+th('status','Status')+'<th>Actions</th>';
           })() +
           '</tr></thead><tbody>' +

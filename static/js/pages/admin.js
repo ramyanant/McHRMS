@@ -30,7 +30,7 @@ export async function renderUsers() {
       if(uQ) d=d.filter(r=>(r.full_name+' '+r.username+' '+r.email+' '+(r.role||'')).toLowerCase().includes(uQ.toLowerCase()));
       return d.slice().sort((a,b)=>String(a[uSortCol]||'').localeCompare(String(b[uSortCol]||''))*uSortDir);
     }
-    function thU(col,label){const arr=uSortCol===col?(uSortDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._uSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+    function thU(col,label){const arr=uSortCol===col?(uSortDir===1?' ↑':' ↓'):'';return '<th class="sortable" onclick="window._uSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
     function renderU() {
       const all=getU(), total=all.length, pages=Math.max(1,Math.ceil(total/U_PER));
       uPage=Math.min(Math.max(1,uPage),pages);

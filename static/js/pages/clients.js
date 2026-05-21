@@ -42,12 +42,12 @@ export async function renderList() {
       let pgBar=''; if(pages>1){let bts=[];if(cliPage>1)bts.push('<button class="pg-btn" onclick="window._cliPg('+(cliPage-1)+')">‹</button>');for(let p=Math.max(1,cliPage-2);p<=Math.min(pages,cliPage+2);p++)bts.push('<button class="pg-btn'+(p===cliPage?' active':'')+'" onclick="window._cliPg('+p+')">'+p+'</button>');if(cliPage<pages)bts.push('<button class="pg-btn" onclick="window._cliPg('+(cliPage+1)+')">›</button>');pgBar='<div class="pg-bar">'+bts.join('')+'<span class="pg-info"> '+total+' clients</span></div>';}
       document.getElementById('clients-content').innerHTML =
         '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
-          '<th class="sortable" onclick="window._cSort(\'name\')">Client ⇅</th>'+
-          '<th class="sortable" onclick="window._cSort(\'industry\')">Industry ⇅</th>'+
+          '<th class="sortable" onclick="window._cSort(\'name\')">Client <span class="sort-icon">'+(sortCol==='name'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
+          '<th class="sortable" onclick="window._cSort(\'industry\')">Industry <span class="sort-icon">'+(sortCol==='industry'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>Contact</th>'+
-          '<th class="sortable" onclick="window._cSort(\'account_manager_name\')">Account Manager ⇅</th>'+
+          '<th class="sortable" onclick="window._cSort(\'account_manager_name\')">Account Manager <span class="sort-icon">'+(sortCol==='account_manager_name'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>Health</th>'+
-          '<th class="sortable" onclick="window._cSort(\'status\')">Status ⇅</th>'+
+          '<th class="sortable" onclick="window._cSort(\'status\')">Status <span class="sort-icon">'+(sortCol==='status'?(sortDir===1?'↑':'↓'):'')+'</span></th>'+
           '<th>Actions</th>'+
         '</tr></thead><tbody>'+
         d.map(c=>

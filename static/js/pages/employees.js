@@ -43,7 +43,7 @@ export async function renderList() {
       return '<div class="card"><div class="tbl-wrap"><table class="data-table"><thead><tr>'+
         ['Name','Emp ID','Job Title','Department','Type','Status','Actions'].map((l,i)=>{
           const keys=['first_name','emp_id','job_title','department_name','employment_type','status'];
-          return '<th class="sortable" onclick="window._empSort(\''+keys[i]+'\')">'+(keys[i]?l+' <span id="esort-'+keys[i]+'">⇅</span>':l)+'</th>';
+          return '<th class="sortable" onclick="window._empSort(\''+keys[i]+'\')">'+(keys[i]?l+' <span class="sort-icon">'+(sortCol===keys[i]?(sortDir===1?'↑':'↓'):'')+'</span>':l)+'</th>';
         }).join('')+
         '</tr></thead><tbody>'+
         d.map(e=>'<tr class="tbl-clickable" onclick="navigateTo(\'/employees/'+e.id+'\')">' +

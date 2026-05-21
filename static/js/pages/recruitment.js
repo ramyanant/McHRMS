@@ -103,7 +103,7 @@ export async function renderJobs() {
       return sorted(d);
     }
     function thSort(col, label) {
-      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      const arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._jSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
 
@@ -455,7 +455,7 @@ export async function renderCandidates() {
     }
 
     function thSort(col, label) {
-      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      const arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._cSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
 
@@ -919,7 +919,7 @@ export async function renderInterviews() {
       return sorted(d);
     }
     function thSort(col, label) {
-      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      const arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._ivSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
 
@@ -1028,7 +1028,7 @@ export async function renderOffers() {
       return sorted(d);
     }
     function thSort(col, label) {
-      const arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      const arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._ofSort(&apos;' + col + '&apos;)" style="cursor:pointer">' + label + arr + '</th>';
     }
 
@@ -1189,7 +1189,7 @@ export async function renderOnboarding() {
       if(filterStatus) d=d.filter(r=>r.status===filterStatus);
       return d.slice().sort((a,b)=>String(a[obSort]||'').localeCompare(String(b[obSort]||''))*obDir);
     }
-    function thOb(col,label){const arr=obSort===col?(obDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._obSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+    function thOb(col,label){const arr=obSort===col?(obDir===1?' ↑':' ↓'):'';return '<th class="sortable" onclick="window._obSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
 
     function renderOb() {
       const d=getOb();

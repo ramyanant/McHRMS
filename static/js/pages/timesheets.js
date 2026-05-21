@@ -48,7 +48,7 @@ export async function renderList() {
     }
 
     function thSort(col, label) {
-      var arrow = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      var arrow = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._tsSort(\'' + col + '\')" style="cursor:pointer">' + label + arrow + '</th>';
     }
 
@@ -148,11 +148,11 @@ export async function renderApproval() {
     }
 
     function thTs(col, label) {
-      var arr = tsSortCol === col ? (tsSortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      var arr = tsSortCol === col ? (tsSortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._tqSort(\'' + col + '\')" style="cursor:pointer">' + label + arr + '</th>';
     }
     function thLv(col, label) {
-      var arr = lvSortCol === col ? (lvSortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      var arr = lvSortCol === col ? (lvSortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._lqSort(\'' + col + '\')" style="cursor:pointer">' + label + arr + '</th>';
     }
 

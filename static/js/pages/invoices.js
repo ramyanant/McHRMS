@@ -53,7 +53,7 @@ export async function renderList() {
       return sorted(d);
     }
     function thSort(col, label) {
-      var arr = sortCol === col ? (sortDir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+      var arr = sortCol === col ? (sortDir === 1 ? ' ↑' : ' ↓') : '';
       return '<th class="sortable" onclick="window._invSort(\'' + col + '\')" style="cursor:pointer">' + label + arr + '</th>';
     }
 

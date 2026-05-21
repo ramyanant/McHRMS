@@ -34,7 +34,7 @@ export async function renderList() {
       return d.slice().sort((a,b)=>String(a[projSort]||'').localeCompare(String(b[projSort]||''))*projDir);
     }
 
-    function thP(col,label){const arr=projSort===col?(projDir===1?' ▲':' ▼'):' ⇅';return '<th class="sortable" onclick="window._projSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
+    function thP(col,label){const arr=projSort===col?(projDir===1?' ↑':' ↓'):'';return '<th class="sortable" onclick="window._projSort(\''+col+'\')" style="cursor:pointer">'+label+arr+'</th>';}
 
     function render() {
       const all=getF(), total=all.length;
