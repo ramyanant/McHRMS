@@ -773,8 +773,9 @@ label.flabel,
   font-size: 10px; transition: transform .2s;
   color: rgba(255,255,255,.4);
 }
-.nav-section-arrow::before { content: '▾'; }
-.nav-section-collapsed .nav-section-arrow::before { content: '▸'; }
+/* The arrow glyph is set dynamically in app.js (buildSidebar / toggle).
+   The ::before content rule below was ADDING a second arrow on top of
+   the JS one — removed so only a single arrow shows. */
 .nav-section-items {
   overflow: hidden;
   transition: max-height .22s ease, opacity .18s ease;
